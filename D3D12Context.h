@@ -17,6 +17,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
+
+struct ImGui_ImplDX12_InitInfo;
 
 struct RenderingStats
 {
@@ -34,7 +37,7 @@ class D3D12Context final
 {
 public:
     D3D12Context() = default;
-    ~D3D12Context() = default;
+    ~D3D12Context();
 
     D3D12Context(const D3D12Context&) = delete;
     D3D12Context& operator=(const D3D12Context&) = delete;
@@ -70,11 +73,24 @@ private:
     static constexpr UINT AlignedLightingConstantBufferSize =
         (static_cast<UINT>(sizeof(LightingConstantBufferData)) + ConstantBufferAlignment - 1) &
         ~(ConstantBufferAlignment - 1);
+    static constexpr UINT ImGuiDescriptorCount = 16;
 
     bool CreateCubeMesh();
     bool CreateTexture();
     bool CreateConstantBuffer(UINT width, UINT height);
     bool CreateLightingConstantBuffer();
+    bool InitializeImGui();
+    void ShutdownImGui();
+    void BeginImGuiFrame();
+    void DrawEditorUI();
+    static void AllocateImGuiDescriptor(
+        ImGui_ImplDX12_InitInfo* information,
+        D3D12_CPU_DESCRIPTOR_HANDLE* cpuHandle,
+        D3D12_GPU_DESCRIPTOR_HANDLE* gpuHandle);
+    static void FreeImGuiDescriptor(
+        ImGui_ImplDX12_InitInfo* information,
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
+        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
     void UpdateObjectConstantBuffer(
         UINT frameIndex,
         std::size_t objectIndex,
@@ -98,6 +114,12 @@ private:
     // ResourceManager는 공유 Texture의 수명을 소유하고 SRV Heap은 Shader Binding을 담당합니다.
     ResourceManager resourceManager_;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
+
+    // Scene SRV Heap과 분리된 Editor 전용 Shader Visible Heap입니다.
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> imguiDescriptorHeap_;
+    std::vector<UINT> imguiFreeDescriptorIndices_;
+    UINT imguiDescriptorSize_ = 0;
+    bool imguiInitialized_ = false;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;

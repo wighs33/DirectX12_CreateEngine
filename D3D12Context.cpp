@@ -1,11 +1,21 @@
 #include "D3D12Context.h"
 #include "Input.h"
 
+#include "imgui.h"
+#include "imgui_impl_dx12.h"
+#include "imgui_impl_win32.h"
+
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cwchar>
 #include <cstring>
 #include <utility>
+
+D3D12Context::~D3D12Context()
+{
+    ShutdownImGui();
+}
 
 bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
 {
@@ -75,6 +85,8 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
         return false;
     if (!CreateLightingConstantBuffer())
         return false;
+    if (!InitializeImGui())
+        return false;
 
     return true;
 }
@@ -84,26 +96,34 @@ void D3D12Context::Update(float deltaTime)
     constexpr float cameraSpeed = 3.0f;
     constexpr float mouseSensitivity = 0.002f;
 
+    BeginImGuiFrame();
     UpdateRenderingStatistics(deltaTime);
 
     Input::Update(window_);
+    const ImGuiIO& io = ImGui::GetIO();
 
     // Mouse Delta는 이미 한 Frame 동안 이동한 Pixel 양이므로 DeltaTime을 곱하지 않습니다.
-    const MouseDelta mouseDelta = Input::GetMouseDelta();
-    camera_.Rotate(
-        static_cast<float>(mouseDelta.x) * mouseSensitivity,
-        static_cast<float>(-mouseDelta.y) * mouseSensitivity);
+    if (!io.WantCaptureMouse)
+    {
+        const MouseDelta mouseDelta = Input::GetMouseDelta();
+        camera_.Rotate(
+            static_cast<float>(mouseDelta.x) * mouseSensitivity,
+            static_cast<float>(-mouseDelta.y) * mouseSensitivity);
+    }
 
     const float movementDistance = cameraSpeed * deltaTime;
 
-    if (Input::IsKeyDown('W'))
-        camera_.MoveForward(movementDistance);
-    if (Input::IsKeyDown('S'))
-        camera_.MoveForward(-movementDistance);
-    if (Input::IsKeyDown('A'))
-        camera_.MoveRight(-movementDistance);
-    if (Input::IsKeyDown('D'))
-        camera_.MoveRight(movementDistance);
+    if (!io.WantCaptureKeyboard)
+    {
+        if (Input::IsKeyDown('W'))
+            camera_.MoveForward(movementDistance);
+        if (Input::IsKeyDown('S'))
+            camera_.MoveForward(-movementDistance);
+        if (Input::IsKeyDown('A'))
+            camera_.MoveRight(-movementDistance);
+        if (Input::IsKeyDown('D'))
+            camera_.MoveRight(movementDistance);
+    }
 }
 
 bool D3D12Context::RenderFrame()
@@ -263,7 +283,18 @@ bool D3D12Context::RenderFrame()
         renderingStats_.triangleCount += mesh->GetIndexCount() / 3;
     }
 
-    // [18단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
+    // Scene 렌더링이 끝난 뒤 ImGui 전용 Heap으로 전환하여 같은 BackBuffer 위에 Editor를 덧그립니다.
+    ImGui::Render();
+    ID3D12DescriptorHeap* const imguiDescriptorHeaps[] =
+    {
+        imguiDescriptorHeap_.Get()
+    };
+    commandList->SetDescriptorHeaps(
+        _countof(imguiDescriptorHeaps),
+        imguiDescriptorHeaps);
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+
+    // [18단계] Scene과 Editor 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     commandList->ResourceBarrier(1, &barrier);
@@ -278,6 +309,230 @@ bool D3D12Context::RenderFrame()
 
     // [22단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
     return commandContext_.SignalFrame(frameIndex);
+}
+
+bool D3D12Context::InitializeImGui()
+{
+    ID3D12Device* const device = deviceResources_.GetDevice();
+
+    D3D12_DESCRIPTOR_HEAP_DESC heapDescription{};
+    heapDescription.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    heapDescription.NumDescriptors = ImGuiDescriptorCount;
+    heapDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    heapDescription.NodeMask = 0;
+
+    const HRESULT heapResult = device->CreateDescriptorHeap(
+        &heapDescription,
+        IID_PPV_ARGS(&imguiDescriptorHeap_));
+    if (FAILED(heapResult))
+    {
+        std::fprintf(
+            stderr,
+            "ImGui SRV Descriptor Heap 생성에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(heapResult));
+        return false;
+    }
+
+    imguiDescriptorSize_ = device->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    imguiFreeDescriptorIndices_.reserve(ImGuiDescriptorCount);
+    for (UINT descriptorIndex = ImGuiDescriptorCount;
+         descriptorIndex > 0;
+         --descriptorIndex)
+    {
+        imguiFreeDescriptorIndices_.push_back(descriptorIndex - 1);
+    }
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    // 이번 단계의 Panel은 코드에서 고정 배치하므로 실행 폴더에 imgui.ini를 만들지 않습니다.
+    io.IniFilename = nullptr;
+    ImGui::StyleColorsDark();
+
+    if (!ImGui_ImplWin32_Init(window_))
+    {
+        std::fprintf(stderr, "ImGui Win32 Backend 초기화에 실패했습니다.\n");
+        ImGui::DestroyContext();
+        imguiFreeDescriptorIndices_.clear();
+        imguiDescriptorHeap_.Reset();
+        return false;
+    }
+
+    // v1.92.9 Backend의 InitInfo API와 Descriptor 할당 Callback을 사용합니다.
+    ImGui_ImplDX12_InitInfo initializationInformation{};
+    initializationInformation.Device = device;
+    initializationInformation.CommandQueue = commandContext_.GetCommandQueue();
+    initializationInformation.NumFramesInFlight = D3D12Config::FrameCount;
+    initializationInformation.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    initializationInformation.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    initializationInformation.UserData = this;
+    initializationInformation.SrvDescriptorHeap = imguiDescriptorHeap_.Get();
+    initializationInformation.SrvDescriptorAllocFn = AllocateImGuiDescriptor;
+    initializationInformation.SrvDescriptorFreeFn = FreeImGuiDescriptor;
+
+    if (!ImGui_ImplDX12_Init(&initializationInformation))
+    {
+        std::fprintf(stderr, "ImGui DirectX 12 Backend 초기화에 실패했습니다.\n");
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+        imguiFreeDescriptorIndices_.clear();
+        imguiDescriptorHeap_.Reset();
+        return false;
+    }
+
+    imguiInitialized_ = true;
+    return true;
+}
+
+void D3D12Context::ShutdownImGui()
+{
+    if (!imguiInitialized_)
+    {
+        return;
+    }
+
+    // Backend와 Font Texture를 해제하기 전에 제출된 ImGui Draw가 모두 끝나도록 기다립니다.
+    commandContext_.WaitForGPU();
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+
+    imguiInitialized_ = false;
+    imguiFreeDescriptorIndices_.clear();
+    imguiDescriptorHeap_.Reset();
+}
+
+void D3D12Context::BeginImGuiFrame()
+{
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    DrawEditorUI();
+}
+
+void D3D12Context::DrawEditorUI()
+{
+    constexpr float panelMargin = 10.0f;
+    constexpr float panelGap = 10.0f;
+    constexpr float leftPanelWidth = 220.0f;
+    constexpr float rightPanelWidth = 280.0f;
+    constexpr float createPanelHeight = 130.0f;
+    constexpr ImGuiWindowFlags panelFlags =
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoSavedSettings;
+
+    const ImGuiViewport* const viewport = ImGui::GetMainViewport();
+    const ImVec2 workPosition = viewport->WorkPos;
+    const ImVec2 workSize = viewport->WorkSize;
+    const float fullPanelHeight = (std::max)(
+        100.0f,
+        workSize.y - panelMargin * 2.0f);
+    const float hierarchyPanelHeight = (std::max)(
+        100.0f,
+        workSize.y - createPanelHeight - panelMargin * 3.0f);
+    const float inspectorX = (std::max)(
+        workPosition.x + panelMargin,
+        workPosition.x + workSize.x - rightPanelWidth - panelMargin);
+
+    ImGui::SetNextWindowPos(
+        ImVec2(workPosition.x + panelMargin, workPosition.y + panelMargin),
+        ImGuiCond_Always);
+    ImGui::SetNextWindowSize(
+        ImVec2(leftPanelWidth, createPanelHeight),
+        ImGuiCond_Always);
+    ImGui::Begin("Create", nullptr, panelFlags);
+    ImGui::Button("Cube", ImVec2(120.0f, 0.0f));
+    ImGui::Button("Sphere", ImVec2(120.0f, 0.0f));
+    ImGui::End();
+
+    ImGui::SetNextWindowPos(
+        ImVec2(
+            workPosition.x + panelMargin,
+            workPosition.y + panelMargin + createPanelHeight + panelGap),
+        ImGuiCond_Always);
+    ImGui::SetNextWindowSize(
+        ImVec2(leftPanelWidth, hierarchyPanelHeight),
+        ImGuiCond_Always);
+    ImGui::Begin("Hierarchy", nullptr, panelFlags);
+    ImGui::TextDisabled("No Objects");
+    ImGui::End();
+
+    ImGui::SetNextWindowPos(
+        ImVec2(inspectorX, workPosition.y + panelMargin),
+        ImGuiCond_Always);
+    ImGui::SetNextWindowSize(
+        ImVec2(rightPanelWidth, fullPanelHeight),
+        ImGuiCond_Always);
+    ImGui::Begin("Inspector", nullptr, panelFlags);
+    ImGui::TextDisabled("No Object Selected");
+    ImGui::End();
+}
+
+void D3D12Context::AllocateImGuiDescriptor(
+    ImGui_ImplDX12_InitInfo* information,
+    D3D12_CPU_DESCRIPTOR_HANDLE* cpuHandle,
+    D3D12_GPU_DESCRIPTOR_HANDLE* gpuHandle)
+{
+    D3D12Context* const context = information != nullptr
+        ? static_cast<D3D12Context*>(information->UserData)
+        : nullptr;
+    IM_ASSERT(context != nullptr);
+    IM_ASSERT(cpuHandle != nullptr && gpuHandle != nullptr);
+    IM_ASSERT(
+        context != nullptr &&
+        !context->imguiFreeDescriptorIndices_.empty());
+    if (context == nullptr || cpuHandle == nullptr || gpuHandle == nullptr ||
+        context->imguiFreeDescriptorIndices_.empty())
+    {
+        return;
+    }
+
+    const UINT descriptorIndex = context->imguiFreeDescriptorIndices_.back();
+    context->imguiFreeDescriptorIndices_.pop_back();
+
+    const D3D12_CPU_DESCRIPTOR_HANDLE cpuStart =
+        context->imguiDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+    const D3D12_GPU_DESCRIPTOR_HANDLE gpuStart =
+        context->imguiDescriptorHeap_->GetGPUDescriptorHandleForHeapStart();
+    cpuHandle->ptr = cpuStart.ptr +
+        static_cast<SIZE_T>(descriptorIndex) * context->imguiDescriptorSize_;
+    gpuHandle->ptr = gpuStart.ptr +
+        static_cast<UINT64>(descriptorIndex) * context->imguiDescriptorSize_;
+}
+
+void D3D12Context::FreeImGuiDescriptor(
+    ImGui_ImplDX12_InitInfo* information,
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle)
+{
+    D3D12Context* const context = information != nullptr
+        ? static_cast<D3D12Context*>(information->UserData)
+        : nullptr;
+    IM_ASSERT(context != nullptr);
+    if (context == nullptr || context->imguiDescriptorSize_ == 0)
+    {
+        return;
+    }
+
+    const D3D12_CPU_DESCRIPTOR_HANDLE cpuStart =
+        context->imguiDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+    const D3D12_GPU_DESCRIPTOR_HANDLE gpuStart =
+        context->imguiDescriptorHeap_->GetGPUDescriptorHandleForHeapStart();
+    const UINT cpuIndex = static_cast<UINT>(
+        (cpuHandle.ptr - cpuStart.ptr) / context->imguiDescriptorSize_);
+    const UINT gpuIndex = static_cast<UINT>(
+        (gpuHandle.ptr - gpuStart.ptr) / context->imguiDescriptorSize_);
+
+    IM_ASSERT(cpuIndex == gpuIndex);
+    IM_ASSERT(cpuIndex < ImGuiDescriptorCount);
+    if (cpuIndex == gpuIndex && cpuIndex < ImGuiDescriptorCount)
+    {
+        context->imguiFreeDescriptorIndices_.push_back(cpuIndex);
+    }
 }
 
 void D3D12Context::UpdateRenderingStatistics(float deltaTime)

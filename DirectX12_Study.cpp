@@ -2,11 +2,27 @@
 
 #include "D3D12Context.h"
 #include "Timer.h"
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+
+// imgui_impl_win32.h는 Windows.h 의존성을 퍼뜨리지 않기 위해 이 선언을 의도적으로 노출하지 않습니다.
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
+    HWND window,
+    UINT message,
+    WPARAM wParam,
+    LPARAM lParam);
 
 // 창 생성 중 또는 DispatchMessageW가 전달한 메시지 하나를 처리합니다.
 // 메시지란? : WM_KEYDOWN, WM_MOUSEMOVE, WM_SIZE, WM_MOVE, WM_PAINT 등등
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    // 모든 Win32 입력을 ImGui에 먼저 전달하고, 처리한 메시지만 기존 Application 경로에서 제외합니다.
+    if (ImGui::GetCurrentContext() != nullptr &&
+        ImGui_ImplWin32_WndProcHandler(window, message, wParam, lParam))
+    {
+        return 1;
+    }
+
     if (message == WM_DESTROY)
     {
         // 창이 파괴되면 메시지 루프가 끝나도록 WM_QUIT 메시지를 보냅니다.
