@@ -39,20 +39,51 @@ ID3D12PipelineState* D3D12Pipeline::GetPipelineState() const
 
 bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
 {
-    // Vertex Shader의 register(b0)와 연결할 Root CBV Parameter 하나를 정의합니다.
-    D3D12_ROOT_PARAMETER rootParameter{};
-    rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rootParameter.Descriptor.ShaderRegister = 0;
-    rootParameter.Descriptor.RegisterSpace = 0;
-    rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    // Pixel Shader의 register(t0)와 연결할 SRV Descriptor Range 하나를 정의합니다.
+    D3D12_DESCRIPTOR_RANGE srvRange{};
+    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    srvRange.NumDescriptors = 1;
+    srvRange.BaseShaderRegister = 0;
+    srvRange.RegisterSpace = 0;
+    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    // [10단계] WVP Constant Buffer 하나를 사용하는 3D Object용 Root Signature를 정의합니다.
+    D3D12_ROOT_PARAMETER rootParameters[2]{};
+
+    // 첫 번째 Parameter는 Vertex Shader의 register(b0)와 연결할 Object별 Root CBV입니다.
+    rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[0].Descriptor.ShaderRegister = 0;
+    rootParameters[0].Descriptor.RegisterSpace = 0;
+    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
+    // 두 번째 Parameter는 Shader Visible Heap의 Texture SRV를 가리키는 Descriptor Table입니다.
+    rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[1].DescriptorTable.pDescriptorRanges = &srvRange;
+    rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 이번 단계에서는 변하지 않는 단일 Sampler를 Root Signature에 직접 포함합니다.
+    D3D12_STATIC_SAMPLER_DESC staticSampler{};
+    staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSampler.MipLODBias = 0.0f;
+    staticSampler.MaxAnisotropy = 1;
+    staticSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    staticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    staticSampler.MinLOD = 0.0f;
+    staticSampler.MaxLOD = D3D12_FLOAT32_MAX;
+    staticSampler.ShaderRegister = 0;
+    staticSampler.RegisterSpace = 0;
+    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // [10단계] WVP Root CBV와 Texture SRV, Static Sampler를 사용하는 Root Signature를 정의합니다.
     // Root Signature : Shader가 외부 Resource에 접근할 때 사용할 Resource Binding 구조와 규칙을 정의하는 객체
     D3D12_ROOT_SIGNATURE_DESC description{};
-    description.NumParameters = 1;
-    description.pParameters = &rootParameter;
-    description.NumStaticSamplers = 0;
-    description.pStaticSamplers = nullptr;
+    description.NumParameters = _countof(rootParameters);
+    description.pParameters = rootParameters;
+    description.NumStaticSamplers = 1;
+    description.pStaticSamplers = &staticSampler;
     description.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     // Description을 Device가 읽을 수 있는 바이너리 Blob으로 직렬화합니다.
@@ -180,7 +211,7 @@ bool D3D12Pipeline::CompileShader(
 
 bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
 {
-    // [12단계] HLSL VertexInput의 POSITION과 COLOR에 대응하는 Input Layout을 정의합니다.
+    // [12단계] HLSL VertexInput의 POSITION, COLOR, TEXCOORD에 대응하는 Input Layout을 정의합니다.
     // Input Layout : Vertex Buffer의 바이트 데이터를 Vertex Shader 입력으로 해석하는 규칙
     const D3D12_INPUT_ELEMENT_DESC inputElements[] =
     {
@@ -197,6 +228,15 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
             "COLOR",
             0,
             DXGI_FORMAT_R32G32B32A32_FLOAT,
+            0,
+            D3D12_APPEND_ALIGNED_ELEMENT,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            0
+        },
+        {
+            "TEXCOORD",
+            0,
+            DXGI_FORMAT_R32G32_FLOAT,
             0,
             D3D12_APPEND_ALIGNED_ELEMENT,
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,

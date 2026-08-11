@@ -6,11 +6,12 @@
 
 #include <cstdint>
 
-// 현재 Input Layout과 HLSL Vertex 입력에 대응하는 Position + Color 정점 데이터입니다.
+// 현재 Input Layout과 HLSL Vertex 입력에 대응하는 Position + Color + UV 정점 데이터입니다.
 struct Vertex
 {
     DirectX::XMFLOAT3 position;
     DirectX::XMFLOAT4 color;
+    DirectX::XMFLOAT2 uv;
 };
 
 // CPU Geometry로 DirectX 12 Vertex/Index Buffer를 만들고 렌더링에 필요한 View를 제공합니다.

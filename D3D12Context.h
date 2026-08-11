@@ -45,6 +45,7 @@ private:
         ~(ConstantBufferAlignment - 1);
 
     bool CreateCubeMesh();
+    bool CreateTexture();
     bool CreateConstantBuffer(UINT width, UINT height);
     void UpdateConstantBuffers(UINT frameIndex);
 
@@ -58,6 +59,10 @@ private:
     // Mesh를 Scene보다 먼저 생성하고 나중에 파괴하여 GameObject의 비소유 Mesh 포인터를 안전하게 유지합니다.
     Mesh cubeMesh_;
     Scene scene_;
+
+    // 모든 Cube가 공유하는 Texture Resource와 이를 Shader에 공개하는 SRV Heap입니다.
+    Microsoft::WRL::ComPtr<ID3D12Resource> texture_;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     // Upload Heap을 한 번 Map한 뒤 Frame별 WVP Matrix를 갱신할 때 계속 사용할 CPU 주소입니다.

@@ -6,11 +6,16 @@ cbuffer TransformBuffer : register(b0)
     float4x4 worldViewProjection;
 };
 
+// C++ Root Signature의 두 번째 Parameter와 Static Sampler가 각각 t0와 s0에 연결됩니다.
+Texture2D texture0 : register(t0);
+SamplerState sampler0 : register(s0);
+
 // Input Assembler가 Vertex Buffer에서 읽어 Vertex Shader에 전달할 데이터입니다.
 struct VertexInput
 {
     float3 position : POSITION;
     float4 color : COLOR;
+    float2 uv : TEXCOORD;
 };
 
 // Vertex Shader가 Rasterizer와 Pixel Shader로 전달할 데이터입니다.
@@ -18,6 +23,7 @@ struct VertexOutput
 {
     float4 position : SV_POSITION;
     float4 color : COLOR;
+    float2 uv : TEXCOORD;
 };
 
 // Shader 실행이 시작되는 함수 : Vertex마다 실행
@@ -27,12 +33,14 @@ VertexOutput VSMain(VertexInput input)
     VertexOutput output;
     output.position = mul(float4(input.position, 1.0f), worldViewProjection);
     output.color = input.color;
+    output.uv = input.uv;
     return output;
 }
 
 // Shader 실행이 시작되는 함수 : Rasterizer가 만든 Pixel 후보마다 실행
-// Rasterizer가 보간한 Vertex 색상을 Render Target의 최종 색상으로 출력합니다.
+// Rasterizer가 보간한 UV로 Texture를 Sample하고 Vertex 색상을 곱해 최종 색상을 출력합니다.
 float4 PSMain(VertexOutput input) : SV_TARGET
 {
-    return input.color;
+    const float4 textureColor = texture0.Sample(sampler0, input.uv);
+    return textureColor * input.color;
 }
