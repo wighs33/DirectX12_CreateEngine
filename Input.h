@@ -17,5 +17,9 @@ public:
 
     static void Update(HWND window);
     static bool IsKeyDown(int virtualKey);
+    static bool IsRightMouseButtonDown();
+    static bool WasRightMouseButtonPressed();
+    static bool WasRightMouseButtonReleased();
+    static void ResetMousePosition(HWND window);
     static MouseDelta GetMouseDelta();
 };

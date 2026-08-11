@@ -102,8 +102,25 @@ void D3D12Context::Update(float deltaTime)
     Input::Update(window_);
     const ImGuiIO& io = ImGui::GetIO();
 
+    // UI 밖에서 RMB를 새로 누른 경우에만 Editor Camera Look Mode를 시작합니다.
+    if (Input::WasRightMouseButtonPressed())
+    {
+        isCameraLookActive_ = !io.WantCaptureMouse;
+        // 누르기 전 Cursor 이동이 첫 Camera Delta에 섞이지 않도록 현재 위치를 기준점으로 삼습니다.
+        Input::ResetMousePosition(window_);
+    }
+
+    // RMB 해제, Focus 손실 또는 ImGui Mouse Capture 시 Look Mode를 즉시 끝냅니다.
+    if (Input::WasRightMouseButtonReleased() ||
+        (isCameraLookActive_ &&
+            (io.WantCaptureMouse || !Input::IsRightMouseButtonDown())))
+    {
+        isCameraLookActive_ = false;
+        Input::ResetMousePosition(window_);
+    }
+
     // Mouse Delta는 이미 한 Frame 동안 이동한 Pixel 양이므로 DeltaTime을 곱하지 않습니다.
-    if (!io.WantCaptureMouse)
+    if (isCameraLookActive_)
     {
         const MouseDelta mouseDelta = Input::GetMouseDelta();
         camera_.Rotate(
@@ -113,7 +130,7 @@ void D3D12Context::Update(float deltaTime)
 
     const float movementDistance = cameraSpeed * deltaTime;
 
-    if (!io.WantCaptureKeyboard)
+    if (isCameraLookActive_ && !io.WantCaptureKeyboard)
     {
         if (Input::IsKeyDown('W'))
             camera_.MoveForward(movementDistance);
@@ -346,7 +363,8 @@ bool D3D12Context::InitializeImGui()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    // 고정 Panel의 단순 Focus가 WASD를 계속 점유하지 않도록 전역 Keyboard Navigation은 사용하지 않습니다.
+    // 향후 InputText 같은 실제 Keyboard Widget은 활성 상태에서 WantCaptureKeyboard를 별도로 설정합니다.
     // 이번 단계의 Panel은 코드에서 고정 배치하므로 실행 폴더에 imgui.ini를 만들지 않습니다.
     io.IniFilename = nullptr;
     ImGui::StyleColorsDark();

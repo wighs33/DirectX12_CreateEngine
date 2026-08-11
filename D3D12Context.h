@@ -102,6 +102,8 @@ private:
     // Camera는 Scene을 바라보는 View Matrix만 제공하며 GameObject와 별도로 유지합니다.
     Camera camera_;
     Frustum frustum_;
+    // Camera 입력을 해석하는 Application 측 상태이며 RMB를 새로 누른 경우에만 활성화됩니다.
+    bool isCameraLookActive_ = false;
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;
