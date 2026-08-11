@@ -9,14 +9,6 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
 {
     window_ = window;
 
-    // 기존 Cube의 위치, 고정 회전과 크기를 Transform에 그대로 옮깁니다.
-    cubeTransform_.SetPosition(0.0f, 0.0f, 0.0f);
-    cubeTransform_.SetRotation(
-        DirectX::XMConvertToRadians(-20.0f),
-        DirectX::XMConvertToRadians(30.0f),
-        0.0f);
-    cubeTransform_.SetScale(1.0f, 1.0f, 1.0f);
-
     // DirectX 12 초기화 흐름을 주제별 객체에 순서대로 위임합니다.
     if (!deviceResources_.Initialize())
         return false;
@@ -39,6 +31,17 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
         return false;
     if (!CreateCubeMesh())
         return false;
+
+    // Cube라는 하나의 Object가 자신의 Transform을 소유하고 외부 Mesh Resource를 참조하도록 연결합니다.
+    cubeObject_.SetMesh(&cubeMesh_);
+    Transform& cubeTransform = cubeObject_.GetTransform();
+    cubeTransform.SetPosition(0.0f, 0.0f, 0.0f);
+    cubeTransform.SetRotation(
+        DirectX::XMConvertToRadians(-20.0f),
+        DirectX::XMConvertToRadians(30.0f),
+        0.0f);
+    cubeTransform.SetScale(1.0f, 1.0f, 1.0f);
+
     if (!CreateConstantBuffer(width, height))
         return false;
 
@@ -72,6 +75,9 @@ void D3D12Context::Update(float deltaTime)
 
 bool D3D12Context::RenderFrame()
 {
+    // GameObject에 Mesh가 없다면 Geometry Binding과 Draw만 건너뜁니다.
+    const Mesh* const mesh = cubeObject_.GetMesh();
+
     // SwapChain에서 이번 Frame Resource를 식별할 현재 BackBuffer Index를 먼저 얻습니다.
     const UINT frameIndex = swapChain_.GetCurrentFrameIndex();
 
@@ -147,18 +153,21 @@ bool D3D12Context::RenderFrame()
     // [14단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // [15단계] Mesh가 소유한 Vertex Buffer View를 Input Slot 0에 연결합니다.
-    const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView =
-        cubeMesh_.GetVertexBufferView();
-    commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+    if (mesh != nullptr)
+    {
+        // [15단계] GameObject가 참조하는 Mesh의 Vertex Buffer View를 Input Slot 0에 연결합니다.
+        const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView =
+            mesh->GetVertexBufferView();
+        commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
-    // [16단계] Mesh가 소유한 Index Buffer View를 Input Assembler에 연결합니다.
-    const D3D12_INDEX_BUFFER_VIEW& indexBufferView =
-        cubeMesh_.GetIndexBufferView();
-    commandList->IASetIndexBuffer(&indexBufferView);
+        // [16단계] 같은 Mesh의 Index Buffer View를 Input Assembler에 연결합니다.
+        const D3D12_INDEX_BUFFER_VIEW& indexBufferView =
+            mesh->GetIndexBufferView();
+        commandList->IASetIndexBuffer(&indexBufferView);
 
-    // [17단계] Mesh가 제공하는 Index 개수만큼 Cube를 그리는 명령을 기록합니다.
-    commandList->DrawIndexedInstanced(cubeMesh_.GetIndexCount(), 1, 0, 0, 0);
+        // [17단계] Render 코드가 Mesh의 Index 개수를 사용해 Draw 명령을 기록합니다.
+        commandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+    }
 
     // [18단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -335,8 +344,9 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
 
 void D3D12Context::UpdateConstantBuffer(UINT frameIndex)
 {
-    // Transform이 Cube의 Position, Rotation, Scale을 조합한 World Matrix를 제공합니다.
-    const DirectX::XMMATRIX worldMatrix = cubeTransform_.GetWorldMatrix();
+    // GameObject가 소유한 Transform이 Cube의 World Matrix를 제공합니다.
+    const DirectX::XMMATRIX worldMatrix =
+        cubeObject_.GetTransform().GetWorldMatrix();
 
     // Camera가 자신의 Position, Target과 Up을 사용해 View Matrix를 계산합니다.
     const DirectX::XMMATRIX viewMatrix = camera_.GetViewMatrix();
