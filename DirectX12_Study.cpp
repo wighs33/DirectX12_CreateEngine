@@ -1,6 +1,7 @@
 #include <Windows.h>
 
 #include "D3D12Context.h"
+#include "Timer.h"
 
 // 창 생성 중 또는 DispatchMessageW가 전달한 메시지 하나를 처리합니다.
 // 메시지란? : WM_KEYDOWN, WM_MOUSEMOVE, WM_SIZE, WM_MOVE, WM_PAINT 등등
@@ -77,7 +78,9 @@ int main()
 
     ShowWindow(window, SW_SHOW);
 
-    // [5단계] 메시지를 처리하고, 종료 메시지가 없으면 한 프레임을 렌더링합니다.
+    Timer timer;
+
+    // [5단계] Message 처리 후 Tick -> Update -> Render 순서로 한 Frame을 실행합니다.
     MSG message{};
     bool isRunning = true;
     while (isRunning)
@@ -94,9 +97,15 @@ int main()
             DispatchMessageW(&message);
         }
 
-        if (isRunning && !d3d12Context.RenderFrame())
+        if (isRunning)
         {
-            return 1;
+            timer.Tick();
+            d3d12Context.Update(timer.GetDeltaTime());
+
+            if (!d3d12Context.RenderFrame())
+            {
+                return 1;
+            }
         }
     }
 

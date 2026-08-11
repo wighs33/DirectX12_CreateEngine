@@ -1,4 +1,5 @@
 #include "D3D12Context.h"
+#include "Input.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -6,6 +7,8 @@
 
 bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
 {
+    window_ = window;
+
     // DirectX 12 초기화 흐름을 주제별 객체에 순서대로 위임합니다.
     if (!deviceResources_.Initialize())
         return false;
@@ -36,6 +39,31 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     return true;
 }
 
+void D3D12Context::Update(float deltaTime)
+{
+    constexpr float cameraSpeed = 3.0f;
+    constexpr float mouseSensitivity = 0.002f;
+
+    Input::Update(window_);
+
+    // Mouse Delta는 이미 한 Frame 동안 이동한 Pixel 양이므로 DeltaTime을 곱하지 않습니다.
+    const MouseDelta mouseDelta = Input::GetMouseDelta();
+    camera_.Rotate(
+        static_cast<float>(mouseDelta.x) * mouseSensitivity,
+        static_cast<float>(-mouseDelta.y) * mouseSensitivity);
+
+    const float movementDistance = cameraSpeed * deltaTime;
+
+    if (Input::IsKeyDown('W'))
+        camera_.MoveForward(movementDistance);
+    if (Input::IsKeyDown('S'))
+        camera_.MoveForward(-movementDistance);
+    if (Input::IsKeyDown('A'))
+        camera_.MoveRight(-movementDistance);
+    if (Input::IsKeyDown('D'))
+        camera_.MoveRight(movementDistance);
+}
+
 bool D3D12Context::RenderFrame()
 {
     // SwapChain에서 이번 Frame Resource를 식별할 현재 BackBuffer Index를 먼저 얻습니다.
@@ -46,6 +74,9 @@ bool D3D12Context::RenderFrame()
     {
         return false;
     }
+
+    // Fence 확인이 끝난 현재 Frame 슬롯에 이동된 Camera의 최신 WVP를 기록합니다.
+    UpdateConstantBuffer(frameIndex);
 
     // [4단계] 현재 Index에 대응하는 BackBuffer/RTV와 공통 Depth Buffer의 DSV를 선택합니다.
     ID3D12GraphicsCommandList* const commandList = commandContext_.GetCommandList();
@@ -73,7 +104,8 @@ bool D3D12Context::RenderFrame()
     // [8단계] Root Parameter 0에 WVP Constant Buffer의 GPU 주소를 연결합니다.
     commandList->SetGraphicsRootConstantBufferView(
         0,
-        constantBuffer_->GetGPUVirtualAddress());
+        constantBuffer_->GetGPUVirtualAddress() +
+        static_cast<UINT64>(frameIndex) * AlignedConstantBufferSize);
 
     // [9단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
     const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
@@ -349,11 +381,8 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
         return false;
     }
 
-    // Constant Buffer View가 참조하는 크기는 256바이트 단위로 맞춰야 합니다.
-    constexpr UINT constantBufferAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-    constexpr UINT constantBufferDataSize = static_cast<UINT>(sizeof(ConstantBufferData));
-    constexpr UINT alignedConstantBufferSize =
-        (constantBufferDataSize + constantBufferAlignment - 1) & ~(constantBufferAlignment - 1);
+    clientWidth_ = width;
+    clientHeight_ = height;
 
     // CPU가 Matrix를 직접 쓰고 GPU가 읽을 수 있도록 Upload Heap을 사용합니다.
     D3D12_HEAP_PROPERTIES heapProperties{};
@@ -366,7 +395,9 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     D3D12_RESOURCE_DESC resourceDescription{};
     resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     resourceDescription.Alignment = 0;
-    resourceDescription.Width = alignedConstantBufferSize;
+    // GPU가 이전 Frame을 읽는 동안 CPU가 다음 Frame을 안전하게 쓸 수 있도록 Frame별 슬롯을 둡니다.
+    resourceDescription.Width =
+        static_cast<UINT64>(AlignedConstantBufferSize) * D3D12Config::FrameCount;
     resourceDescription.Height = 1;
     resourceDescription.DepthOrArraySize = 1;
     resourceDescription.MipLevels = 1;
@@ -409,6 +440,16 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
         return false;
     }
 
+    std::memset(
+        constantBufferMappedData_,
+        0,
+        static_cast<SIZE_T>(resourceDescription.Width));
+
+    return true;
+}
+
+void D3D12Context::UpdateConstantBuffer(UINT frameIndex)
+{
     // Cube의 여러 면이 보이도록 고정 회전을 적용한 뒤 World -> View -> Projection 순서로 변환합니다.
     const DirectX::XMMATRIX rotationX = DirectX::XMMatrixRotationX(
         DirectX::XMConvertToRadians(-20.0f));
@@ -417,15 +458,11 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     const DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixMultiply(
         rotationX,
         rotationY);
-    const DirectX::XMVECTOR cameraPosition = DirectX::XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f);
-    const DirectX::XMVECTOR cameraTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-    const DirectX::XMVECTOR cameraUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-    const DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(
-        cameraPosition,
-        cameraTarget,
-        cameraUp);
+    // Camera가 자신의 Position, Target과 Up을 사용해 View Matrix를 계산합니다.
+    const DirectX::XMMATRIX viewMatrix = camera_.GetViewMatrix();
 
-    const float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+    const float aspectRatio =
+        static_cast<float>(clientWidth_) / static_cast<float>(clientHeight_);
     const DirectX::XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(
         DirectX::XMConvertToRadians(45.0f),
         aspectRatio,
@@ -445,11 +482,12 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
         &constantBufferData.worldViewProjection,
         DirectX::XMMatrixTranspose(worldViewProjectionMatrix));
 
-    std::memset(constantBufferMappedData_, 0, alignedConstantBufferSize);
+    unsigned char* const frameData =
+        static_cast<unsigned char*>(constantBufferMappedData_) +
+        static_cast<SIZE_T>(frameIndex) * AlignedConstantBufferSize;
+    std::memset(frameData, 0, AlignedConstantBufferSize);
     std::memcpy(
-        constantBufferMappedData_,
+        frameData,
         &constantBufferData,
         sizeof(constantBufferData));
-
-    return true;
 }

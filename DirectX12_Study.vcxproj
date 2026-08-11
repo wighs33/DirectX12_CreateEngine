@@ -159,20 +159,26 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="D3D12CommandContext.cpp" />
     <ClCompile Include="D3D12Context.cpp" />
     <ClCompile Include="D3D12DeviceResources.cpp" />
     <ClCompile Include="D3D12Pipeline.cpp" />
     <ClCompile Include="D3D12SwapChain.cpp" />
     <ClCompile Include="DirectX12_Study.cpp" />
+    <ClCompile Include="Input.cpp" />
+    <ClCompile Include="Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="D3D12CommandContext.h" />
     <ClInclude Include="D3D12Config.h" />
     <ClInclude Include="D3D12Context.h" />
     <ClInclude Include="D3D12DeviceResources.h" />
     <ClInclude Include="D3D12Pipeline.h" />
     <ClInclude Include="D3D12SwapChain.h" />
+    <ClInclude Include="Input.h" />
+    <ClInclude Include="Timer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader.hlsl" />
