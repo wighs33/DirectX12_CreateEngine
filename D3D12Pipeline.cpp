@@ -47,7 +47,7 @@ bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
     srvRange.RegisterSpace = 0;
     srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    D3D12_ROOT_PARAMETER rootParameters[2]{};
+    D3D12_ROOT_PARAMETER rootParameters[3]{};
 
     // 첫 번째 Parameter는 Vertex Shader의 register(b0)와 연결할 Object별 Root CBV입니다.
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -60,6 +60,12 @@ bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
     rootParameters[1].DescriptorTable.pDescriptorRanges = &srvRange;
     rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 세 번째 Parameter는 모든 Object가 공유하는 Pixel Shader register(b1) Lighting CBV입니다.
+    rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[2].Descriptor.ShaderRegister = 1;
+    rootParameters[2].Descriptor.RegisterSpace = 0;
+    rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     // 이번 단계에서는 변하지 않는 단일 Sampler를 Root Signature에 직접 포함합니다.
     D3D12_STATIC_SAMPLER_DESC staticSampler{};
@@ -237,6 +243,15 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
             "TEXCOORD",
             0,
             DXGI_FORMAT_R32G32_FLOAT,
+            0,
+            D3D12_APPEND_ALIGNED_ELEMENT,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            0
+        },
+        {
+            "NORMAL",
+            0,
+            DXGI_FORMAT_R32G32B32_FLOAT,
             0,
             D3D12_APPEND_ALIGNED_ELEMENT,
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,

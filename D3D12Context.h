@@ -37,6 +37,14 @@ private:
     struct ConstantBufferData
     {
         DirectX::XMFLOAT4X4 worldViewProjection;
+        DirectX::XMFLOAT4X4 worldInverseTranspose;
+    };
+
+    struct LightingConstantBufferData
+    {
+        DirectX::XMFLOAT4 lightDirection;
+        DirectX::XMFLOAT4 lightColor;
+        DirectX::XMFLOAT4 ambientColor;
     };
 
     static constexpr UINT ConstantBufferAlignment =
@@ -44,10 +52,14 @@ private:
     static constexpr UINT AlignedConstantBufferSize =
         (static_cast<UINT>(sizeof(ConstantBufferData)) + ConstantBufferAlignment - 1) &
         ~(ConstantBufferAlignment - 1);
+    static constexpr UINT AlignedLightingConstantBufferSize =
+        (static_cast<UINT>(sizeof(LightingConstantBufferData)) + ConstantBufferAlignment - 1) &
+        ~(ConstantBufferAlignment - 1);
 
     bool CreateCubeMesh();
     bool CreateTexture();
     bool CreateConstantBuffer(UINT width, UINT height);
+    bool CreateLightingConstantBuffer();
     void UpdateConstantBuffers(UINT frameIndex);
 
     // Camera는 Scene을 바라보는 View Matrix만 제공하며 GameObject와 별도로 유지합니다.
@@ -66,6 +78,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;
     // Upload Heap을 한 번 Map한 뒤 Frame별 WVP Matrix를 갱신할 때 계속 사용할 CPU 주소입니다.
     void* constantBufferMappedData_ = nullptr;
     UINT clientWidth_ = 0;

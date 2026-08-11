@@ -4,6 +4,14 @@
 cbuffer TransformBuffer : register(b0)
 {
     float4x4 worldViewProjection;
+    float4x4 worldInverseTranspose;
+};
+
+cbuffer LightingBuffer : register(b1)
+{
+    float4 lightDirection;
+    float4 lightColor;
+    float4 ambientColor;
 };
 
 // C++ Root Signature의 두 번째 Parameter와 Static Sampler가 각각 t0와 s0에 연결됩니다.
@@ -16,6 +24,7 @@ struct VertexInput
     float3 position : POSITION;
     float4 color : COLOR;
     float2 uv : TEXCOORD;
+    float3 normal : NORMAL;
 };
 
 // Vertex Shader가 Rasterizer와 Pixel Shader로 전달할 데이터입니다.
@@ -24,6 +33,7 @@ struct VertexOutput
     float4 position : SV_POSITION;
     float4 color : COLOR;
     float2 uv : TEXCOORD;
+    float3 worldNormal : NORMAL;
 };
 
 // Shader 실행이 시작되는 함수 : Vertex마다 실행
@@ -34,6 +44,8 @@ VertexOutput VSMain(VertexInput input)
     output.position = mul(float4(input.position, 1.0f), worldViewProjection);
     output.color = input.color;
     output.uv = input.uv;
+    output.worldNormal = normalize(
+        mul(float4(input.normal, 0.0f), worldInverseTranspose).xyz);
     return output;
 }
 
@@ -42,5 +54,13 @@ VertexOutput VSMain(VertexInput input)
 float4 PSMain(VertexOutput input) : SV_TARGET
 {
     const float4 textureColor = texture0.Sample(sampler0, input.uv);
-    return textureColor * input.color;
+    const float4 baseColor = textureColor * input.color;
+
+    const float3 normal = normalize(input.worldNormal);
+    const float3 surfaceToLight = normalize(-lightDirection.xyz);
+    const float diffuseAmount = saturate(dot(normal, surfaceToLight));
+    const float3 diffuse = lightColor.rgb * lightColor.w * diffuseAmount;
+    const float3 lighting = ambientColor.rgb + diffuse;
+
+    return float4(baseColor.rgb * lighting, baseColor.a);
 }

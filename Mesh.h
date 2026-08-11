@@ -12,6 +12,7 @@ struct Vertex
     DirectX::XMFLOAT3 position;
     DirectX::XMFLOAT4 color;
     DirectX::XMFLOAT2 uv;
+    DirectX::XMFLOAT3 normal;
 };
 
 // CPU Geometry로 DirectX 12 Vertex/Index Buffer를 만들고 렌더링에 필요한 View를 제공합니다.

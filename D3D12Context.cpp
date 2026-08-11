@@ -72,6 +72,8 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
 
     if (!CreateConstantBuffer(width, height))
         return false;
+    if (!CreateLightingConstantBuffer())
+        return false;
 
     return true;
 }
@@ -147,6 +149,9 @@ bool D3D12Context::RenderFrame()
     commandList->SetGraphicsRootDescriptorTable(
         1,
         srvDescriptorHeap_->GetGPUDescriptorHandleForHeapStart());
+    commandList->SetGraphicsRootConstantBufferView(
+        2,
+        lightingConstantBuffer_->GetGPUVirtualAddress());
 
     // [8단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
     const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
@@ -295,43 +300,49 @@ bool D3D12Context::CreateCubeMesh()
     // World/View/Projection 변환 전의 Object Space 원점에 한 변 길이가 1인 Cube를 정의합니다.
     // 같은 위치라도 면마다 UV가 다르므로 각 면에 네 Vertex를 두어 총 24개로 구성합니다.
     const DirectX::XMFLOAT4 white(1.0f, 1.0f, 1.0f, 1.0f);
+    const DirectX::XMFLOAT3 frontNormal(0.0f, 0.0f, -1.0f);
+    const DirectX::XMFLOAT3 backNormal(0.0f, 0.0f, 1.0f);
+    const DirectX::XMFLOAT3 leftNormal(-1.0f, 0.0f, 0.0f);
+    const DirectX::XMFLOAT3 rightNormal(1.0f, 0.0f, 0.0f);
+    const DirectX::XMFLOAT3 topNormal(0.0f, 1.0f, 0.0f);
+    const DirectX::XMFLOAT3 bottomNormal(0.0f, -1.0f, 0.0f);
     const Vertex cubeVertices[] =
     {
         // 앞면(-Z)
-        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f) },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f) },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f) },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f) },
+        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), frontNormal },
+        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), frontNormal },
+        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), frontNormal },
+        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), frontNormal },
 
         // 뒷면(+Z)
-        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f) },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f) },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f) },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f) },
+        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), backNormal },
+        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), backNormal },
+        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), backNormal },
+        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), backNormal },
 
         // 왼쪽 면(-X)
-        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f) },
-        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f) },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f) },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f) },
+        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), leftNormal },
+        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), leftNormal },
+        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), leftNormal },
+        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), leftNormal },
 
         // 오른쪽 면(+X)
-        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f) },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f) },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f) },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f) },
+        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), rightNormal },
+        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), rightNormal },
+        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), rightNormal },
+        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), rightNormal },
 
         // 윗면(+Y)
-        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f) },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f) },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f) },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f) },
+        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), topNormal },
+        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), topNormal },
+        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), topNormal },
+        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), topNormal },
 
         // 아랫면(-Y)
-        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f) },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f) },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f) },
-        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f) }
+        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), bottomNormal },
+        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), bottomNormal },
+        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), bottomNormal },
+        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), bottomNormal }
     };
 
     // 각 면의 바깥쪽이 Front Face가 되도록 Clockwise 화면 winding에 맞춰 12개 Triangle을 정의합니다.
@@ -459,6 +470,72 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     return true;
 }
 
+bool D3D12Context::CreateLightingConstantBuffer()
+{
+    D3D12_HEAP_PROPERTIES heapProperties{};
+    heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProperties.CreationNodeMask = 1;
+    heapProperties.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC resourceDescription{};
+    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    resourceDescription.Alignment = 0;
+    resourceDescription.Width = AlignedLightingConstantBufferSize;
+    resourceDescription.Height = 1;
+    resourceDescription.DepthOrArraySize = 1;
+    resourceDescription.MipLevels = 1;
+    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
+    resourceDescription.SampleDesc.Count = 1;
+    resourceDescription.SampleDesc.Quality = 0;
+    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    const HRESULT resourceResult = deviceResources_.GetDevice()->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDescription,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&lightingConstantBuffer_));
+    if (FAILED(resourceResult))
+    {
+        std::fprintf(
+            stderr,
+            "Lighting Constant Buffer 생성에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(resourceResult));
+        return false;
+    }
+
+    // Direction은 빛이 진행하는 방향이며, lightColor.w는 Diffuse 강도입니다.
+    const LightingConstantBufferData lightingData
+    {
+        DirectX::XMFLOAT4(0.35f, -0.75f, 0.55f, 0.0f),
+        DirectX::XMFLOAT4(1.0f, 0.95f, 0.85f, 0.85f),
+        DirectX::XMFLOAT4(0.18f, 0.20f, 0.24f, 0.0f)
+    };
+
+    void* mappedData = nullptr;
+    const D3D12_RANGE readRange{ 0, 0 };
+    const HRESULT mapResult = lightingConstantBuffer_->Map(0, &readRange, &mappedData);
+    if (FAILED(mapResult))
+    {
+        std::fprintf(
+            stderr,
+            "Lighting Constant Buffer Map에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(mapResult));
+        return false;
+    }
+
+    std::memset(mappedData, 0, AlignedLightingConstantBufferSize);
+    std::memcpy(mappedData, &lightingData, sizeof(lightingData));
+    const D3D12_RANGE writtenRange{ 0, sizeof(lightingData) };
+    lightingConstantBuffer_->Unmap(0, &writtenRange);
+
+    return true;
+}
+
 void D3D12Context::UpdateConstantBuffers(UINT frameIndex)
 {
     // 하나의 Camera를 사용하는 같은 Frame에서는 모든 Object가 동일한 View/Projection을 공유합니다.
@@ -485,12 +562,17 @@ void D3D12Context::UpdateConstantBuffers(UINT frameIndex)
         const DirectX::XMMATRIX worldViewProjectionMatrix = DirectX::XMMatrixMultiply(
             worldViewMatrix,
             projectionMatrix);
+        const DirectX::XMMATRIX worldInverseTransposeMatrix = DirectX::XMMatrixTranspose(
+            DirectX::XMMatrixInverse(nullptr, worldMatrix));
 
         ConstantBufferData constantBufferData{};
         // DirectXMath의 행 우선 Matrix를 HLSL의 기본 열 우선 메모리 배치와 맞추기 위해 전치합니다.
         DirectX::XMStoreFloat4x4(
             &constantBufferData.worldViewProjection,
             DirectX::XMMatrixTranspose(worldViewProjectionMatrix));
+        DirectX::XMStoreFloat4x4(
+            &constantBufferData.worldInverseTranspose,
+            DirectX::XMMatrixTranspose(worldInverseTransposeMatrix));
 
         const std::size_t constantBufferSlot =
             static_cast<std::size_t>(frameIndex) * objectCount + objectIndex;
