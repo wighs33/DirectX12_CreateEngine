@@ -9,6 +9,14 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
 {
     window_ = window;
 
+    // 기존 Cube의 위치, 고정 회전과 크기를 Transform에 그대로 옮깁니다.
+    cubeTransform_.SetPosition(0.0f, 0.0f, 0.0f);
+    cubeTransform_.SetRotation(
+        DirectX::XMConvertToRadians(-20.0f),
+        DirectX::XMConvertToRadians(30.0f),
+        0.0f);
+    cubeTransform_.SetScale(1.0f, 1.0f, 1.0f);
+
     // DirectX 12 초기화 흐름을 주제별 객체에 순서대로 위임합니다.
     if (!deviceResources_.Initialize())
         return false;
@@ -29,9 +37,7 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     }
     if (!pipeline_.Initialize(device))
         return false;
-    if (!CreateVertexBuffer())
-        return false;
-    if (!CreateIndexBuffer())
+    if (!CreateCubeMesh())
         return false;
     if (!CreateConstantBuffer(width, height))
         return false;
@@ -141,14 +147,18 @@ bool D3D12Context::RenderFrame()
     // [14단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // [15단계] Input Slot 0에 기존 Vertex Buffer View 하나를 연결합니다.
-    commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    // [15단계] Mesh가 소유한 Vertex Buffer View를 Input Slot 0에 연결합니다.
+    const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView =
+        cubeMesh_.GetVertexBufferView();
+    commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
-    // [16단계] Index가 참조할 Index Buffer의 위치, 크기, 16비트 형식을 Input Assembler에 연결합니다.
-    commandList->IASetIndexBuffer(&indexBufferView_);
+    // [16단계] Mesh가 소유한 Index Buffer View를 Input Assembler에 연결합니다.
+    const D3D12_INDEX_BUFFER_VIEW& indexBufferView =
+        cubeMesh_.GetIndexBufferView();
+    commandList->IASetIndexBuffer(&indexBufferView);
 
-    // [17단계] Index 36개가 구성하는 Triangle 12개로 Cube 하나를 그리는 명령을 기록합니다.
-    commandList->DrawIndexedInstanced(IndexCount, 1, 0, 0, 0);
+    // [17단계] Mesh가 제공하는 Index 개수만큼 Cube를 그리는 명령을 기록합니다.
+    commandList->DrawIndexedInstanced(cubeMesh_.GetIndexCount(), 1, 0, 0, 0);
 
     // [18단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -167,11 +177,11 @@ bool D3D12Context::RenderFrame()
     return commandContext_.SignalFrame(frameIndex);
 }
 
-bool D3D12Context::CreateVertexBuffer()
+bool D3D12Context::CreateCubeMesh()
 {
     // World/View/Projection 변환 전의 Object Space 원점에 한 변 길이가 1인 Cube를 정의합니다.
     // Vertex들은 메모리에 연속으로 놓이며 각 Vertex의 Position 뒤에 Color가 이어집니다.
-    const Vertex cubeVertices[VertexCount] =
+    const Vertex cubeVertices[] =
     {
         {
             DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f),
@@ -207,79 +217,9 @@ bool D3D12Context::CreateVertexBuffer()
         }
     };
 
-    const UINT vertexBufferSize = static_cast<UINT>(sizeof(Vertex) * VertexCount);
-
-    // Upload Heap은 CPU가 Map하여 데이터를 쓸 수 있으므로 학습용 Vertex Buffer를 단순하게 만들 수 있습니다.
-    D3D12_HEAP_PROPERTIES heapProperties{};
-    heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProperties.CreationNodeMask = 1;
-    heapProperties.VisibleNodeMask = 1;
-
-    // Resource를 2D Texture가 아니라 연속된 바이트를 담는 Buffer로 정의합니다.
-    D3D12_RESOURCE_DESC resourceDescription{};
-    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resourceDescription.Alignment = 0;
-    resourceDescription.Width = vertexBufferSize;
-    resourceDescription.Height = 1;
-    resourceDescription.DepthOrArraySize = 1;
-    resourceDescription.MipLevels = 1;
-    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
-    resourceDescription.SampleDesc.Count = 1;
-    resourceDescription.SampleDesc.Quality = 0;
-    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    const HRESULT resourceResult = deviceResources_.GetDevice()->CreateCommittedResource(
-        &heapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &resourceDescription,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&vertexBuffer_));
-
-    if (FAILED(resourceResult))
-    {
-        std::fprintf(
-            stderr,
-            "정점 버퍼용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(resourceResult));
-        return false;
-    }
-
-    // Map으로 Upload Heap의 CPU 주소를 얻고 Cube의 8개 Vertex를 연속된 Buffer 메모리에 복사합니다.
-    void* mappedData = nullptr;
-    const D3D12_RANGE readRange{ 0, 0 };
-    const HRESULT mapResult = vertexBuffer_->Map(0, &readRange, &mappedData);
-    if (FAILED(mapResult))
-    {
-        std::fprintf(
-            stderr,
-            "정점 버퍼의 ID3D12Resource::Map 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(mapResult));
-        return false;
-    }
-
-    std::memcpy(mappedData, cubeVertices, vertexBufferSize);
-
-    // 복사한 전체 범위를 GPU가 읽을 수 있도록 알리고 CPU 매핑을 끝냅니다.
-    const D3D12_RANGE writtenRange{ 0, static_cast<SIZE_T>(vertexBufferSize) };
-    vertexBuffer_->Unmap(0, &writtenRange);
-
-    // View는 Resource 자체가 아니라 Input Assembler가 Buffer를 읽는 위치와 간격을 설명합니다.
-    vertexBufferView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
-    vertexBufferView_.SizeInBytes = vertexBufferSize;
-    vertexBufferView_.StrideInBytes = static_cast<UINT>(sizeof(Vertex));
-
-    return true;
-}
-
-bool D3D12Context::CreateIndexBuffer()
-{
     // 각 면의 바깥쪽이 Front Face가 되도록 Clockwise 화면 winding에 맞춰 12개 Triangle을 정의합니다.
     // 각 Index는 Vertex 자체가 아니라 Vertex Buffer 안의 몇 번째 Vertex를 사용할지 나타냅니다.
-    const std::uint16_t cubeIndices[IndexCount] =
+    const std::uint16_t cubeIndices[] =
     {
         // 앞면(-Z)
         0, 1, 2,
@@ -305,72 +245,17 @@ bool D3D12Context::CreateIndexBuffer()
         0, 3, 7,
         0, 7, 4
     };
-    const UINT indexBufferSize = static_cast<UINT>(sizeof(std::uint16_t) * IndexCount);
 
-    // Vertex Buffer와 같은 Upload Heap을 사용하여 CPU가 Index 데이터를 직접 복사할 수 있게 합니다.
-    D3D12_HEAP_PROPERTIES heapProperties{};
-    heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProperties.CreationNodeMask = 1;
-    heapProperties.VisibleNodeMask = 1;
+    const UINT vertexCount = static_cast<UINT>(sizeof(cubeVertices) / sizeof(cubeVertices[0]));
+    const UINT indexCount = static_cast<UINT>(sizeof(cubeIndices) / sizeof(cubeIndices[0]));
 
-    // Cube의 36개 16비트 Index를 연속된 바이트로 보관하는 Buffer Resource를 정의합니다.
-    D3D12_RESOURCE_DESC resourceDescription{};
-    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resourceDescription.Alignment = 0;
-    resourceDescription.Width = indexBufferSize;
-    resourceDescription.Height = 1;
-    resourceDescription.DepthOrArraySize = 1;
-    resourceDescription.MipLevels = 1;
-    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
-    resourceDescription.SampleDesc.Count = 1;
-    resourceDescription.SampleDesc.Quality = 0;
-    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    const HRESULT resourceResult = deviceResources_.GetDevice()->CreateCommittedResource(
-        &heapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &resourceDescription,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&indexBuffer_));
-
-    if (FAILED(resourceResult))
-    {
-        std::fprintf(
-            stderr,
-            "인덱스 버퍼용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(resourceResult));
-        return false;
-    }
-
-    // Map으로 얻은 CPU 주소에 Cube Index를 복사하여 GPU가 참조할 Buffer 내용을 채웁니다.
-    void* mappedData = nullptr;
-    const D3D12_RANGE readRange{ 0, 0 };
-    const HRESULT mapResult = indexBuffer_->Map(0, &readRange, &mappedData);
-    if (FAILED(mapResult))
-    {
-        std::fprintf(
-            stderr,
-            "인덱스 버퍼의 ID3D12Resource::Map 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(mapResult));
-        return false;
-    }
-
-    std::memcpy(mappedData, cubeIndices, indexBufferSize);
-
-    // 복사한 전체 범위를 GPU가 읽을 수 있도록 알리고 CPU 매핑을 끝냅니다.
-    const D3D12_RANGE writtenRange{ 0, static_cast<SIZE_T>(indexBufferSize) };
-    indexBuffer_->Unmap(0, &writtenRange);
-
-    // View는 Input Assembler가 Resource를 16비트 Index 배열로 읽는 방법을 설명합니다.
-    indexBufferView_.BufferLocation = indexBuffer_->GetGPUVirtualAddress();
-    indexBufferView_.SizeInBytes = indexBufferSize;
-    indexBufferView_.Format = DXGI_FORMAT_R16_UINT;
-
-    return true;
+    // Cube 데이터는 외부에서 정의하고 Mesh는 전달받은 Geometry로 GPU Buffer를 생성합니다.
+    return cubeMesh_.Initialize(
+        deviceResources_.GetDevice(),
+        cubeVertices,
+        vertexCount,
+        cubeIndices,
+        indexCount);
 }
 
 bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
@@ -450,14 +335,9 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
 
 void D3D12Context::UpdateConstantBuffer(UINT frameIndex)
 {
-    // Cube의 여러 면이 보이도록 고정 회전을 적용한 뒤 World -> View -> Projection 순서로 변환합니다.
-    const DirectX::XMMATRIX rotationX = DirectX::XMMatrixRotationX(
-        DirectX::XMConvertToRadians(-20.0f));
-    const DirectX::XMMATRIX rotationY = DirectX::XMMatrixRotationY(
-        DirectX::XMConvertToRadians(30.0f));
-    const DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixMultiply(
-        rotationX,
-        rotationY);
+    // Transform이 Cube의 Position, Rotation, Scale을 조합한 World Matrix를 제공합니다.
+    const DirectX::XMMATRIX worldMatrix = cubeTransform_.GetWorldMatrix();
+
     // Camera가 자신의 Position, Target과 Up을 사용해 View Matrix를 계산합니다.
     const DirectX::XMMATRIX viewMatrix = camera_.GetViewMatrix();
 

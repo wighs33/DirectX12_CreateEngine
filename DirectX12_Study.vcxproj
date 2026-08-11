@@ -167,7 +167,9 @@
     <ClCompile Include="D3D12SwapChain.cpp" />
     <ClCompile Include="DirectX12_Study.cpp" />
     <ClCompile Include="Input.cpp" />
+    <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Timer.cpp" />
+    <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
@@ -178,7 +180,9 @@
     <ClInclude Include="D3D12Pipeline.h" />
     <ClInclude Include="D3D12SwapChain.h" />
     <ClInclude Include="Input.h" />
+    <ClInclude Include="Mesh.h" />
     <ClInclude Include="Timer.h" />
+    <ClInclude Include="Transform.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader.hlsl" />

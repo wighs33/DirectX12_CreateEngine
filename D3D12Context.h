@@ -6,6 +6,8 @@
 #include "D3D12DeviceResources.h"
 #include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
+#include "Mesh.h"
+#include "Transform.h"
 
 #include <DirectXMath.h>
 #include <d3d12.h>
@@ -31,43 +33,29 @@ public:
     bool RenderFrame();
 
 private:
-    // 현재 D3D12 Input Layout과 HLSL Vertex 입력에 대응하는 정점 데이터입니다.
-    struct Vertex
-    {
-        DirectX::XMFLOAT3 position;
-        DirectX::XMFLOAT4 color;
-    };
-
     struct ConstantBufferData
     {
         DirectX::XMFLOAT4X4 worldViewProjection;
     };
 
-    static constexpr UINT VertexCount = 8;
-    static constexpr UINT IndexCount = 36;
     static constexpr UINT ConstantBufferAlignment =
         D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     static constexpr UINT AlignedConstantBufferSize =
         (static_cast<UINT>(sizeof(ConstantBufferData)) + ConstantBufferAlignment - 1) &
         ~(ConstantBufferAlignment - 1);
 
-    bool CreateVertexBuffer();
-    bool CreateIndexBuffer();
+    bool CreateCubeMesh();
     bool CreateConstantBuffer(UINT width, UINT height);
     void UpdateConstantBuffer(UINT frameIndex);
 
-    // 현재 Scene에는 View Matrix를 제공하는 Camera 하나만 둡니다.
+    // 현재 Scene에는 Cube의 공간 상태를 보관하는 Transform과 View Matrix를 제공하는 Camera를 하나씩 둡니다.
+    Transform cubeTransform_;
     Camera camera_;
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;
     D3D12Pipeline pipeline_;
-
-    Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer_;
-    D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
-
-    Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer_;
-    D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
+    Mesh cubeMesh_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     // Upload Heap을 한 번 Map한 뒤 Frame별 WVP Matrix를 갱신할 때 계속 사용할 CPU 주소입니다.
