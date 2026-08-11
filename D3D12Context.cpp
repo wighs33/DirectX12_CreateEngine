@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
 {
@@ -32,15 +33,38 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     if (!CreateCubeMesh())
         return false;
 
-    // Cube라는 하나의 Object가 자신의 Transform을 소유하고 외부 Mesh Resource를 참조하도록 연결합니다.
-    cubeObject_.SetMesh(&cubeMesh_);
-    Transform& cubeTransform = cubeObject_.GetTransform();
-    cubeTransform.SetPosition(0.0f, 0.0f, 0.0f);
-    cubeTransform.SetRotation(
+    // Scene이 소유할 세 GameObject는 각자 Transform을 가지며 하나뿐인 Cube Mesh를 함께 참조합니다.
+    GameObject leftCube(&cubeMesh_);
+    Transform& leftCubeTransform = leftCube.GetTransform();
+    leftCubeTransform.SetPosition(-1.25f, 0.0f, 0.2f);
+    leftCubeTransform.SetRotation(
+        DirectX::XMConvertToRadians(-15.0f),
+        DirectX::XMConvertToRadians(20.0f),
+        0.0f);
+    leftCubeTransform.SetScale(1.0f, 1.0f, 1.0f);
+
+    GameObject centerCube(&cubeMesh_);
+    Transform& centerCubeTransform = centerCube.GetTransform();
+    centerCubeTransform.SetPosition(0.0f, 0.0f, 0.0f);
+    centerCubeTransform.SetRotation(
         DirectX::XMConvertToRadians(-20.0f),
         DirectX::XMConvertToRadians(30.0f),
         0.0f);
-    cubeTransform.SetScale(1.0f, 1.0f, 1.0f);
+    centerCubeTransform.SetScale(1.0f, 1.0f, 1.0f);
+
+    GameObject rightCube(&cubeMesh_);
+    Transform& rightCubeTransform = rightCube.GetTransform();
+    rightCubeTransform.SetPosition(1.25f, 0.0f, -0.2f);
+    rightCubeTransform.SetRotation(
+        DirectX::XMConvertToRadians(-25.0f),
+        DirectX::XMConvertToRadians(40.0f),
+        0.0f);
+    rightCubeTransform.SetScale(1.0f, 1.0f, 1.0f);
+
+    // Scene은 GameObject 값을 소유하며 이후 Render는 Scene의 목록만 순회합니다.
+    scene_.AddGameObject(std::move(leftCube));
+    scene_.AddGameObject(std::move(centerCube));
+    scene_.AddGameObject(std::move(rightCube));
 
     if (!CreateConstantBuffer(width, height))
         return false;
@@ -75,9 +99,6 @@ void D3D12Context::Update(float deltaTime)
 
 bool D3D12Context::RenderFrame()
 {
-    // GameObject에 Mesh가 없다면 Geometry Binding과 Draw만 건너뜁니다.
-    const Mesh* const mesh = cubeObject_.GetMesh();
-
     // SwapChain에서 이번 Frame Resource를 식별할 현재 BackBuffer Index를 먼저 얻습니다.
     const UINT frameIndex = swapChain_.GetCurrentFrameIndex();
 
@@ -88,7 +109,7 @@ bool D3D12Context::RenderFrame()
     }
 
     // Fence 확인이 끝난 현재 Frame 슬롯에 이동된 Camera의 최신 WVP를 기록합니다.
-    UpdateConstantBuffer(frameIndex);
+    UpdateConstantBuffers(frameIndex);
 
     // [4단계] 현재 Index에 대응하는 BackBuffer/RTV와 공통 Depth Buffer의 DSV를 선택합니다.
     ID3D12GraphicsCommandList* const commandList = commandContext_.GetCommandList();
@@ -113,21 +134,15 @@ bool D3D12Context::RenderFrame()
     // [7단계] Vertex Shader가 b0 Constant Buffer를 사용할 Root Signature를 연결합니다.
     commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
 
-    // [8단계] Root Parameter 0에 WVP Constant Buffer의 GPU 주소를 연결합니다.
-    commandList->SetGraphicsRootConstantBufferView(
-        0,
-        constantBuffer_->GetGPUVirtualAddress() +
-        static_cast<UINT64>(frameIndex) * AlignedConstantBufferSize);
-
-    // [9단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
+    // [8단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
     const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
     commandList->RSSetViewports(1, &viewport);
 
-    // [10단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
+    // [9단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
     const D3D12_RECT& scissorRect = swapChain_.GetScissorRect();
     commandList->RSSetScissorRects(1, &scissorRect);
 
-    // [11단계] Color 출력용 RTV와 깊이 비교/기록용 DSV를 Output Merger에 함께 연결합니다.
+    // [10단계] Color 출력용 RTV와 깊이 비교/기록용 DSV를 Output Merger에 함께 연결합니다.
     commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
     constexpr float clearColor[] =
@@ -138,10 +153,10 @@ bool D3D12Context::RenderFrame()
         1.0f
     };
 
-    // [12단계] Cube를 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
+    // [11단계] Cube를 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-    // [13단계] 이전 Frame의 깊이가 남지 않도록 Depth Buffer 전체를 가장 먼 값 1.0으로 지웁니다.
+    // [12단계] 이전 Frame의 깊이가 남지 않도록 Depth Buffer 전체를 가장 먼 값 1.0으로 지웁니다.
     commandList->ClearDepthStencilView(
         dsvHandle,
         D3D12_CLEAR_FLAG_DEPTH,
@@ -150,22 +165,42 @@ bool D3D12Context::RenderFrame()
         0,
         nullptr);
 
-    // [14단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
+    // [13단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    if (mesh != nullptr)
+    // Render는 Object를 직접 소유하지 않고 Scene이 제공하는 목록을 순회합니다.
+    const std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
+    const UINT64 objectCount = static_cast<UINT64>(scene_.GetGameObjectCount());
+    for (std::size_t objectIndex = 0; objectIndex < gameObjects.size(); ++objectIndex)
     {
-        // [15단계] GameObject가 참조하는 Mesh의 Vertex Buffer View를 Input Slot 0에 연결합니다.
+        const GameObject& gameObject = gameObjects[objectIndex];
+        const Mesh* const mesh = gameObject.GetMesh();
+        if (mesh == nullptr)
+        {
+            continue;
+        }
+
+        const UINT64 constantBufferSlot =
+            static_cast<UINT64>(frameIndex) * objectCount + objectIndex;
+        const UINT64 constantBufferOffset =
+            constantBufferSlot * AlignedConstantBufferSize;
+
+        // [14단계] 같은 b0 Root CBV에 현재 Object 전용 Constant Buffer 주소를 연결합니다.
+        commandList->SetGraphicsRootConstantBufferView(
+            0,
+            constantBuffer_->GetGPUVirtualAddress() + constantBufferOffset);
+
+        // [15단계] 현재 GameObject가 참조하는 Mesh의 Vertex Buffer View를 Input Slot 0에 연결합니다.
         const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView =
             mesh->GetVertexBufferView();
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
-        // [16단계] 같은 Mesh의 Index Buffer View를 Input Assembler에 연결합니다.
+        // [16단계] 모든 Object가 공유하는 같은 Mesh의 Index Buffer View를 연결합니다.
         const D3D12_INDEX_BUFFER_VIEW& indexBufferView =
             mesh->GetIndexBufferView();
         commandList->IASetIndexBuffer(&indexBufferView);
 
-        // [17단계] Render 코드가 Mesh의 Index 개수를 사용해 Draw 명령을 기록합니다.
+        // [17단계] Object 하나당 한 번씩 Indexed Cube Draw 명령을 기록합니다.
         commandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
     }
 
@@ -275,6 +310,13 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
         return false;
     }
 
+    const std::size_t objectCount = scene_.GetGameObjectCount();
+    if (objectCount == 0)
+    {
+        std::fprintf(stderr, "Constant Buffer를 생성할 Scene Object가 없습니다.\n");
+        return false;
+    }
+
     clientWidth_ = width;
     clientHeight_ = height;
 
@@ -289,9 +331,11 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     D3D12_RESOURCE_DESC resourceDescription{};
     resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     resourceDescription.Alignment = 0;
-    // GPU가 이전 Frame을 읽는 동안 CPU가 다음 Frame을 안전하게 쓸 수 있도록 Frame별 슬롯을 둡니다.
+    // Frame별 영역 안에 Object별 영역을 두어 Frame 간 경합과 Object 간 덮어쓰기를 함께 방지합니다.
     resourceDescription.Width =
-        static_cast<UINT64>(AlignedConstantBufferSize) * D3D12Config::FrameCount;
+        static_cast<UINT64>(AlignedConstantBufferSize) *
+        D3D12Config::FrameCount *
+        objectCount;
     resourceDescription.Height = 1;
     resourceDescription.DepthOrArraySize = 1;
     resourceDescription.MipLevels = 1;
@@ -342,13 +386,9 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     return true;
 }
 
-void D3D12Context::UpdateConstantBuffer(UINT frameIndex)
+void D3D12Context::UpdateConstantBuffers(UINT frameIndex)
 {
-    // GameObject가 소유한 Transform이 Cube의 World Matrix를 제공합니다.
-    const DirectX::XMMATRIX worldMatrix =
-        cubeObject_.GetTransform().GetWorldMatrix();
-
-    // Camera가 자신의 Position, Target과 Up을 사용해 View Matrix를 계산합니다.
+    // 하나의 Camera를 사용하는 같은 Frame에서는 모든 Object가 동일한 View/Projection을 공유합니다.
     const DirectX::XMMATRIX viewMatrix = camera_.GetViewMatrix();
 
     const float aspectRatio =
@@ -359,25 +399,35 @@ void D3D12Context::UpdateConstantBuffer(UINT frameIndex)
         0.1f,
         100.0f);
 
-    const DirectX::XMMATRIX worldViewMatrix = DirectX::XMMatrixMultiply(
-        worldMatrix,
-        viewMatrix);
-    const DirectX::XMMATRIX worldViewProjectionMatrix = DirectX::XMMatrixMultiply(
-        worldViewMatrix,
-        projectionMatrix);
+    const std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
+    const std::size_t objectCount = scene_.GetGameObjectCount();
+    for (std::size_t objectIndex = 0; objectIndex < gameObjects.size(); ++objectIndex)
+    {
+        // World만 Object마다 다르므로 같은 View/Projection과 결합해 Object별 WVP를 만듭니다.
+        const DirectX::XMMATRIX worldMatrix =
+            gameObjects[objectIndex].GetTransform().GetWorldMatrix();
+        const DirectX::XMMATRIX worldViewMatrix = DirectX::XMMatrixMultiply(
+            worldMatrix,
+            viewMatrix);
+        const DirectX::XMMATRIX worldViewProjectionMatrix = DirectX::XMMatrixMultiply(
+            worldViewMatrix,
+            projectionMatrix);
 
-    ConstantBufferData constantBufferData{};
-    // DirectXMath의 행 우선 Matrix를 HLSL의 기본 열 우선 메모리 배치와 맞추기 위해 전치합니다.
-    DirectX::XMStoreFloat4x4(
-        &constantBufferData.worldViewProjection,
-        DirectX::XMMatrixTranspose(worldViewProjectionMatrix));
+        ConstantBufferData constantBufferData{};
+        // DirectXMath의 행 우선 Matrix를 HLSL의 기본 열 우선 메모리 배치와 맞추기 위해 전치합니다.
+        DirectX::XMStoreFloat4x4(
+            &constantBufferData.worldViewProjection,
+            DirectX::XMMatrixTranspose(worldViewProjectionMatrix));
 
-    unsigned char* const frameData =
-        static_cast<unsigned char*>(constantBufferMappedData_) +
-        static_cast<SIZE_T>(frameIndex) * AlignedConstantBufferSize;
-    std::memset(frameData, 0, AlignedConstantBufferSize);
-    std::memcpy(
-        frameData,
-        &constantBufferData,
-        sizeof(constantBufferData));
+        const std::size_t constantBufferSlot =
+            static_cast<std::size_t>(frameIndex) * objectCount + objectIndex;
+        unsigned char* const objectData =
+            static_cast<unsigned char*>(constantBufferMappedData_) +
+            static_cast<SIZE_T>(constantBufferSlot) * AlignedConstantBufferSize;
+        std::memset(objectData, 0, AlignedConstantBufferSize);
+        std::memcpy(
+            objectData,
+            &constantBufferData,
+            sizeof(constantBufferData));
+    }
 }

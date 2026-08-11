@@ -6,8 +6,8 @@
 #include "D3D12DeviceResources.h"
 #include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
-#include "GameObject.h"
 #include "Mesh.h"
+#include "Scene.h"
 
 #include <DirectXMath.h>
 #include <d3d12.h>
@@ -46,7 +46,7 @@ private:
 
     bool CreateCubeMesh();
     bool CreateConstantBuffer(UINT width, UINT height);
-    void UpdateConstantBuffer(UINT frameIndex);
+    void UpdateConstantBuffers(UINT frameIndex);
 
     // Camera는 Scene을 바라보는 View Matrix만 제공하며 GameObject와 별도로 유지합니다.
     Camera camera_;
@@ -55,9 +55,9 @@ private:
     D3D12SwapChain swapChain_;
     D3D12Pipeline pipeline_;
 
-    // Mesh를 GameObject보다 먼저 생성하고 나중에 파괴하여 비소유 Mesh 포인터의 수명을 안전하게 유지합니다.
+    // Mesh를 Scene보다 먼저 생성하고 나중에 파괴하여 GameObject의 비소유 Mesh 포인터를 안전하게 유지합니다.
     Mesh cubeMesh_;
-    GameObject cubeObject_;
+    Scene scene_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     // Upload Heap을 한 번 Map한 뒤 Frame별 WVP Matrix를 갱신할 때 계속 사용할 CPU 주소입니다.
