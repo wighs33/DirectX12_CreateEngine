@@ -1,0 +1,47 @@
+# Visual Studio 개인 설정 및 캐시
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+
+# JetBrains Rider 개인 설정
+.idea/
+*.sln.iml
+
+# 빌드 출력 디렉터리
+Debug/
+Release/
+x64/
+x86/
+Win32/
+ARM/
+ARM64/
+ipch/
+
+# MSVC 중간 파일과 빌드 결과물
+*.obj
+*.pch
+*.pdb
+*.idb
+*.ilk
+*.iobj
+*.ipdb
+*.tlog
+*.lastbuildstate
+*.recipe
+*.Build.CppClean.log
+*.FileListAbsolute.txt
+*.exe
+*.dll
+*.exp
+*.lib
+
+# 컴파일된 Shader 결과물
+*.cso
+
+# 운영체제에서 생성하는 파일
+Thumbs.db
+Desktop.ini
