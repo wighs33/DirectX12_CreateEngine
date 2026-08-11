@@ -27,8 +27,10 @@ public:
 
 private:
     static constexpr UINT VertexCount = 3;
+    static constexpr UINT IndexCount = 3;
 
     bool CreateVertexBuffer();
+    bool CreateIndexBuffer();
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;
@@ -36,6 +38,9 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer_;
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer_;
+    D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
 
     // 마지막에 선언하여 소멸 시 다른 GPU Resource보다 먼저 대기와 동기화 정리를 수행합니다.
     D3D12CommandContext commandContext_;

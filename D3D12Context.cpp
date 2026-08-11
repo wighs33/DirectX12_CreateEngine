@@ -1,5 +1,6 @@
 #include "D3D12Context.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 
@@ -26,6 +27,8 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     if (!pipeline_.Initialize(device))
         return false;
     if (!CreateVertexBuffer())
+        return false;
+    if (!CreateIndexBuffer())
         return false;
 
     return true;
@@ -92,23 +95,26 @@ bool D3D12Context::RenderFrame()
     // [13단계] Input Slot 0에 기존 Vertex Buffer View 하나를 연결합니다.
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
 
-    // [14단계] Vertex 3개로 인스턴스 하나를 그리는 Non-Indexed Draw 명령을 기록합니다.
-    commandList->DrawInstanced(VertexCount, 1, 0, 0);
+    // [14단계] Index가 참조할 Index Buffer의 위치, 크기, 16비트 형식을 Input Assembler에 연결합니다.
+    commandList->IASetIndexBuffer(&indexBufferView_);
 
-    // [15단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
+    // [15단계] Index 3개가 가리키는 Vertex로 인스턴스 하나를 그리는 Indexed Draw 명령을 기록합니다.
+    commandList->DrawIndexedInstanced(IndexCount, 1, 0, 0, 0);
+
+    // [16단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     commandList->ResourceBarrier(1, &barrier);
 
-    // [16~17단계] CommandList Close 후 완성된 명령을 GPU Queue에 제출합니다.
+    // [17~18단계] CommandList Close 후 완성된 명령을 GPU Queue에 제출합니다.
     if (!commandContext_.Execute())
         return false;
 
-    // [18단계] 렌더링된 BackBuffer를 화면에 표시하고 다음 BackBuffer로 교체합니다.
+    // [19단계] 렌더링된 BackBuffer를 화면에 표시하고 다음 BackBuffer로 교체합니다.
     if (!swapChain_.Present())
         return false;
 
-    // [19단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
+    // [20단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
     return commandContext_.SignalFrame(frameIndex);
 }
 
@@ -197,6 +203,78 @@ bool D3D12Context::CreateVertexBuffer()
     vertexBufferView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
     vertexBufferView_.SizeInBytes = vertexBufferSize;
     vertexBufferView_.StrideInBytes = static_cast<UINT>(sizeof(Vertex));
+
+    return true;
+}
+
+bool D3D12Context::CreateIndexBuffer()
+{
+    // 각 Index는 Vertex 자체가 아니라 Vertex Buffer 안의 몇 번째 Vertex를 사용할지 나타냅니다.
+    const std::uint16_t triangleIndices[IndexCount] = { 0, 1, 2 };
+    const UINT indexBufferSize = static_cast<UINT>(sizeof(std::uint16_t) * IndexCount);
+
+    // Vertex Buffer와 같은 Upload Heap을 사용하여 CPU가 Index 데이터를 직접 복사할 수 있게 합니다.
+    D3D12_HEAP_PROPERTIES heapProperties{};
+    heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProperties.CreationNodeMask = 1;
+    heapProperties.VisibleNodeMask = 1;
+
+    // 세 개의 16비트 Index를 연속된 바이트로 보관하는 Buffer Resource를 정의합니다.
+    D3D12_RESOURCE_DESC resourceDescription{};
+    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    resourceDescription.Alignment = 0;
+    resourceDescription.Width = indexBufferSize;
+    resourceDescription.Height = 1;
+    resourceDescription.DepthOrArraySize = 1;
+    resourceDescription.MipLevels = 1;
+    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
+    resourceDescription.SampleDesc.Count = 1;
+    resourceDescription.SampleDesc.Quality = 0;
+    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    const HRESULT resourceResult = deviceResources_.GetDevice()->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDescription,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&indexBuffer_));
+
+    if (FAILED(resourceResult))
+    {
+        std::fprintf(
+            stderr,
+            "인덱스 버퍼용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(resourceResult));
+        return false;
+    }
+
+    // Map으로 얻은 CPU 주소에 0, 1, 2를 복사하여 GPU가 참조할 Index Buffer 내용을 채웁니다.
+    void* mappedData = nullptr;
+    const D3D12_RANGE readRange{ 0, 0 };
+    const HRESULT mapResult = indexBuffer_->Map(0, &readRange, &mappedData);
+    if (FAILED(mapResult))
+    {
+        std::fprintf(
+            stderr,
+            "인덱스 버퍼의 ID3D12Resource::Map 호출에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(mapResult));
+        return false;
+    }
+
+    std::memcpy(mappedData, triangleIndices, indexBufferSize);
+
+    // 복사한 전체 범위를 GPU가 읽을 수 있도록 알리고 CPU 매핑을 끝냅니다.
+    const D3D12_RANGE writtenRange{ 0, static_cast<SIZE_T>(indexBufferSize) };
+    indexBuffer_->Unmap(0, &writtenRange);
+
+    // View는 Input Assembler가 Resource를 16비트 Index 배열로 읽는 방법을 설명합니다.
+    indexBufferView_.BufferLocation = indexBuffer_->GetGPUVirtualAddress();
+    indexBufferView_.SizeInBytes = indexBufferSize;
+    indexBufferView_.Format = DXGI_FORMAT_R16_UINT;
 
     return true;
 }
