@@ -126,6 +126,20 @@ void D3D12Context::Update(float deltaTime)
         Input::ResetMousePosition(window_);
     }
 
+    // Delete 단축키는 눌린 첫 Frame에서만 요청하고 UI 입력 또는 Camera Look 중에는 무시합니다.
+    const bool isDeleteKeyDown = Input::IsKeyDown(VK_DELETE);
+    const bool wasDeleteKeyPressed = isDeleteKeyDown && !deleteKeyWasDown_;
+    deleteKeyWasDown_ = isDeleteKeyDown;
+    if (wasDeleteKeyPressed &&
+        !io.WantCaptureKeyboard &&
+        !isCameraLookActive_)
+    {
+        deleteObjectRequested_ = true;
+    }
+
+    // Inspector가 선택 Object Reference 사용을 끝낸 뒤 Button과 Shortcut의 공통 요청을 처리합니다.
+    ProcessObjectDeletionRequest();
+
     // Mouse Delta는 이미 한 Frame 동안 이동한 Pixel 양이므로 DeltaTime을 곱하지 않습니다.
     if (isCameraLookActive_)
     {
@@ -606,8 +620,32 @@ void D3D12Context::DrawEditorUI()
         {
             transform.SetScale(scale[0], scale[1], scale[2]);
         }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        if (ImGui::Button("Delete Object", ImVec2(-1.0f, 0.0f)))
+        {
+            deleteObjectRequested_ = true;
+        }
     }
     ImGui::End();
+}
+
+void D3D12Context::ProcessObjectDeletionRequest()
+{
+    if (!deleteObjectRequested_)
+    {
+        return;
+    }
+
+    deleteObjectRequested_ = false;
+    if (selectedObjectIndex_ == InvalidObjectIndex)
+    {
+        return;
+    }
+
+    scene_.RemoveGameObject(selectedObjectIndex_);
+    selectedObjectIndex_ = InvalidObjectIndex;
 }
 
 void D3D12Context::AllocateImGuiDescriptor(

@@ -10,6 +10,7 @@ class Scene final
 {
 public:
     std::size_t AddGameObject(GameObject gameObject);
+    bool RemoveGameObject(std::size_t objectIndex);
 
     std::vector<GameObject>& GetGameObjects();
     const std::vector<GameObject>& GetGameObjects() const;

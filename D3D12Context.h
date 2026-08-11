@@ -89,6 +89,7 @@ private:
     void ShutdownImGui();
     void BeginImGuiFrame();
     void DrawEditorUI();
+    void ProcessObjectDeletionRequest();
     static void AllocateImGuiDescriptor(
         ImGui_ImplDX12_InitInfo* information,
         D3D12_CPU_DESCRIPTOR_HANDLE* cpuHandle,
@@ -133,6 +134,8 @@ private:
     std::size_t selectedObjectIndex_ = InvalidObjectIndex;
     std::uint32_t nextCubeNameIndex_ = 3;
     std::uint32_t nextSphereNameIndex_ = 0;
+    bool deleteObjectRequested_ = false;
+    bool deleteKeyWasDown_ = false;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;
