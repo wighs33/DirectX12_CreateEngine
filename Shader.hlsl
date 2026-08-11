@@ -1,5 +1,11 @@
 // HLSL : High-Level Shader Language의 약자로, GPU에서 실행할 프로그램을 작성하는 언어
 
+// C++ Root Signature의 첫 번째 Parameter가 가리키는 Vertex Shader용 b0 Constant Buffer입니다.
+cbuffer TransformBuffer : register(b0)
+{
+    float4x4 worldViewProjection;
+};
+
 // Input Assembler가 Vertex Buffer에서 읽어 Vertex Shader에 전달할 데이터입니다.
 struct VertexInput
 {
@@ -15,11 +21,11 @@ struct VertexOutput
 };
 
 // Shader 실행이 시작되는 함수 : Vertex마다 실행
-// Vertex 위치를 이미 Clip Space에 있다고 보고 float4로 확장하며 색상은 그대로 전달합니다.
+// Object Space 위치에 WVP Matrix를 적용해 Clip Space로 변환하고 색상은 그대로 전달합니다.
 VertexOutput VSMain(VertexInput input)
 {
     VertexOutput output;
-    output.position = float4(input.position, 1.0f);
+    output.position = mul(float4(input.position, 1.0f), worldViewProjection);
     output.color = input.color;
     return output;
 }

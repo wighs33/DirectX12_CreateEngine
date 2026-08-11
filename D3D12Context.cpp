@@ -30,6 +30,8 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
         return false;
     if (!CreateIndexBuffer())
         return false;
+    if (!CreateConstantBuffer(width, height))
+        return false;
 
     return true;
 }
@@ -64,18 +66,23 @@ bool D3D12Context::RenderFrame()
     // [6단계] 이번 Draw에 사용할 Graphics Pipeline State를 연결합니다.
     commandList->SetPipelineState(pipeline_.GetPipelineState());
 
-    // [7단계] Shader Resource Binding 규칙인 빈 Root Signature를 연결합니다.
+    // [7단계] Vertex Shader가 b0 Constant Buffer를 사용할 Root Signature를 연결합니다.
     commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
 
-    // [8단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
+    // [8단계] Root Parameter 0에 WVP Constant Buffer의 GPU 주소를 연결합니다.
+    commandList->SetGraphicsRootConstantBufferView(
+        0,
+        constantBuffer_->GetGPUVirtualAddress());
+
+    // [9단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
     const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
     commandList->RSSetViewports(1, &viewport);
 
-    // [9단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
+    // [10단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
     const D3D12_RECT& scissorRect = swapChain_.GetScissorRect();
     commandList->RSSetScissorRects(1, &scissorRect);
 
-    // [10단계] 현재 BackBuffer의 RTV를 Render Target으로 연결합니다.
+    // [11단계] 현재 BackBuffer의 RTV를 Render Target으로 연결합니다.
     commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
     constexpr float clearColor[] =
@@ -86,41 +93,41 @@ bool D3D12Context::RenderFrame()
         1.0f
     };
 
-    // [11단계] Triangle을 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
+    // [12단계] Triangle을 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-    // [12단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
+    // [13단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // [13단계] Input Slot 0에 기존 Vertex Buffer View 하나를 연결합니다.
+    // [14단계] Input Slot 0에 기존 Vertex Buffer View 하나를 연결합니다.
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
 
-    // [14단계] Index가 참조할 Index Buffer의 위치, 크기, 16비트 형식을 Input Assembler에 연결합니다.
+    // [15단계] Index가 참조할 Index Buffer의 위치, 크기, 16비트 형식을 Input Assembler에 연결합니다.
     commandList->IASetIndexBuffer(&indexBufferView_);
 
-    // [15단계] Index 3개가 가리키는 Vertex로 인스턴스 하나를 그리는 Indexed Draw 명령을 기록합니다.
+    // [16단계] Index 3개가 가리키는 Vertex로 인스턴스 하나를 그리는 Indexed Draw 명령을 기록합니다.
     commandList->DrawIndexedInstanced(IndexCount, 1, 0, 0, 0);
 
-    // [16단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
+    // [17단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     commandList->ResourceBarrier(1, &barrier);
 
-    // [17~18단계] CommandList Close 후 완성된 명령을 GPU Queue에 제출합니다.
+    // [18~19단계] CommandList Close 후 완성된 명령을 GPU Queue에 제출합니다.
     if (!commandContext_.Execute())
         return false;
 
-    // [19단계] 렌더링된 BackBuffer를 화면에 표시하고 다음 BackBuffer로 교체합니다.
+    // [20단계] 렌더링된 BackBuffer를 화면에 표시하고 다음 BackBuffer로 교체합니다.
     if (!swapChain_.Present())
         return false;
 
-    // [20단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
+    // [21단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
     return commandContext_.SignalFrame(frameIndex);
 }
 
 bool D3D12Context::CreateVertexBuffer()
 {
-    // [13단계] World/View/Projection 변환 없이 바로 보이도록 Clip Space에 Triangle을 정의합니다.
+    // World/View/Projection 변환 전의 Object Space에 Triangle을 정의합니다.
     // Vertex들은 메모리에 연속으로 놓이며 각 Vertex의 Position 뒤에 Color가 이어집니다.
     // 기본 Rasterizer의 뒷면 제거 기준에 맞게 위 -> 오른쪽 아래 -> 왼쪽 아래 순서로 배치합니다.
     const Vertex triangleVertices[VertexCount] =
@@ -275,6 +282,113 @@ bool D3D12Context::CreateIndexBuffer()
     indexBufferView_.BufferLocation = indexBuffer_->GetGPUVirtualAddress();
     indexBufferView_.SizeInBytes = indexBufferSize;
     indexBufferView_.Format = DXGI_FORMAT_R16_UINT;
+
+    return true;
+}
+
+bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
+{
+    if (width == 0 || height == 0)
+    {
+        std::fprintf(stderr, "Constant Buffer 생성에 사용할 화면 크기가 0입니다.\n");
+        return false;
+    }
+
+    // Constant Buffer View가 참조하는 크기는 256바이트 단위로 맞춰야 합니다.
+    constexpr UINT constantBufferAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    constexpr UINT constantBufferDataSize = static_cast<UINT>(sizeof(ConstantBufferData));
+    constexpr UINT alignedConstantBufferSize =
+        (constantBufferDataSize + constantBufferAlignment - 1) & ~(constantBufferAlignment - 1);
+
+    // CPU가 Matrix를 직접 쓰고 GPU가 읽을 수 있도록 Upload Heap을 사용합니다.
+    D3D12_HEAP_PROPERTIES heapProperties{};
+    heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProperties.CreationNodeMask = 1;
+    heapProperties.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC resourceDescription{};
+    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    resourceDescription.Alignment = 0;
+    resourceDescription.Width = alignedConstantBufferSize;
+    resourceDescription.Height = 1;
+    resourceDescription.DepthOrArraySize = 1;
+    resourceDescription.MipLevels = 1;
+    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
+    resourceDescription.SampleDesc.Count = 1;
+    resourceDescription.SampleDesc.Quality = 0;
+    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    const HRESULT resourceResult = deviceResources_.GetDevice()->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDescription,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&constantBuffer_));
+
+    if (FAILED(resourceResult))
+    {
+        std::fprintf(
+            stderr,
+            "상수 버퍼용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(resourceResult));
+        return false;
+    }
+
+    // 한 번 얻은 CPU 주소를 계속 보관하는 Persistent Mapping 방식으로 사용합니다.
+    const D3D12_RANGE readRange{ 0, 0 };
+    const HRESULT mapResult = constantBuffer_->Map(
+        0,
+        &readRange,
+        &constantBufferMappedData_);
+
+    if (FAILED(mapResult))
+    {
+        std::fprintf(
+            stderr,
+            "상수 버퍼의 ID3D12Resource::Map 호출에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(mapResult));
+        return false;
+    }
+
+    // Object Space의 Triangle을 World -> View -> Projection 순서로 변환합니다.
+    const DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixIdentity();
+    const DirectX::XMVECTOR cameraPosition = DirectX::XMVectorSet(0.0f, 0.0f, -2.0f, 1.0f);
+    const DirectX::XMVECTOR cameraTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+    const DirectX::XMVECTOR cameraUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    const DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(
+        cameraPosition,
+        cameraTarget,
+        cameraUp);
+
+    const float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+    const DirectX::XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(
+        DirectX::XMConvertToRadians(45.0f),
+        aspectRatio,
+        0.1f,
+        100.0f);
+
+    const DirectX::XMMATRIX worldViewMatrix = DirectX::XMMatrixMultiply(
+        worldMatrix,
+        viewMatrix);
+    const DirectX::XMMATRIX worldViewProjectionMatrix = DirectX::XMMatrixMultiply(
+        worldViewMatrix,
+        projectionMatrix);
+
+    ConstantBufferData constantBufferData{};
+    // DirectXMath의 행 우선 Matrix를 HLSL의 기본 열 우선 메모리 배치와 맞추기 위해 전치합니다.
+    DirectX::XMStoreFloat4x4(
+        &constantBufferData.worldViewProjection,
+        DirectX::XMMatrixTranspose(worldViewProjectionMatrix));
+
+    std::memset(constantBufferMappedData_, 0, alignedConstantBufferSize);
+    std::memcpy(
+        constantBufferMappedData_,
+        &constantBufferData,
+        sizeof(constantBufferData));
 
     return true;
 }

@@ -26,11 +26,17 @@ public:
     bool RenderFrame() override;
 
 private:
+    struct ConstantBufferData
+    {
+        DirectX::XMFLOAT4X4 worldViewProjection;
+    };
+
     static constexpr UINT VertexCount = 3;
     static constexpr UINT IndexCount = 3;
 
     bool CreateVertexBuffer();
     bool CreateIndexBuffer();
+    bool CreateConstantBuffer(UINT width, UINT height);
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;
@@ -41,6 +47,10 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer_;
     D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
+    // Upload Heap을 한 번 Map한 뒤 Matrix를 갱신할 때 계속 사용할 CPU 주소입니다.
+    void* constantBufferMappedData_ = nullptr;
 
     // 마지막에 선언하여 소멸 시 다른 GPU Resource보다 먼저 대기와 동기화 정리를 수행합니다.
     D3D12CommandContext commandContext_;

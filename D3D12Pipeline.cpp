@@ -39,11 +39,18 @@ ID3D12PipelineState* D3D12Pipeline::GetPipelineState() const
 
 bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
 {
-    // [10단계] 외부 Resource를 사용하지 않는 Triangle용 빈 Root Signature를 정의합니다.
+    // Vertex Shader의 register(b0)와 연결할 Root CBV Parameter 하나를 정의합니다.
+    D3D12_ROOT_PARAMETER rootParameter{};
+    rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameter.Descriptor.ShaderRegister = 0;
+    rootParameter.Descriptor.RegisterSpace = 0;
+    rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
+    // [10단계] WVP Constant Buffer 하나를 사용하는 Triangle용 Root Signature를 정의합니다.
     // Root Signature : Shader가 외부 Resource에 접근할 때 사용할 Resource Binding 구조와 규칙을 정의하는 객체
     D3D12_ROOT_SIGNATURE_DESC description{};
-    description.NumParameters = 0;
-    description.pParameters = nullptr;
+    description.NumParameters = 1;
+    description.pParameters = &rootParameter;
     description.NumStaticSamplers = 0;
     description.pStaticSamplers = nullptr;
     description.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
