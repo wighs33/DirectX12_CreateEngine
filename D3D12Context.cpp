@@ -47,10 +47,11 @@ bool D3D12Context::RenderFrame()
         return false;
     }
 
-    // [4단계] 현재 Index에 대응하는 BackBuffer Resource와 RTV를 선택합니다.
+    // [4단계] 현재 Index에 대응하는 BackBuffer/RTV와 공통 Depth Buffer의 DSV를 선택합니다.
     ID3D12GraphicsCommandList* const commandList = commandContext_.GetCommandList();
     ID3D12Resource* const backBuffer = swapChain_.GetBackBuffer(frameIndex);
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapChain_.GetRTV(frameIndex);
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = swapChain_.GetDSV();
 
     // [5단계] 화면 표시 상태의 BackBuffer를 렌더링 가능한 상태로 전환합니다.
     // ResourceBarrier : Resource의 사용 목적이 바뀐다는 것을 GPU에 명시적으로 알려주는 명령
@@ -82,8 +83,8 @@ bool D3D12Context::RenderFrame()
     const D3D12_RECT& scissorRect = swapChain_.GetScissorRect();
     commandList->RSSetScissorRects(1, &scissorRect);
 
-    // [11단계] 현재 BackBuffer의 RTV를 Render Target으로 연결합니다.
-    commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+    // [11단계] Color 출력용 RTV와 깊이 비교/기록용 DSV를 Output Merger에 함께 연결합니다.
+    commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
     constexpr float clearColor[] =
     {
@@ -93,56 +94,84 @@ bool D3D12Context::RenderFrame()
         1.0f
     };
 
-    // [12단계] Triangle을 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
+    // [12단계] Cube를 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-    // [13단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
+    // [13단계] 이전 Frame의 깊이가 남지 않도록 Depth Buffer 전체를 가장 먼 값 1.0으로 지웁니다.
+    commandList->ClearDepthStencilView(
+        dsvHandle,
+        D3D12_CLEAR_FLAG_DEPTH,
+        1.0f,
+        0,
+        0,
+        nullptr);
+
+    // [14단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // [14단계] Input Slot 0에 기존 Vertex Buffer View 하나를 연결합니다.
+    // [15단계] Input Slot 0에 기존 Vertex Buffer View 하나를 연결합니다.
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
 
-    // [15단계] Index가 참조할 Index Buffer의 위치, 크기, 16비트 형식을 Input Assembler에 연결합니다.
+    // [16단계] Index가 참조할 Index Buffer의 위치, 크기, 16비트 형식을 Input Assembler에 연결합니다.
     commandList->IASetIndexBuffer(&indexBufferView_);
 
-    // [16단계] Index 3개가 가리키는 Vertex로 인스턴스 하나를 그리는 Indexed Draw 명령을 기록합니다.
+    // [17단계] Index 36개가 구성하는 Triangle 12개로 Cube 하나를 그리는 명령을 기록합니다.
     commandList->DrawIndexedInstanced(IndexCount, 1, 0, 0, 0);
 
-    // [17단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
+    // [18단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     commandList->ResourceBarrier(1, &barrier);
 
-    // [18~19단계] CommandList Close 후 완성된 명령을 GPU Queue에 제출합니다.
+    // [19~20단계] CommandList Close 후 완성된 명령을 GPU Queue에 제출합니다.
     if (!commandContext_.Execute())
         return false;
 
-    // [20단계] 렌더링된 BackBuffer를 화면에 표시하고 다음 BackBuffer로 교체합니다.
+    // [21단계] 렌더링된 BackBuffer를 화면에 표시하고 다음 BackBuffer로 교체합니다.
     if (!swapChain_.Present())
         return false;
 
-    // [21단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
+    // [22단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
     return commandContext_.SignalFrame(frameIndex);
 }
 
 bool D3D12Context::CreateVertexBuffer()
 {
-    // World/View/Projection 변환 전의 Object Space에 Triangle을 정의합니다.
+    // World/View/Projection 변환 전의 Object Space 원점에 한 변 길이가 1인 Cube를 정의합니다.
     // Vertex들은 메모리에 연속으로 놓이며 각 Vertex의 Position 뒤에 Color가 이어집니다.
-    // 기본 Rasterizer의 뒷면 제거 기준에 맞게 위 -> 오른쪽 아래 -> 왼쪽 아래 순서로 배치합니다.
-    const Vertex triangleVertices[VertexCount] =
+    const Vertex cubeVertices[VertexCount] =
     {
         {
-            DirectX::XMFLOAT3(0.0f, 0.5f, 0.0f),
+            DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f),
             DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f)
         },
         {
-            DirectX::XMFLOAT3(0.5f, -0.5f, 0.0f),
+            DirectX::XMFLOAT3(-0.5f, 0.5f, -0.5f),
+            DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)
+        },
+        {
+            DirectX::XMFLOAT3(0.5f, 0.5f, -0.5f),
             DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f)
         },
         {
-            DirectX::XMFLOAT3(-0.5f, -0.5f, 0.0f),
-            DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)
+            DirectX::XMFLOAT3(0.5f, -0.5f, -0.5f),
+            DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f)
+        },
+        {
+            DirectX::XMFLOAT3(-0.5f, -0.5f, 0.5f),
+            DirectX::XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f)
+        },
+        {
+            DirectX::XMFLOAT3(-0.5f, 0.5f, 0.5f),
+            DirectX::XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f)
+        },
+        {
+            DirectX::XMFLOAT3(0.5f, 0.5f, 0.5f),
+            DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f)
+        },
+        {
+            DirectX::XMFLOAT3(0.5f, -0.5f, 0.5f),
+            DirectX::XMFLOAT4(1.0f, 0.5f, 0.0f, 1.0f)
         }
     };
 
@@ -187,7 +216,7 @@ bool D3D12Context::CreateVertexBuffer()
         return false;
     }
 
-    // Map으로 Upload Heap의 CPU 주소를 얻고 세 Vertex를 연속된 Buffer 메모리에 복사합니다.
+    // Map으로 Upload Heap의 CPU 주소를 얻고 Cube의 8개 Vertex를 연속된 Buffer 메모리에 복사합니다.
     void* mappedData = nullptr;
     const D3D12_RANGE readRange{ 0, 0 };
     const HRESULT mapResult = vertexBuffer_->Map(0, &readRange, &mappedData);
@@ -200,7 +229,7 @@ bool D3D12Context::CreateVertexBuffer()
         return false;
     }
 
-    std::memcpy(mappedData, triangleVertices, vertexBufferSize);
+    std::memcpy(mappedData, cubeVertices, vertexBufferSize);
 
     // 복사한 전체 범위를 GPU가 읽을 수 있도록 알리고 CPU 매핑을 끝냅니다.
     const D3D12_RANGE writtenRange{ 0, static_cast<SIZE_T>(vertexBufferSize) };
@@ -216,8 +245,34 @@ bool D3D12Context::CreateVertexBuffer()
 
 bool D3D12Context::CreateIndexBuffer()
 {
+    // 각 면의 바깥쪽이 Front Face가 되도록 Clockwise 화면 winding에 맞춰 12개 Triangle을 정의합니다.
     // 각 Index는 Vertex 자체가 아니라 Vertex Buffer 안의 몇 번째 Vertex를 사용할지 나타냅니다.
-    const std::uint16_t triangleIndices[IndexCount] = { 0, 1, 2 };
+    const std::uint16_t cubeIndices[IndexCount] =
+    {
+        // 앞면(-Z)
+        0, 1, 2,
+        0, 2, 3,
+
+        // 뒷면(+Z)
+        4, 7, 6,
+        4, 6, 5,
+
+        // 왼쪽 면(-X)
+        0, 4, 5,
+        0, 5, 1,
+
+        // 오른쪽 면(+X)
+        3, 2, 6,
+        3, 6, 7,
+
+        // 윗면(+Y)
+        1, 5, 6,
+        1, 6, 2,
+
+        // 아랫면(-Y)
+        0, 3, 7,
+        0, 7, 4
+    };
     const UINT indexBufferSize = static_cast<UINT>(sizeof(std::uint16_t) * IndexCount);
 
     // Vertex Buffer와 같은 Upload Heap을 사용하여 CPU가 Index 데이터를 직접 복사할 수 있게 합니다.
@@ -228,7 +283,7 @@ bool D3D12Context::CreateIndexBuffer()
     heapProperties.CreationNodeMask = 1;
     heapProperties.VisibleNodeMask = 1;
 
-    // 세 개의 16비트 Index를 연속된 바이트로 보관하는 Buffer Resource를 정의합니다.
+    // Cube의 36개 16비트 Index를 연속된 바이트로 보관하는 Buffer Resource를 정의합니다.
     D3D12_RESOURCE_DESC resourceDescription{};
     resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     resourceDescription.Alignment = 0;
@@ -259,7 +314,7 @@ bool D3D12Context::CreateIndexBuffer()
         return false;
     }
 
-    // Map으로 얻은 CPU 주소에 0, 1, 2를 복사하여 GPU가 참조할 Index Buffer 내용을 채웁니다.
+    // Map으로 얻은 CPU 주소에 Cube Index를 복사하여 GPU가 참조할 Buffer 내용을 채웁니다.
     void* mappedData = nullptr;
     const D3D12_RANGE readRange{ 0, 0 };
     const HRESULT mapResult = indexBuffer_->Map(0, &readRange, &mappedData);
@@ -272,7 +327,7 @@ bool D3D12Context::CreateIndexBuffer()
         return false;
     }
 
-    std::memcpy(mappedData, triangleIndices, indexBufferSize);
+    std::memcpy(mappedData, cubeIndices, indexBufferSize);
 
     // 복사한 전체 범위를 GPU가 읽을 수 있도록 알리고 CPU 매핑을 끝냅니다.
     const D3D12_RANGE writtenRange{ 0, static_cast<SIZE_T>(indexBufferSize) };
@@ -354,9 +409,15 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
         return false;
     }
 
-    // Object Space의 Triangle을 World -> View -> Projection 순서로 변환합니다.
-    const DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixIdentity();
-    const DirectX::XMVECTOR cameraPosition = DirectX::XMVectorSet(0.0f, 0.0f, -2.0f, 1.0f);
+    // Cube의 여러 면이 보이도록 고정 회전을 적용한 뒤 World -> View -> Projection 순서로 변환합니다.
+    const DirectX::XMMATRIX rotationX = DirectX::XMMatrixRotationX(
+        DirectX::XMConvertToRadians(-20.0f));
+    const DirectX::XMMATRIX rotationY = DirectX::XMMatrixRotationY(
+        DirectX::XMConvertToRadians(30.0f));
+    const DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixMultiply(
+        rotationX,
+        rotationY);
+    const DirectX::XMVECTOR cameraPosition = DirectX::XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f);
     const DirectX::XMVECTOR cameraTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
     const DirectX::XMVECTOR cameraUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     const DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(

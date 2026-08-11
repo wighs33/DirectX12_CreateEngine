@@ -173,7 +173,6 @@
     <ClInclude Include="D3D12DeviceResources.h" />
     <ClInclude Include="D3D12Pipeline.h" />
     <ClInclude Include="D3D12SwapChain.h" />
-    <ClInclude Include="GraphicsContext.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader.hlsl" />

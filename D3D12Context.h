@@ -4,35 +4,42 @@
 #include "D3D12DeviceResources.h"
 #include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
-#include "GraphicsContext.h"
 
+#include <DirectXMath.h>
 #include <d3d12.h>
 #include <wrl.h>
 
 // 주제별 DirectX 12 객체를 연결하고 전체 초기화와 한 Frame의 렌더링 순서를 조정합니다.
-class D3D12Context final : public GraphicsContext
+class D3D12Context final
 {
 public:
     D3D12Context() = default;
-    ~D3D12Context() override = default;
+    ~D3D12Context() = default;
 
     D3D12Context(const D3D12Context&) = delete;
     D3D12Context& operator=(const D3D12Context&) = delete;
 
     // HWND에 연결할 DirectX 12 객체를 순서대로 생성합니다.
-    bool Initialize(HWND window, UINT width, UINT height) override;
+    bool Initialize(HWND window, UINT width, UINT height);
 
     // 현재 BackBuffer를 지정한 색으로 지우고 화면에 표시하는 한 프레임을 실행합니다.
-    bool RenderFrame() override;
+    bool RenderFrame();
 
 private:
+    // 현재 D3D12 Input Layout과 HLSL Vertex 입력에 대응하는 정점 데이터입니다.
+    struct Vertex
+    {
+        DirectX::XMFLOAT3 position;
+        DirectX::XMFLOAT4 color;
+    };
+
     struct ConstantBufferData
     {
         DirectX::XMFLOAT4X4 worldViewProjection;
     };
 
-    static constexpr UINT VertexCount = 3;
-    static constexpr UINT IndexCount = 3;
+    static constexpr UINT VertexCount = 8;
+    static constexpr UINT IndexCount = 36;
 
     bool CreateVertexBuffer();
     bool CreateIndexBuffer();

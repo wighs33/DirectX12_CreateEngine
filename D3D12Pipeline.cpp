@@ -46,7 +46,7 @@ bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
     rootParameter.Descriptor.RegisterSpace = 0;
     rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
-    // [10단계] WVP Constant Buffer 하나를 사용하는 Triangle용 Root Signature를 정의합니다.
+    // [10단계] WVP Constant Buffer 하나를 사용하는 3D Object용 Root Signature를 정의합니다.
     // Root Signature : Shader가 외부 Resource에 접근할 때 사용할 Resource Binding 구조와 규칙을 정의하는 객체
     D3D12_ROOT_SIGNATURE_DESC description{};
     description.NumParameters = 1;
@@ -240,7 +240,7 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
         targetDescription = renderTargetBlend;
     }
 
-    // Depth Buffer가 없으므로 Depth/Stencil Test와 쓰기를 모두 비활성화합니다.
+    // 가까운 Pixel만 남도록 기본 LESS Depth Test와 Depth 쓰기를 활성화합니다.
     D3D12_DEPTH_STENCILOP_DESC stencilOperation{};
     stencilOperation.StencilFailOp = D3D12_STENCIL_OP_KEEP;
     stencilOperation.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
@@ -248,8 +248,8 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
     stencilOperation.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 
     D3D12_DEPTH_STENCIL_DESC depthStencilDescription{};
-    depthStencilDescription.DepthEnable = FALSE;
-    depthStencilDescription.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    depthStencilDescription.DepthEnable = TRUE;
+    depthStencilDescription.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
     depthStencilDescription.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
     depthStencilDescription.StencilEnable = FALSE;
     depthStencilDescription.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
@@ -277,7 +277,7 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
     description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     description.NumRenderTargets = 1;
     description.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-    description.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    description.DSVFormat = DXGI_FORMAT_D32_FLOAT;
     description.SampleDesc.Count = 1;
     description.SampleDesc.Quality = 0;
     description.NodeMask = 0;

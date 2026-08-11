@@ -36,6 +36,8 @@ bool D3D12SwapChain::Initialize(
         return false;
     if (!CreateRenderTargets(device))
         return false;
+    if (!CreateDepthBuffer(device, width, height))
+        return false;
 
     return true;
 }
@@ -54,6 +56,11 @@ ID3D12Resource* D3D12SwapChain::GetBackBuffer(UINT frameIndex) const
 D3D12_CPU_DESCRIPTOR_HANDLE D3D12SwapChain::GetRTV(UINT frameIndex) const
 {
     return rtvHandles_[frameIndex];
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12SwapChain::GetDSV() const
+{
+    return dsvHandle_;
 }
 
 const D3D12_VIEWPORT& D3D12SwapChain::GetViewport() const
@@ -194,6 +201,94 @@ bool D3D12SwapChain::CreateRenderTargets(ID3D12Device* device)
 
         rtvHandle.ptr += rtvDescriptorSize_;
     }
+
+    return true;
+}
+
+bool D3D12SwapChain::CreateDepthBuffer(ID3D12Device* device, UINT width, UINT height)
+{
+    if (width == 0 || height == 0)
+    {
+        std::fprintf(stderr, "Depth Buffer 생성에 사용할 화면 크기가 0입니다.\n");
+        return false;
+    }
+
+    // 하나의 Depth Stencil View를 보관할 CPU 전용 DSV Descriptor Heap을 생성합니다.
+    D3D12_DESCRIPTOR_HEAP_DESC heapDescription{};
+    heapDescription.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    heapDescription.NumDescriptors = 1;
+    heapDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    heapDescription.NodeMask = 0;
+
+    const HRESULT heapResult = device->CreateDescriptorHeap(
+        &heapDescription,
+        IID_PPV_ARGS(&dsvDescriptorHeap_));
+
+    if (FAILED(heapResult))
+    {
+        std::fprintf(
+            stderr,
+            "DSV용 ID3D12Device::CreateDescriptorHeap 호출에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(heapResult));
+        return false;
+    }
+
+    // Depth Buffer는 GPU가 읽고 쓰는 32비트 부동소수점 Texture2D이므로 Default Heap에 생성합니다.
+    D3D12_HEAP_PROPERTIES heapProperties{};
+    heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProperties.CreationNodeMask = 1;
+    heapProperties.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC resourceDescription{};
+    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    resourceDescription.Alignment = 0;
+    resourceDescription.Width = width;
+    resourceDescription.Height = height;
+    resourceDescription.DepthOrArraySize = 1;
+    resourceDescription.MipLevels = 1;
+    resourceDescription.Format = DXGI_FORMAT_D32_FLOAT;
+    resourceDescription.SampleDesc.Count = 1;
+    resourceDescription.SampleDesc.Quality = 0;
+    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    resourceDescription.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    // 일반 Depth 범위에서 가장 먼 값인 1.0으로 빠르게 Clear할 수 있도록 최적 Clear 값을 제공합니다.
+    D3D12_CLEAR_VALUE clearValue{};
+    clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    clearValue.DepthStencil.Depth = 1.0f;
+    clearValue.DepthStencil.Stencil = 0;
+
+    const HRESULT resourceResult = device->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDescription,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &clearValue,
+        IID_PPV_ARGS(&depthBuffer_));
+
+    if (FAILED(resourceResult))
+    {
+        std::fprintf(
+            stderr,
+            "Depth Buffer용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(resourceResult));
+        return false;
+    }
+
+    // Texture2D Depth Resource를 Output Merger가 사용할 수 있도록 DSV Descriptor로 연결합니다.
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDescription{};
+    dsvDescription.Format = DXGI_FORMAT_D32_FLOAT;
+    dsvDescription.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDescription.Flags = D3D12_DSV_FLAG_NONE;
+    dsvDescription.Texture2D.MipSlice = 0;
+
+    dsvHandle_ = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+    device->CreateDepthStencilView(
+        depthBuffer_.Get(),
+        &dsvDescription,
+        dsvHandle_);
 
     return true;
 }
