@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cwchar>
 #include <cstring>
 #include <utility>
 
@@ -83,6 +84,8 @@ void D3D12Context::Update(float deltaTime)
     constexpr float cameraSpeed = 3.0f;
     constexpr float mouseSensitivity = 0.002f;
 
+    UpdateRenderingStatistics(deltaTime);
+
     Input::Update(window_);
 
     // Mouse Delta는 이미 한 Frame 동안 이동한 Pixel 양이므로 DeltaTime을 곱하지 않습니다.
@@ -105,6 +108,12 @@ void D3D12Context::Update(float deltaTime)
 
 bool D3D12Context::RenderFrame()
 {
+    renderingStats_.sceneObjectCount =
+        static_cast<std::uint32_t>(scene_.GetGameObjectCount());
+    renderingStats_.renderedObjectCount = 0;
+    renderingStats_.drawCallCount = 0;
+    renderingStats_.triangleCount = 0;
+
     // SwapChain에서 이번 Frame Resource를 식별할 현재 BackBuffer Index를 먼저 얻습니다.
     const UINT frameIndex = swapChain_.GetCurrentFrameIndex();
 
@@ -221,6 +230,9 @@ bool D3D12Context::RenderFrame()
 
         // [17단계] Object 하나당 한 번씩 Indexed Cube Draw 명령을 기록합니다.
         commandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+        ++renderingStats_.renderedObjectCount;
+        ++renderingStats_.drawCallCount;
+        renderingStats_.triangleCount += mesh->GetIndexCount() / 3;
     }
 
     // [18단계] 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
@@ -238,6 +250,45 @@ bool D3D12Context::RenderFrame()
 
     // [22단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
     return commandContext_.SignalFrame(frameIndex);
+}
+
+void D3D12Context::UpdateRenderingStatistics(float deltaTime)
+{
+    constexpr float statisticsUpdateInterval = 1.0f;
+
+    statisticsElapsedTime_ += deltaTime;
+    ++statisticsFrameCount_;
+
+    if (statisticsElapsedTime_ < statisticsUpdateInterval)
+    {
+        return;
+    }
+
+    renderingStats_.fps =
+        static_cast<float>(statisticsFrameCount_) / statisticsElapsedTime_;
+    renderingStats_.frameTimeMs =
+        statisticsElapsedTime_ * 1000.0f /
+        static_cast<float>(statisticsFrameCount_);
+
+    UpdateWindowTitle();
+
+    statisticsElapsedTime_ = 0.0f;
+    statisticsFrameCount_ = 0;
+}
+
+void D3D12Context::UpdateWindowTitle() const
+{
+    wchar_t title[256]{};
+    swprintf_s(
+        title,
+        L"DirectX 12 Study | FPS: %.1f | Frame: %.2f ms | Objects: %u | Rendered: %u | DrawCalls: %u | Triangles: %u",
+        renderingStats_.fps,
+        renderingStats_.frameTimeMs,
+        renderingStats_.sceneObjectCount,
+        renderingStats_.renderedObjectCount,
+        renderingStats_.drawCallCount,
+        renderingStats_.triangleCount);
+    SetWindowTextW(window_, title);
 }
 
 bool D3D12Context::CreateTexture()

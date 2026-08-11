@@ -14,6 +14,18 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+#include <cstdint>
+
+struct RenderingStats
+{
+    float fps = 0.0f;
+    float frameTimeMs = 0.0f;
+    std::uint32_t sceneObjectCount = 0;
+    std::uint32_t renderedObjectCount = 0;
+    std::uint32_t drawCallCount = 0;
+    std::uint32_t triangleCount = 0;
+};
+
 // 주제별 DirectX 12 객체를 연결하고 전체 초기화와 한 Frame의 렌더링 순서를 조정합니다.
 class D3D12Context final
 {
@@ -61,6 +73,8 @@ private:
     bool CreateConstantBuffer(UINT width, UINT height);
     bool CreateLightingConstantBuffer();
     void UpdateConstantBuffers(UINT frameIndex);
+    void UpdateRenderingStatistics(float deltaTime);
+    void UpdateWindowTitle() const;
 
     // Camera는 Scene을 바라보는 View Matrix만 제공하며 GameObject와 별도로 유지합니다.
     Camera camera_;
@@ -81,6 +95,9 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;
     // Upload Heap을 한 번 Map한 뒤 Frame별 WVP Matrix를 갱신할 때 계속 사용할 CPU 주소입니다.
     void* constantBufferMappedData_ = nullptr;
+    RenderingStats renderingStats_;
+    float statisticsElapsedTime_ = 0.0f;
+    std::uint32_t statisticsFrameCount_ = 0;
     UINT clientWidth_ = 0;
     UINT clientHeight_ = 0;
     HWND window_ = nullptr;
