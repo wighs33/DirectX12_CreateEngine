@@ -81,6 +81,8 @@ private:
     bool CreateCubeMesh();
     bool CreateTexture();
     bool CreateConstantBuffer(UINT width, UINT height);
+    bool EnsureConstantBufferCapacity(std::size_t requiredCapacity);
+    bool RecreateConstantBuffer(std::size_t newCapacity);
     bool CreateLightingConstantBuffer();
     bool InitializeImGui();
     void ShutdownImGui();
@@ -127,11 +129,13 @@ private:
     bool imguiInitialized_ = false;
     // Selection은 Scene Object 자체가 아닌 Editor가 관리하며 vector 재배치에 안전한 Index를 사용합니다.
     std::size_t selectedObjectIndex_ = InvalidObjectIndex;
+    std::uint32_t nextCubeNameIndex_ = 3;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;
     // Upload Heap을 한 번 Map한 뒤 Frame별 WVP Matrix를 갱신할 때 계속 사용할 CPU 주소입니다.
     void* constantBufferMappedData_ = nullptr;
+    std::size_t objectConstantBufferCapacity_ = 0;
     RenderingStats renderingStats_;
     float statisticsElapsedTime_ = 0.0f;
     std::uint32_t statisticsFrameCount_ = 0;

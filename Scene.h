@@ -9,7 +9,7 @@
 class Scene final
 {
 public:
-    void AddGameObject(GameObject gameObject);
+    std::size_t AddGameObject(GameObject gameObject);
 
     std::vector<GameObject>& GetGameObjects();
     const std::vector<GameObject>& GetGameObjects() const;

@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cwchar>
 #include <cstring>
+#include <string>
 #include <utility>
 
 D3D12Context::~D3D12Context()
@@ -148,8 +149,14 @@ void D3D12Context::Update(float deltaTime)
 
 bool D3D12Context::RenderFrame()
 {
+    const std::size_t sceneObjectCount = scene_.GetGameObjectCount();
+    if (!EnsureConstantBufferCapacity(sceneObjectCount))
+    {
+        return false;
+    }
+
     renderingStats_.sceneObjectCount =
-        static_cast<std::uint32_t>(scene_.GetGameObjectCount());
+        static_cast<std::uint32_t>(sceneObjectCount);
     renderingStats_.renderedObjectCount = 0;
     renderingStats_.culledObjectCount = 0;
     renderingStats_.drawCallCount = 0;
@@ -251,7 +258,6 @@ bool D3D12Context::RenderFrame()
 
     // Render는 Object를 직접 소유하지 않고 Scene이 제공하는 목록을 순회합니다.
     const std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
-    const UINT64 objectCount = static_cast<UINT64>(scene_.GetGameObjectCount());
     for (std::size_t objectIndex = 0; objectIndex < gameObjects.size(); ++objectIndex)
     {
         const GameObject& gameObject = gameObjects[objectIndex];
@@ -277,7 +283,8 @@ bool D3D12Context::RenderFrame()
             viewProjectionMatrix);
 
         const UINT64 constantBufferSlot =
-            static_cast<UINT64>(frameIndex) * objectCount + objectIndex;
+            static_cast<UINT64>(frameIndex) * objectConstantBufferCapacity_ +
+            objectIndex;
         const UINT64 constantBufferOffset =
             constantBufferSlot * AlignedConstantBufferSize;
 
@@ -473,7 +480,14 @@ void D3D12Context::DrawEditorUI()
         ImVec2(leftPanelWidth, createPanelHeight),
         ImGuiCond_Always);
     ImGui::Begin("Create", nullptr, panelFlags);
-    ImGui::Button("Cube", ImVec2(120.0f, 0.0f));
+    if (ImGui::Button("Cube", ImVec2(120.0f, 0.0f)))
+    {
+        GameObject cube(&cubeMesh_);
+        cube.SetName("Cube_" + std::to_string(nextCubeNameIndex_));
+
+        selectedObjectIndex_ = scene_.AddGameObject(std::move(cube));
+        ++nextCubeNameIndex_;
+    }
     ImGui::Button("Sphere", ImVec2(120.0f, 0.0f));
     ImGui::End();
 
@@ -845,6 +859,58 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     clientWidth_ = width;
     clientHeight_ = height;
 
+    return EnsureConstantBufferCapacity(objectCount);
+}
+
+bool D3D12Context::EnsureConstantBufferCapacity(
+    std::size_t requiredCapacity)
+{
+    if (requiredCapacity <= objectConstantBufferCapacity_)
+    {
+        return true;
+    }
+
+    const UINT64 bytesPerObjectCapacity =
+        static_cast<UINT64>(AlignedConstantBufferSize) *
+        D3D12Config::FrameCount;
+    const std::size_t maximumCapacity = static_cast<std::size_t>(
+        (std::numeric_limits<UINT64>::max)() / bytesPerObjectCapacity);
+    if (requiredCapacity > maximumCapacity)
+    {
+        std::fprintf(stderr, "Object Constant Buffer Capacity가 너무 큽니다.\n");
+        return false;
+    }
+
+    std::size_t newCapacity = (std::max)(
+        objectConstantBufferCapacity_,
+        static_cast<std::size_t>(1));
+    while (newCapacity < requiredCapacity)
+    {
+        if (newCapacity > maximumCapacity / 2)
+        {
+            newCapacity = requiredCapacity;
+            break;
+        }
+
+        newCapacity *= 2;
+    }
+
+    return RecreateConstantBuffer(newCapacity);
+}
+
+bool D3D12Context::RecreateConstantBuffer(std::size_t newCapacity)
+{
+    if (newCapacity == 0)
+    {
+        return false;
+    }
+
+    // 기존 Resource를 교체하기 전에 Queue에 제출된 모든 참조가 끝났는지 Fence로 확인합니다.
+    if (constantBuffer_ != nullptr && !commandContext_.WaitForGPU())
+    {
+        return false;
+    }
+
     // CPU가 Matrix를 직접 쓰고 GPU가 읽을 수 있도록 Upload Heap을 사용합니다.
     D3D12_HEAP_PROPERTIES heapProperties{};
     heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -856,11 +922,11 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     D3D12_RESOURCE_DESC resourceDescription{};
     resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     resourceDescription.Alignment = 0;
-    // Frame별 영역 안에 Object별 영역을 두어 Frame 간 경합과 Object 간 덮어쓰기를 함께 방지합니다.
+    // Frame별 stride를 Capacity로 고정하여 실행 중 Object Count가 바뀌어도 영역이 겹치지 않습니다.
     resourceDescription.Width =
         static_cast<UINT64>(AlignedConstantBufferSize) *
         D3D12Config::FrameCount *
-        objectCount;
+        newCapacity;
     resourceDescription.Height = 1;
     resourceDescription.DepthOrArraySize = 1;
     resourceDescription.MipLevels = 1;
@@ -870,13 +936,14 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
 
+    Microsoft::WRL::ComPtr<ID3D12Resource> newConstantBuffer;
     const HRESULT resourceResult = deviceResources_.GetDevice()->CreateCommittedResource(
         &heapProperties,
         D3D12_HEAP_FLAG_NONE,
         &resourceDescription,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
-        IID_PPV_ARGS(&constantBuffer_));
+        IID_PPV_ARGS(&newConstantBuffer));
 
     if (FAILED(resourceResult))
     {
@@ -888,11 +955,12 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     }
 
     // 한 번 얻은 CPU 주소를 계속 보관하는 Persistent Mapping 방식으로 사용합니다.
+    void* newMappedData = nullptr;
     const D3D12_RANGE readRange{ 0, 0 };
-    const HRESULT mapResult = constantBuffer_->Map(
+    const HRESULT mapResult = newConstantBuffer->Map(
         0,
         &readRange,
-        &constantBufferMappedData_);
+        &newMappedData);
 
     if (FAILED(mapResult))
     {
@@ -904,9 +972,18 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
     }
 
     std::memset(
-        constantBufferMappedData_,
+        newMappedData,
         0,
         static_cast<SIZE_T>(resourceDescription.Width));
+
+    if (constantBuffer_ != nullptr && constantBufferMappedData_ != nullptr)
+    {
+        constantBuffer_->Unmap(0, nullptr);
+    }
+
+    constantBuffer_ = std::move(newConstantBuffer);
+    constantBufferMappedData_ = newMappedData;
+    objectConstantBufferCapacity_ = newCapacity;
 
     return true;
 }
@@ -983,7 +1060,6 @@ void D3D12Context::UpdateObjectConstantBuffer(
     const DirectX::XMMATRIX& worldMatrix,
     const DirectX::XMMATRIX& viewProjectionMatrix)
 {
-    const std::size_t objectCount = scene_.GetGameObjectCount();
     const DirectX::XMMATRIX worldViewProjectionMatrix = DirectX::XMMatrixMultiply(
         worldMatrix,
         viewProjectionMatrix);
@@ -1000,7 +1076,9 @@ void D3D12Context::UpdateObjectConstantBuffer(
         DirectX::XMMatrixTranspose(worldInverseTransposeMatrix));
 
     const std::size_t constantBufferSlot =
-        static_cast<std::size_t>(frameIndex) * objectCount + objectIndex;
+        static_cast<std::size_t>(frameIndex) *
+        objectConstantBufferCapacity_ +
+        objectIndex;
     unsigned char* const objectData =
         static_cast<unsigned char*>(constantBufferMappedData_) +
         static_cast<SIZE_T>(constantBufferSlot) * AlignedConstantBufferSize;

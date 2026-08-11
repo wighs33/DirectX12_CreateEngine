@@ -2,9 +2,11 @@
 
 #include <utility>
 
-void Scene::AddGameObject(GameObject gameObject)
+std::size_t Scene::AddGameObject(GameObject gameObject)
 {
+    const std::size_t objectIndex = gameObjects_.size();
     gameObjects_.push_back(std::move(gameObject));
+    return objectIndex;
 }
 
 std::vector<GameObject>& Scene::GetGameObjects()
