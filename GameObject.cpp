@@ -9,6 +9,16 @@ GameObject::GameObject(Mesh* mesh)
 {
 }
 
+void GameObject::SetName(const std::string& name)
+{
+    name_ = name;
+}
+
+const std::string& GameObject::GetName() const
+{
+    return name_;
+}
+
 void GameObject::SetMesh(Mesh* mesh)
 {
     mesh_ = mesh;

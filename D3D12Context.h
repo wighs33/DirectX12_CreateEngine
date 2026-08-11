@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 struct ImGui_ImplDX12_InitInfo;
@@ -74,6 +75,8 @@ private:
         (static_cast<UINT>(sizeof(LightingConstantBufferData)) + ConstantBufferAlignment - 1) &
         ~(ConstantBufferAlignment - 1);
     static constexpr UINT ImGuiDescriptorCount = 16;
+    static constexpr std::size_t InvalidObjectIndex =
+        (std::numeric_limits<std::size_t>::max)();
 
     bool CreateCubeMesh();
     bool CreateTexture();
@@ -122,6 +125,8 @@ private:
     std::vector<UINT> imguiFreeDescriptorIndices_;
     UINT imguiDescriptorSize_ = 0;
     bool imguiInitialized_ = false;
+    // Selection은 Scene Object 자체가 아닌 Editor가 관리하며 vector 재배치에 안전한 Index를 사용합니다.
+    std::size_t selectedObjectIndex_ = InvalidObjectIndex;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;

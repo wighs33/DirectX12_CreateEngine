@@ -50,6 +50,7 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
 
     // Scene이 소유할 세 GameObject는 각자 Transform을 가지며 하나뿐인 Cube Mesh를 함께 참조합니다.
     GameObject leftCube(&cubeMesh_);
+    leftCube.SetName("Cube");
     Transform& leftCubeTransform = leftCube.GetTransform();
     leftCubeTransform.SetPosition(-1.25f, 0.0f, 0.2f);
     leftCubeTransform.SetRotation(
@@ -59,6 +60,7 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     leftCubeTransform.SetScale(1.0f, 1.0f, 1.0f);
 
     GameObject centerCube(&cubeMesh_);
+    centerCube.SetName("Cube_1");
     Transform& centerCubeTransform = centerCube.GetTransform();
     centerCubeTransform.SetPosition(0.0f, 0.0f, 0.0f);
     centerCubeTransform.SetRotation(
@@ -68,6 +70,7 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     centerCubeTransform.SetScale(1.0f, 1.0f, 1.0f);
 
     GameObject rightCube(&cubeMesh_);
+    rightCube.SetName("Cube_2");
     Transform& rightCubeTransform = rightCube.GetTransform();
     rightCubeTransform.SetPosition(1.25f, 0.0f, -0.2f);
     rightCubeTransform.SetRotation(
@@ -456,6 +459,13 @@ void D3D12Context::DrawEditorUI()
         workPosition.x + panelMargin,
         workPosition.x + workSize.x - rightPanelWidth - panelMargin);
 
+    std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
+    if (selectedObjectIndex_ != InvalidObjectIndex &&
+        selectedObjectIndex_ >= gameObjects.size())
+    {
+        selectedObjectIndex_ = InvalidObjectIndex;
+    }
+
     ImGui::SetNextWindowPos(
         ImVec2(workPosition.x + panelMargin, workPosition.y + panelMargin),
         ImGuiCond_Always);
@@ -476,7 +486,27 @@ void D3D12Context::DrawEditorUI()
         ImVec2(leftPanelWidth, hierarchyPanelHeight),
         ImGuiCond_Always);
     ImGui::Begin("Hierarchy", nullptr, panelFlags);
-    ImGui::TextDisabled("No Objects");
+    if (gameObjects.empty())
+    {
+        ImGui::TextDisabled("No Objects");
+    }
+    else
+    {
+        for (std::size_t objectIndex = 0;
+             objectIndex < gameObjects.size();
+             ++objectIndex)
+        {
+            const GameObject& gameObject = gameObjects[objectIndex];
+            const bool isSelected = selectedObjectIndex_ == objectIndex;
+
+            ImGui::PushID(static_cast<int>(objectIndex));
+            if (ImGui::Selectable(gameObject.GetName().c_str(), isSelected))
+            {
+                selectedObjectIndex_ = objectIndex;
+            }
+            ImGui::PopID();
+        }
+    }
     ImGui::End();
 
     ImGui::SetNextWindowPos(
@@ -486,7 +516,65 @@ void D3D12Context::DrawEditorUI()
         ImVec2(rightPanelWidth, fullPanelHeight),
         ImGuiCond_Always);
     ImGui::Begin("Inspector", nullptr, panelFlags);
-    ImGui::TextDisabled("No Object Selected");
+    if (selectedObjectIndex_ == InvalidObjectIndex)
+    {
+        ImGui::TextDisabled("No Object Selected");
+    }
+    else
+    {
+        GameObject& selectedObject = gameObjects[selectedObjectIndex_];
+        Transform& transform = selectedObject.GetTransform();
+
+        ImGui::TextUnformatted("Name");
+        ImGui::TextUnformatted(selectedObject.GetName().c_str());
+
+        ImGui::SeparatorText("Transform");
+
+        const DirectX::XMFLOAT3& currentPosition = transform.GetPosition();
+        float position[] =
+        {
+            currentPosition.x,
+            currentPosition.y,
+            currentPosition.z
+        };
+        if (ImGui::DragFloat3("Position", position, 0.1f, 0.0f, 0.0f, "%.2f"))
+        {
+            transform.SetPosition(position[0], position[1], position[2]);
+        }
+
+        const DirectX::XMFLOAT3& currentRotation = transform.GetRotation();
+        float rotationDegrees[] =
+        {
+            DirectX::XMConvertToDegrees(currentRotation.x),
+            DirectX::XMConvertToDegrees(currentRotation.y),
+            DirectX::XMConvertToDegrees(currentRotation.z)
+        };
+        if (ImGui::DragFloat3(
+            "Rotation",
+            rotationDegrees,
+            1.0f,
+            0.0f,
+            0.0f,
+            "%.1f"))
+        {
+            transform.SetRotation(
+                DirectX::XMConvertToRadians(rotationDegrees[0]),
+                DirectX::XMConvertToRadians(rotationDegrees[1]),
+                DirectX::XMConvertToRadians(rotationDegrees[2]));
+        }
+
+        const DirectX::XMFLOAT3& currentScale = transform.GetScale();
+        float scale[] =
+        {
+            currentScale.x,
+            currentScale.y,
+            currentScale.z
+        };
+        if (ImGui::DragFloat3("Scale", scale, 0.05f, 0.0f, 0.0f, "%.2f"))
+        {
+            transform.SetScale(scale[0], scale[1], scale[2]);
+        }
+    }
     ImGui::End();
 }
 
