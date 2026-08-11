@@ -6,6 +6,7 @@
 #include "D3D12DeviceResources.h"
 #include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
+#include "Frustum.h"
 #include "Mesh.h"
 #include "ResourceManager.h"
 #include "Scene.h"
@@ -14,6 +15,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+#include <cstddef>
 #include <cstdint>
 
 struct RenderingStats
@@ -22,6 +24,7 @@ struct RenderingStats
     float frameTimeMs = 0.0f;
     std::uint32_t sceneObjectCount = 0;
     std::uint32_t renderedObjectCount = 0;
+    std::uint32_t culledObjectCount = 0;
     std::uint32_t drawCallCount = 0;
     std::uint32_t triangleCount = 0;
 };
@@ -72,12 +75,17 @@ private:
     bool CreateTexture();
     bool CreateConstantBuffer(UINT width, UINT height);
     bool CreateLightingConstantBuffer();
-    void UpdateConstantBuffers(UINT frameIndex);
+    void UpdateObjectConstantBuffer(
+        UINT frameIndex,
+        std::size_t objectIndex,
+        const DirectX::XMMATRIX& worldMatrix,
+        const DirectX::XMMATRIX& viewProjectionMatrix);
     void UpdateRenderingStatistics(float deltaTime);
     void UpdateWindowTitle() const;
 
     // Camera는 Scene을 바라보는 View Matrix만 제공하며 GameObject와 별도로 유지합니다.
     Camera camera_;
+    Frustum frustum_;
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;

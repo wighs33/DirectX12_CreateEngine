@@ -1,5 +1,7 @@
 #pragma once
 
+#include "BoundingBox.h"
+
 #include <DirectXMath.h>
 #include <d3d12.h>
 #include <wrl.h>
@@ -36,6 +38,7 @@ public:
     const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const;
     UINT GetVertexCount() const;
     UINT GetIndexCount() const;
+    const AABB& GetLocalBounds() const;
 
 private:
     bool CreateVertexBuffer(
@@ -46,6 +49,7 @@ private:
         ID3D12Device* device,
         const std::uint16_t* indices,
         UINT indexCount);
+    bool CalculateLocalBounds(const Vertex* vertices, UINT vertexCount);
 
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer_;
@@ -53,4 +57,5 @@ private:
     D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
     UINT vertexCount_ = 0;
     UINT indexCount_ = 0;
+    AABB localBounds_{};
 };

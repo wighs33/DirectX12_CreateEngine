@@ -111,6 +111,7 @@ bool D3D12Context::RenderFrame()
     renderingStats_.sceneObjectCount =
         static_cast<std::uint32_t>(scene_.GetGameObjectCount());
     renderingStats_.renderedObjectCount = 0;
+    renderingStats_.culledObjectCount = 0;
     renderingStats_.drawCallCount = 0;
     renderingStats_.triangleCount = 0;
 
@@ -123,8 +124,20 @@ bool D3D12Context::RenderFrame()
         return false;
     }
 
-    // Fence 확인이 끝난 현재 Frame 슬롯에 이동된 Camera의 최신 WVP를 기록합니다.
-    UpdateConstantBuffers(frameIndex);
+    const DirectX::XMMATRIX viewMatrix = camera_.GetViewMatrix();
+    const float aspectRatio =
+        static_cast<float>(clientWidth_) / static_cast<float>(clientHeight_);
+    const DirectX::XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(
+        DirectX::XMConvertToRadians(45.0f),
+        aspectRatio,
+        0.1f,
+        100.0f);
+    const DirectX::XMMATRIX viewProjectionMatrix = DirectX::XMMatrixMultiply(
+        viewMatrix,
+        projectionMatrix);
+
+    // GPU 업로드용 Transpose Matrix가 아닌 CPU 원본 ViewProjection으로 Frame당 한 번 갱신합니다.
+    frustum_.Update(viewProjectionMatrix);
 
     // [4단계] 현재 Index에 대응하는 BackBuffer/RTV와 공통 Depth Buffer의 DSV를 선택합니다.
     ID3D12GraphicsCommandList* const commandList = commandContext_.GetCommandList();
@@ -208,6 +221,21 @@ bool D3D12Context::RenderFrame()
             continue;
         }
 
+        const AABB worldBounds = gameObject.GetWorldBounds();
+        if (!frustum_.Intersects(worldBounds))
+        {
+            ++renderingStats_.culledObjectCount;
+            continue;
+        }
+
+        const DirectX::XMMATRIX worldMatrix =
+            gameObject.GetTransform().GetWorldMatrix();
+        UpdateObjectConstantBuffer(
+            frameIndex,
+            objectIndex,
+            worldMatrix,
+            viewProjectionMatrix);
+
         const UINT64 constantBufferSlot =
             static_cast<UINT64>(frameIndex) * objectCount + objectIndex;
         const UINT64 constantBufferOffset =
@@ -281,11 +309,12 @@ void D3D12Context::UpdateWindowTitle() const
     wchar_t title[256]{};
     swprintf_s(
         title,
-        L"DirectX 12 Study | FPS: %.1f | Frame: %.2f ms | Objects: %u | Rendered: %u | DrawCalls: %u | Triangles: %u",
+        L"DirectX 12 Study | FPS: %.1f | Frame: %.2f ms | Objects: %u | Rendered: %u | Culled: %u | DrawCalls: %u | Triangles: %u",
         renderingStats_.fps,
         renderingStats_.frameTimeMs,
         renderingStats_.sceneObjectCount,
         renderingStats_.renderedObjectCount,
+        renderingStats_.culledObjectCount,
         renderingStats_.drawCallCount,
         renderingStats_.triangleCount);
     SetWindowTextW(window_, title);
@@ -587,53 +616,36 @@ bool D3D12Context::CreateLightingConstantBuffer()
     return true;
 }
 
-void D3D12Context::UpdateConstantBuffers(UINT frameIndex)
+void D3D12Context::UpdateObjectConstantBuffer(
+    UINT frameIndex,
+    std::size_t objectIndex,
+    const DirectX::XMMATRIX& worldMatrix,
+    const DirectX::XMMATRIX& viewProjectionMatrix)
 {
-    // 하나의 Camera를 사용하는 같은 Frame에서는 모든 Object가 동일한 View/Projection을 공유합니다.
-    const DirectX::XMMATRIX viewMatrix = camera_.GetViewMatrix();
-
-    const float aspectRatio =
-        static_cast<float>(clientWidth_) / static_cast<float>(clientHeight_);
-    const DirectX::XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(
-        DirectX::XMConvertToRadians(45.0f),
-        aspectRatio,
-        0.1f,
-        100.0f);
-
-    const std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
     const std::size_t objectCount = scene_.GetGameObjectCount();
-    for (std::size_t objectIndex = 0; objectIndex < gameObjects.size(); ++objectIndex)
-    {
-        // World만 Object마다 다르므로 같은 View/Projection과 결합해 Object별 WVP를 만듭니다.
-        const DirectX::XMMATRIX worldMatrix =
-            gameObjects[objectIndex].GetTransform().GetWorldMatrix();
-        const DirectX::XMMATRIX worldViewMatrix = DirectX::XMMatrixMultiply(
-            worldMatrix,
-            viewMatrix);
-        const DirectX::XMMATRIX worldViewProjectionMatrix = DirectX::XMMatrixMultiply(
-            worldViewMatrix,
-            projectionMatrix);
-        const DirectX::XMMATRIX worldInverseTransposeMatrix = DirectX::XMMatrixTranspose(
-            DirectX::XMMatrixInverse(nullptr, worldMatrix));
+    const DirectX::XMMATRIX worldViewProjectionMatrix = DirectX::XMMatrixMultiply(
+        worldMatrix,
+        viewProjectionMatrix);
+    const DirectX::XMMATRIX worldInverseTransposeMatrix = DirectX::XMMatrixTranspose(
+        DirectX::XMMatrixInverse(nullptr, worldMatrix));
 
-        ConstantBufferData constantBufferData{};
-        // DirectXMath의 행 우선 Matrix를 HLSL의 기본 열 우선 메모리 배치와 맞추기 위해 전치합니다.
-        DirectX::XMStoreFloat4x4(
-            &constantBufferData.worldViewProjection,
-            DirectX::XMMatrixTranspose(worldViewProjectionMatrix));
-        DirectX::XMStoreFloat4x4(
-            &constantBufferData.worldInverseTranspose,
-            DirectX::XMMatrixTranspose(worldInverseTransposeMatrix));
+    ConstantBufferData constantBufferData{};
+    // DirectXMath의 행 우선 Matrix를 HLSL의 기본 열 우선 메모리 배치와 맞추기 위해 전치합니다.
+    DirectX::XMStoreFloat4x4(
+        &constantBufferData.worldViewProjection,
+        DirectX::XMMatrixTranspose(worldViewProjectionMatrix));
+    DirectX::XMStoreFloat4x4(
+        &constantBufferData.worldInverseTranspose,
+        DirectX::XMMatrixTranspose(worldInverseTransposeMatrix));
 
-        const std::size_t constantBufferSlot =
-            static_cast<std::size_t>(frameIndex) * objectCount + objectIndex;
-        unsigned char* const objectData =
-            static_cast<unsigned char*>(constantBufferMappedData_) +
-            static_cast<SIZE_T>(constantBufferSlot) * AlignedConstantBufferSize;
-        std::memset(objectData, 0, AlignedConstantBufferSize);
-        std::memcpy(
-            objectData,
-            &constantBufferData,
-            sizeof(constantBufferData));
-    }
+    const std::size_t constantBufferSlot =
+        static_cast<std::size_t>(frameIndex) * objectCount + objectIndex;
+    unsigned char* const objectData =
+        static_cast<unsigned char*>(constantBufferMappedData_) +
+        static_cast<SIZE_T>(constantBufferSlot) * AlignedConstantBufferSize;
+    std::memset(objectData, 0, AlignedConstantBufferSize);
+    std::memcpy(
+        objectData,
+        &constantBufferData,
+        sizeof(constantBufferData));
 }

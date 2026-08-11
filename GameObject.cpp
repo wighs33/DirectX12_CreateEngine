@@ -1,5 +1,9 @@
 #include "GameObject.h"
 
+#include "Mesh.h"
+
+#include <cstddef>
+
 GameObject::GameObject(Mesh* mesh)
     : mesh_(mesh)
 {
@@ -28,4 +32,35 @@ Transform& GameObject::GetTransform()
 const Transform& GameObject::GetTransform() const
 {
     return transform_;
+}
+
+AABB GameObject::GetWorldBounds() const
+{
+    if (mesh_ == nullptr)
+    {
+        return {};
+    }
+
+    const AABB& localBounds = mesh_->GetLocalBounds();
+    const std::array<DirectX::XMFLOAT3, 8> localCorners = localBounds.GetCorners();
+
+    const DirectX::XMMATRIX worldMatrix = transform_.GetWorldMatrix();
+    DirectX::XMVECTOR minimum = DirectX::XMVector3TransformCoord(
+        DirectX::XMLoadFloat3(&localCorners[0]),
+        worldMatrix);
+    DirectX::XMVECTOR maximum = minimum;
+
+    for (std::size_t cornerIndex = 1; cornerIndex < localCorners.size(); ++cornerIndex)
+    {
+        const DirectX::XMVECTOR worldCorner = DirectX::XMVector3TransformCoord(
+            DirectX::XMLoadFloat3(&localCorners[cornerIndex]),
+            worldMatrix);
+        minimum = DirectX::XMVectorMin(minimum, worldCorner);
+        maximum = DirectX::XMVectorMax(maximum, worldCorner);
+    }
+
+    AABB worldBounds{};
+    DirectX::XMStoreFloat3(&worldBounds.minimum, minimum);
+    DirectX::XMStoreFloat3(&worldBounds.maximum, maximum);
+    return worldBounds;
 }

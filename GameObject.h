@@ -1,5 +1,6 @@
 #pragma once
 
+#include "BoundingBox.h"
 #include "Transform.h"
 
 class Mesh;
@@ -18,6 +19,7 @@ public:
 
     Transform& GetTransform();
     const Transform& GetTransform() const;
+    AABB GetWorldBounds() const;
 
 private:
     // Transform은 GameObject마다 서로 다른 공간 상태를 가져야 하므로 값으로 소유합니다.

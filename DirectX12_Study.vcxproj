@@ -166,6 +166,7 @@
     <ClCompile Include="D3D12Pipeline.cpp" />
     <ClCompile Include="D3D12SwapChain.cpp" />
     <ClCompile Include="DirectX12_Study.cpp" />
+    <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Mesh.cpp" />
@@ -176,6 +177,7 @@
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BoundingBox.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="D3D12CommandContext.h" />
     <ClInclude Include="D3D12Config.h" />
@@ -183,6 +185,7 @@
     <ClInclude Include="D3D12DeviceResources.h" />
     <ClInclude Include="D3D12Pipeline.h" />
     <ClInclude Include="D3D12SwapChain.h" />
+    <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="Mesh.h" />

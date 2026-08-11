@@ -30,6 +30,7 @@ bool Mesh::Initialize(
     indexBufferView_ = {};
     vertexCount_ = 0;
     indexCount_ = 0;
+    localBounds_ = {};
 
     if (!CreateVertexBuffer(device, vertices, vertexCount))
         return false;
@@ -37,6 +38,14 @@ bool Mesh::Initialize(
     {
         vertexBuffer_.Reset();
         vertexBufferView_ = {};
+        return false;
+    }
+    if (!CalculateLocalBounds(vertices, vertexCount))
+    {
+        vertexBuffer_.Reset();
+        indexBuffer_.Reset();
+        vertexBufferView_ = {};
+        indexBufferView_ = {};
         return false;
     }
 
@@ -63,6 +72,35 @@ UINT Mesh::GetVertexCount() const
 UINT Mesh::GetIndexCount() const
 {
     return indexCount_;
+}
+
+const AABB& Mesh::GetLocalBounds() const
+{
+    return localBounds_;
+}
+
+bool Mesh::CalculateLocalBounds(const Vertex* vertices, UINT vertexCount)
+{
+    if (vertices == nullptr || vertexCount == 0)
+    {
+        localBounds_ = {};
+        return false;
+    }
+
+    DirectX::XMVECTOR minimum = DirectX::XMLoadFloat3(&vertices[0].position);
+    DirectX::XMVECTOR maximum = minimum;
+
+    for (UINT vertexIndex = 1; vertexIndex < vertexCount; ++vertexIndex)
+    {
+        const DirectX::XMVECTOR position =
+            DirectX::XMLoadFloat3(&vertices[vertexIndex].position);
+        minimum = DirectX::XMVectorMin(minimum, position);
+        maximum = DirectX::XMVectorMax(maximum, position);
+    }
+
+    DirectX::XMStoreFloat3(&localBounds_.minimum, minimum);
+    DirectX::XMStoreFloat3(&localBounds_.maximum, maximum);
+    return true;
 }
 
 bool Mesh::CreateVertexBuffer(
