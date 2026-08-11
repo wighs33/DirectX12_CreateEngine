@@ -7,6 +7,7 @@
 #include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
 #include "Mesh.h"
+#include "ResourceManager.h"
 #include "Scene.h"
 
 #include <DirectXMath.h>
@@ -60,8 +61,8 @@ private:
     Mesh cubeMesh_;
     Scene scene_;
 
-    // 모든 Cube가 공유하는 Texture Resource와 이를 Shader에 공개하는 SRV Heap입니다.
-    Microsoft::WRL::ComPtr<ID3D12Resource> texture_;
+    // ResourceManager는 공유 Texture의 수명을 소유하고 SRV Heap은 Shader Binding을 담당합니다.
+    ResourceManager resourceManager_;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
