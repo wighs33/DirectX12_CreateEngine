@@ -79,6 +79,7 @@ private:
         (std::numeric_limits<std::size_t>::max)();
 
     bool CreateCubeMesh();
+    bool CreateSphereMesh();
     bool CreateTexture();
     bool CreateConstantBuffer(UINT width, UINT height);
     bool EnsureConstantBufferCapacity(std::size_t requiredCapacity);
@@ -116,6 +117,7 @@ private:
 
     // Mesh를 Scene보다 먼저 생성하고 나중에 파괴하여 GameObject의 비소유 Mesh 포인터를 안전하게 유지합니다.
     Mesh cubeMesh_;
+    Mesh sphereMesh_;
     Scene scene_;
 
     // ResourceManager는 공유 Texture의 수명을 소유하고 SRV Heap은 Shader Binding을 담당합니다.
@@ -130,6 +132,7 @@ private:
     // Selection은 Scene Object 자체가 아닌 Editor가 관리하며 vector 재배치에 안전한 Index를 사용합니다.
     std::size_t selectedObjectIndex_ = InvalidObjectIndex;
     std::uint32_t nextCubeNameIndex_ = 3;
+    std::uint32_t nextSphereNameIndex_ = 0;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;

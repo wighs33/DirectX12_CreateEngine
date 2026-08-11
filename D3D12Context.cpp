@@ -6,6 +6,7 @@
 #include "imgui_impl_win32.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cwchar>
@@ -47,6 +48,8 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     if (!CreateTexture())
         return false;
     if (!CreateCubeMesh())
+        return false;
+    if (!CreateSphereMesh())
         return false;
 
     // Scene이 소유할 세 GameObject는 각자 Transform을 가지며 하나뿐인 Cube Mesh를 함께 참조합니다.
@@ -488,7 +491,22 @@ void D3D12Context::DrawEditorUI()
         selectedObjectIndex_ = scene_.AddGameObject(std::move(cube));
         ++nextCubeNameIndex_;
     }
-    ImGui::Button("Sphere", ImVec2(120.0f, 0.0f));
+    if (ImGui::Button("Sphere", ImVec2(120.0f, 0.0f)))
+    {
+        GameObject sphere(&sphereMesh_);
+        if (nextSphereNameIndex_ == 0)
+        {
+            sphere.SetName("Sphere");
+        }
+        else
+        {
+            sphere.SetName(
+                "Sphere_" + std::to_string(nextSphereNameIndex_));
+        }
+
+        selectedObjectIndex_ = scene_.AddGameObject(std::move(sphere));
+        ++nextSphereNameIndex_;
+    }
     ImGui::End();
 
     ImGui::SetNextWindowPos(
@@ -839,6 +857,177 @@ bool D3D12Context::CreateCubeMesh()
         vertexCount,
         cubeIndices,
         indexCount);
+}
+
+bool D3D12Context::CreateSphereMesh()
+{
+    constexpr float radius = 0.5f;
+    constexpr std::uint32_t stackCount = 16;
+    constexpr std::uint32_t sliceCount = 32;
+    const DirectX::XMFLOAT4 white(1.0f, 1.0f, 1.0f, 1.0f);
+
+    const std::size_t ringCount = stackCount - 1;
+    const std::size_t verticesPerRing = sliceCount + 1;
+    const std::size_t expectedVertexCount =
+        2 + ringCount * verticesPerRing;
+    const std::size_t maximumVertexCount =
+        static_cast<std::size_t>(
+            (std::numeric_limits<std::uint16_t>::max)()) + 1;
+    if (expectedVertexCount > maximumVertexCount)
+    {
+        std::fprintf(stderr, "Sphere Vertex Count가 16bit Index 범위를 초과합니다.\n");
+        return false;
+    }
+
+    std::vector<Vertex> vertices;
+    std::vector<std::uint16_t> indices;
+    vertices.reserve(expectedVertexCount);
+    indices.reserve(
+        static_cast<std::size_t>(sliceCount) * 3 * 2 +
+        (ringCount - 1) * sliceCount * 6);
+
+    // Pole은 하나의 Vertex로 두고 중간 Ring에만 UV Seam 중복 Vertex를 생성합니다.
+    vertices.push_back(
+        {
+            DirectX::XMFLOAT3(0.0f, radius, 0.0f),
+            white,
+            DirectX::XMFLOAT2(0.5f, 0.0f),
+            DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f)
+        });
+
+    for (std::uint32_t stackIndex = 1;
+         stackIndex < stackCount;
+         ++stackIndex)
+    {
+        const float v =
+            static_cast<float>(stackIndex) / static_cast<float>(stackCount);
+        const float latitude = DirectX::XM_PI * v;
+        const float sinLatitude = std::sin(latitude);
+        const float cosLatitude = std::cos(latitude);
+
+        for (std::uint32_t sliceIndex = 0;
+             sliceIndex <= sliceCount;
+             ++sliceIndex)
+        {
+            const float u =
+                static_cast<float>(sliceIndex) /
+                static_cast<float>(sliceCount);
+            // 마지막 Slice는 첫 Slice와 Position을 정확히 공유하되 U만 1로 유지합니다.
+            const float longitude = sliceIndex == sliceCount
+                ? 0.0f
+                : DirectX::XM_2PI * u;
+            const float sinLongitude = std::sin(longitude);
+            const float cosLongitude = std::cos(longitude);
+
+            const DirectX::XMFLOAT3 normal(
+                sinLatitude * sinLongitude,
+                cosLatitude,
+                sinLatitude * cosLongitude);
+            const DirectX::XMFLOAT3 position(
+                normal.x * radius,
+                normal.y * radius,
+                normal.z * radius);
+
+            vertices.push_back(
+                {
+                    position,
+                    white,
+                    DirectX::XMFLOAT2(u, v),
+                    normal
+                });
+        }
+    }
+
+    const std::uint16_t bottomPoleIndex =
+        static_cast<std::uint16_t>(vertices.size());
+    vertices.push_back(
+        {
+            DirectX::XMFLOAT3(0.0f, -radius, 0.0f),
+            white,
+            DirectX::XMFLOAT2(0.5f, 1.0f),
+            DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f)
+        });
+
+    constexpr std::uint16_t topPoleIndex = 0;
+    constexpr std::uint16_t firstRingStart = 1;
+    for (std::uint32_t sliceIndex = 0;
+         sliceIndex < sliceCount;
+         ++sliceIndex)
+    {
+        indices.push_back(topPoleIndex);
+        indices.push_back(static_cast<std::uint16_t>(
+            firstRingStart + sliceIndex));
+        indices.push_back(static_cast<std::uint16_t>(
+            firstRingStart + sliceIndex + 1));
+    }
+
+    for (std::uint32_t ringIndex = 0;
+         ringIndex + 1 < ringCount;
+         ++ringIndex)
+    {
+        const std::uint16_t currentRingStart =
+            static_cast<std::uint16_t>(
+                firstRingStart + ringIndex * verticesPerRing);
+        const std::uint16_t nextRingStart =
+            static_cast<std::uint16_t>(
+                currentRingStart + verticesPerRing);
+
+        for (std::uint32_t sliceIndex = 0;
+             sliceIndex < sliceCount;
+             ++sliceIndex)
+        {
+            const std::uint16_t current = static_cast<std::uint16_t>(
+                currentRingStart + sliceIndex);
+            const std::uint16_t currentNext = static_cast<std::uint16_t>(
+                current + 1);
+            const std::uint16_t next = static_cast<std::uint16_t>(
+                nextRingStart + sliceIndex);
+            const std::uint16_t nextNext = static_cast<std::uint16_t>(
+                next + 1);
+
+            indices.push_back(current);
+            indices.push_back(next);
+            indices.push_back(currentNext);
+
+            indices.push_back(currentNext);
+            indices.push_back(next);
+            indices.push_back(nextNext);
+        }
+    }
+
+    const std::uint16_t lastRingStart = static_cast<std::uint16_t>(
+        firstRingStart + (ringCount - 1) * verticesPerRing);
+    for (std::uint32_t sliceIndex = 0;
+         sliceIndex < sliceCount;
+         ++sliceIndex)
+    {
+        indices.push_back(bottomPoleIndex);
+        indices.push_back(static_cast<std::uint16_t>(
+            lastRingStart + sliceIndex + 1));
+        indices.push_back(static_cast<std::uint16_t>(
+            lastRingStart + sliceIndex));
+    }
+
+    if (vertices.empty() || indices.empty())
+    {
+        std::fprintf(stderr, "Sphere Geometry 생성 결과가 비어 있습니다.\n");
+        return false;
+    }
+    for (const std::uint16_t index : indices)
+    {
+        if (index >= vertices.size())
+        {
+            std::fprintf(stderr, "Sphere Index가 Vertex 범위를 벗어났습니다.\n");
+            return false;
+        }
+    }
+
+    return sphereMesh_.Initialize(
+        deviceResources_.GetDevice(),
+        vertices.data(),
+        static_cast<UINT>(vertices.size()),
+        indices.data(),
+        static_cast<UINT>(indices.size()));
 }
 
 bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
