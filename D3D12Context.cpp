@@ -1,5 +1,6 @@
 #include "D3D12Context.h"
 #include "Input.h"
+#include "Ray.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx12.h"
@@ -126,6 +127,16 @@ void D3D12Context::Update(float deltaTime)
         if (Input::IsKeyDown('D'))
             camera_.MoveRight(movementDistance);
     }
+
+    POINT mousePosition{};
+    if (Input::WasLeftMouseButtonPressed() &&
+        !io.WantCaptureMouse &&
+        !isCameraLookActive_ &&
+        !Input::IsRightMouseButtonDown() &&
+        Input::GetMousePosition(mousePosition))
+    {
+        PerformViewportPicking(mousePosition);
+    }
 }
 
 bool D3D12Context::RenderFrame()
@@ -153,13 +164,7 @@ bool D3D12Context::RenderFrame()
     }
 
     const DirectX::XMMATRIX viewMatrix = camera_.GetViewMatrix();
-    const float aspectRatio =
-        static_cast<float>(clientWidth_) / static_cast<float>(clientHeight_);
-    const DirectX::XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(
-        DirectX::XMConvertToRadians(45.0f),
-        aspectRatio,
-        0.1f,
-        100.0f);
+    const DirectX::XMMATRIX projectionMatrix = GetProjectionMatrix();
     const DirectX::XMMATRIX viewProjectionMatrix = DirectX::XMMatrixMultiply(
         viewMatrix,
         projectionMatrix);
@@ -617,6 +622,129 @@ void D3D12Context::ProcessObjectDeletionRequest()
 
     scene_.RemoveGameObject(selectedObjectIndex_);
     selectedObjectIndex_ = InvalidObjectIndex;
+}
+
+DirectX::XMMATRIX D3D12Context::GetProjectionMatrix() const
+{
+    const float aspectRatio =
+        static_cast<float>(clientWidth_) / static_cast<float>(clientHeight_);
+    return DirectX::XMMatrixPerspectiveFovLH(
+        DirectX::XMConvertToRadians(45.0f),
+        aspectRatio,
+        0.1f,
+        100.0f);
+}
+
+bool D3D12Context::CreatePickingRay(
+    const POINT& mousePosition,
+    Ray& ray) const
+{
+    const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
+    if (viewport.Width <= 0.0f || viewport.Height <= 0.0f ||
+        clientWidth_ == 0 || clientHeight_ == 0)
+    {
+        return false;
+    }
+
+    const float mouseX = static_cast<float>(mousePosition.x);
+    const float mouseY = static_cast<float>(mousePosition.y);
+    if (mouseX < viewport.TopLeftX ||
+        mouseX >= viewport.TopLeftX + viewport.Width ||
+        mouseY < viewport.TopLeftY ||
+        mouseY >= viewport.TopLeftY + viewport.Height)
+    {
+        return false;
+    }
+
+    const DirectX::XMMATRIX viewMatrix = camera_.GetViewMatrix();
+    const DirectX::XMMATRIX projectionMatrix = GetProjectionMatrix();
+    const DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixIdentity();
+    const DirectX::XMVECTOR screenNearPoint = DirectX::XMVectorSet(
+        mouseX,
+        mouseY,
+        viewport.MinDepth,
+        1.0f);
+    const DirectX::XMVECTOR screenFarPoint = DirectX::XMVectorSet(
+        mouseX,
+        mouseY,
+        viewport.MaxDepth,
+        1.0f);
+
+    const DirectX::XMVECTOR worldNearPoint = DirectX::XMVector3Unproject(
+        screenNearPoint,
+        viewport.TopLeftX,
+        viewport.TopLeftY,
+        viewport.Width,
+        viewport.Height,
+        viewport.MinDepth,
+        viewport.MaxDepth,
+        projectionMatrix,
+        viewMatrix,
+        worldMatrix);
+    const DirectX::XMVECTOR worldFarPoint = DirectX::XMVector3Unproject(
+        screenFarPoint,
+        viewport.TopLeftX,
+        viewport.TopLeftY,
+        viewport.Width,
+        viewport.Height,
+        viewport.MinDepth,
+        viewport.MaxDepth,
+        projectionMatrix,
+        viewMatrix,
+        worldMatrix);
+    const DirectX::XMVECTOR rayDirection = DirectX::XMVectorSubtract(
+        worldFarPoint,
+        worldNearPoint);
+    const float directionLengthSquared = DirectX::XMVectorGetX(
+        DirectX::XMVector3LengthSq(rayDirection));
+    if (!std::isfinite(directionLengthSquared) ||
+        directionLengthSquared <= 1.0e-12f)
+    {
+        return false;
+    }
+
+    ray.origin = camera_.GetPosition();
+    DirectX::XMStoreFloat3(
+        &ray.direction,
+        DirectX::XMVector3Normalize(rayDirection));
+    return true;
+}
+
+void D3D12Context::PerformViewportPicking(const POINT& mousePosition)
+{
+    Ray ray{};
+    if (!CreatePickingRay(mousePosition, ray))
+    {
+        return;
+    }
+
+    std::size_t closestObjectIndex = InvalidObjectIndex;
+    float closestDistance = (std::numeric_limits<float>::max)();
+    const std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
+    for (std::size_t objectIndex = 0;
+         objectIndex < gameObjects.size();
+         ++objectIndex)
+    {
+        const GameObject& gameObject = gameObjects[objectIndex];
+        if (gameObject.GetMesh() == nullptr)
+        {
+            continue;
+        }
+
+        float intersectionDistance = 0.0f;
+        if (IntersectRayAABB(
+                ray,
+                gameObject.GetWorldBounds(),
+                intersectionDistance) &&
+            intersectionDistance < closestDistance)
+        {
+            closestDistance = intersectionDistance;
+            closestObjectIndex = objectIndex;
+        }
+    }
+
+    // Hit가 없으면 기존 Selection도 해제하여 Hierarchy와 Inspector가 같은 상태를 공유합니다.
+    selectedObjectIndex_ = closestObjectIndex;
 }
 
 void D3D12Context::AllocateImGuiDescriptor(

@@ -21,6 +21,7 @@
 #include <vector>
 
 struct ImGui_ImplDX12_InitInfo;
+struct Ray;
 
 struct RenderingStats
 {
@@ -90,6 +91,9 @@ private:
     void BeginImGuiFrame();
     void DrawEditorUI();
     void ProcessObjectDeletionRequest();
+    DirectX::XMMATRIX GetProjectionMatrix() const;
+    bool CreatePickingRay(const POINT& mousePosition, Ray& ray) const;
+    void PerformViewportPicking(const POINT& mousePosition);
     static void AllocateImGuiDescriptor(
         ImGui_ImplDX12_InitInfo* information,
         D3D12_CPU_DESCRIPTOR_HANDLE* cpuHandle,

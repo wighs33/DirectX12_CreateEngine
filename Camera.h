@@ -14,6 +14,7 @@ public:
     void MoveRight(float distance);
     void Rotate(float yawDelta, float pitchDelta);
 
+    const DirectX::XMFLOAT3& GetPosition() const;
     DirectX::XMMATRIX GetViewMatrix() const;
 
 private:
