@@ -52,42 +52,6 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     if (!CreateSphereMesh())
         return false;
 
-    // Scene이 소유할 세 GameObject는 각자 Transform을 가지며 하나뿐인 Cube Mesh를 함께 참조합니다.
-    GameObject leftCube(&cubeMesh_);
-    leftCube.SetName("Cube");
-    Transform& leftCubeTransform = leftCube.GetTransform();
-    leftCubeTransform.SetPosition(-1.25f, 0.0f, 0.2f);
-    leftCubeTransform.SetRotation(
-        DirectX::XMConvertToRadians(-15.0f),
-        DirectX::XMConvertToRadians(20.0f),
-        0.0f);
-    leftCubeTransform.SetScale(1.0f, 1.0f, 1.0f);
-
-    GameObject centerCube(&cubeMesh_);
-    centerCube.SetName("Cube_1");
-    Transform& centerCubeTransform = centerCube.GetTransform();
-    centerCubeTransform.SetPosition(0.0f, 0.0f, 0.0f);
-    centerCubeTransform.SetRotation(
-        DirectX::XMConvertToRadians(-20.0f),
-        DirectX::XMConvertToRadians(30.0f),
-        0.0f);
-    centerCubeTransform.SetScale(1.0f, 1.0f, 1.0f);
-
-    GameObject rightCube(&cubeMesh_);
-    rightCube.SetName("Cube_2");
-    Transform& rightCubeTransform = rightCube.GetTransform();
-    rightCubeTransform.SetPosition(1.25f, 0.0f, -0.2f);
-    rightCubeTransform.SetRotation(
-        DirectX::XMConvertToRadians(-25.0f),
-        DirectX::XMConvertToRadians(40.0f),
-        0.0f);
-    rightCubeTransform.SetScale(1.0f, 1.0f, 1.0f);
-
-    // Scene은 GameObject 값을 소유하며 이후 Render는 Scene의 목록만 순회합니다.
-    scene_.AddGameObject(std::move(leftCube));
-    scene_.AddGameObject(std::move(centerCube));
-    scene_.AddGameObject(std::move(rightCube));
-
     if (!CreateConstantBuffer(width, height))
         return false;
     if (!CreateLightingConstantBuffer())
@@ -500,7 +464,14 @@ void D3D12Context::DrawEditorUI()
     if (ImGui::Button("Cube", ImVec2(120.0f, 0.0f)))
     {
         GameObject cube(&cubeMesh_);
-        cube.SetName("Cube_" + std::to_string(nextCubeNameIndex_));
+        if (nextCubeNameIndex_ == 0)
+        {
+            cube.SetName("Cube");
+        }
+        else
+        {
+            cube.SetName("Cube_" + std::to_string(nextCubeNameIndex_));
+        }
 
         selectedObjectIndex_ = scene_.AddGameObject(std::move(cube));
         ++nextCubeNameIndex_;
@@ -1076,17 +1047,11 @@ bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)
         return false;
     }
 
-    const std::size_t objectCount = scene_.GetGameObjectCount();
-    if (objectCount == 0)
-    {
-        std::fprintf(stderr, "Constant Buffer를 생성할 Scene Object가 없습니다.\n");
-        return false;
-    }
-
     clientWidth_ = width;
     clientHeight_ = height;
 
-    return EnsureConstantBufferCapacity(objectCount);
+    // 빈 Scene에서는 Object Buffer 생성을 미루고 첫 Object가 추가된 Frame에 기존 Capacity 경로로 생성합니다.
+    return EnsureConstantBufferCapacity(scene_.GetGameObjectCount());
 }
 
 bool D3D12Context::EnsureConstantBufferCapacity(

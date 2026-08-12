@@ -132,7 +132,7 @@ private:
     bool imguiInitialized_ = false;
     // Selection은 Scene Object 자체가 아닌 Editor가 관리하며 vector 재배치에 안전한 Index를 사용합니다.
     std::size_t selectedObjectIndex_ = InvalidObjectIndex;
-    std::uint32_t nextCubeNameIndex_ = 3;
+    std::uint32_t nextCubeNameIndex_ = 0;
     std::uint32_t nextSphereNameIndex_ = 0;
     bool deleteObjectRequested_ = false;
     bool deleteKeyWasDown_ = false;
