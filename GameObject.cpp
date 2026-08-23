@@ -4,8 +4,9 @@
 
 #include <cstddef>
 
-GameObject::GameObject(Mesh* mesh)
-    : mesh_(mesh)
+GameObject::GameObject(Mesh* mesh, PrimitiveType primitiveType)
+    : primitiveType_(primitiveType),
+      mesh_(mesh)
 {
 }
 
@@ -17,6 +18,11 @@ void GameObject::SetName(const std::string& name)
 const std::string& GameObject::GetName() const
 {
     return name_;
+}
+
+PrimitiveType GameObject::GetPrimitiveType() const
+{
+    return primitiveType_;
 }
 
 void GameObject::SetMesh(Mesh* mesh)

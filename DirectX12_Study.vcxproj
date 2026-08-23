@@ -155,7 +155,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\imgui\backends;$(ProjectDir)ThirdParty\imguizmo;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)ThirdParty\imgui;$(ProjectDir)ThirdParty\imgui\backends;$(ProjectDir)ThirdParty\imguizmo;$(ProjectDir)ThirdParty\json;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -174,6 +175,7 @@
     <ClCompile Include="Ray.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="SceneSerializer.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="ThirdParty\imgui\imgui.cpp" />
     <ClCompile Include="ThirdParty\imgui\imgui_draw.cpp" />
@@ -201,6 +203,7 @@
     <ClInclude Include="Ray.h" />
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="SceneSerializer.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="ThirdParty\imgui\imconfig.h" />
     <ClInclude Include="ThirdParty\imgui\imgui.h" />
@@ -211,6 +214,7 @@
     <ClInclude Include="ThirdParty\imgui\backends\imgui_impl_dx12.h" />
     <ClInclude Include="ThirdParty\imgui\backends\imgui_impl_win32.h" />
     <ClInclude Include="ThirdParty\imguizmo\ImGuizmo.h" />
+    <ClInclude Include="ThirdParty\json\json.hpp" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Transform.h" />
   </ItemGroup>
@@ -218,6 +222,7 @@
     <None Include="Shader.hlsl" />
     <None Include="ThirdParty\imgui\LICENSE.txt" />
     <None Include="ThirdParty\imguizmo\LICENSE.txt" />
+    <None Include="ThirdParty\json\LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".gitignore" />

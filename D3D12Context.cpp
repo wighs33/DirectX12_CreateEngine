@@ -1,6 +1,7 @@
 #include "D3D12Context.h"
 #include "Input.h"
 #include "Ray.h"
+#include "SceneSerializer.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx12.h"
@@ -13,8 +14,19 @@
 #include <cstdio>
 #include <cwchar>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <utility>
+
+namespace
+{
+    const std::filesystem::path& GetSceneFilePath()
+    {
+        static const std::filesystem::path sceneFilePath =
+            std::filesystem::path("Scenes") / "Scene.json";
+        return sceneFilePath;
+    }
+}
 
 D3D12Context::~D3D12Context()
 {
@@ -522,34 +534,36 @@ void D3D12Context::DrawEditorUI()
     ImGui::Begin("Create", nullptr, panelFlags);
     if (ImGui::Button("Cube", ImVec2(120.0f, 0.0f)))
     {
-        GameObject cube(&cubeMesh_);
-        if (nextCubeNameIndex_ == 0)
-        {
-            cube.SetName("Cube");
-        }
-        else
-        {
-            cube.SetName("Cube_" + std::to_string(nextCubeNameIndex_));
-        }
+        GameObject cube(&cubeMesh_, PrimitiveType::Cube);
+        cube.SetName(CreateUniqueObjectName("Cube"));
 
         selectedObjectIndex_ = scene_.AddGameObject(std::move(cube));
-        ++nextCubeNameIndex_;
     }
     if (ImGui::Button("Sphere", ImVec2(120.0f, 0.0f)))
     {
-        GameObject sphere(&sphereMesh_);
-        if (nextSphereNameIndex_ == 0)
-        {
-            sphere.SetName("Sphere");
-        }
-        else
-        {
-            sphere.SetName(
-                "Sphere_" + std::to_string(nextSphereNameIndex_));
-        }
+        GameObject sphere(&sphereMesh_, PrimitiveType::Sphere);
+        sphere.SetName(CreateUniqueObjectName("Sphere"));
 
         selectedObjectIndex_ = scene_.AddGameObject(std::move(sphere));
-        ++nextSphereNameIndex_;
+    }
+
+    ImGui::Separator();
+    if (ImGui::Button("Save Scene", ImVec2(96.0f, 0.0f)))
+    {
+        SceneSerializer::SaveScene(scene_, GetSceneFilePath());
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load Scene", ImVec2(96.0f, 0.0f)))
+    {
+        if (SceneSerializer::LoadScene(
+                scene_,
+                cubeMesh_,
+                sphereMesh_,
+                GetSceneFilePath()))
+        {
+            selectedObjectIndex_ = InvalidObjectIndex;
+            deleteObjectRequested_ = false;
+        }
     }
     ImGui::End();
 
@@ -659,6 +673,41 @@ void D3D12Context::DrawEditorUI()
         }
     }
     ImGui::End();
+}
+
+std::string D3D12Context::CreateUniqueObjectName(
+    const std::string& baseName) const
+{
+    const std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
+    const auto isNameUsed = [&gameObjects](const std::string& name)
+    {
+        return std::any_of(
+            gameObjects.begin(),
+            gameObjects.end(),
+            [&name](const GameObject& gameObject)
+            {
+                return gameObject.GetName() == name;
+            });
+    };
+
+    if (!isNameUsed(baseName))
+    {
+        return baseName;
+    }
+
+    for (std::size_t suffix = 1;
+         suffix < (std::numeric_limits<std::size_t>::max)();
+         ++suffix)
+    {
+        const std::string candidate =
+            baseName + "_" + std::to_string(suffix);
+        if (!isNameUsed(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return baseName + "_New";
 }
 
 void D3D12Context::ProcessGizmoHotkeys()
