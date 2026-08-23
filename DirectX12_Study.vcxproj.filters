@@ -84,6 +84,9 @@
     <ClCompile Include="ThirdParty\imgui\backends\imgui_impl_win32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ThirdParty\imguizmo\ImGuizmo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BoundingBox.h">
@@ -164,12 +167,18 @@
     <ClInclude Include="ThirdParty\imgui\backends\imgui_impl_win32.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ThirdParty\imguizmo\ImGuizmo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader.hlsl">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="ThirdParty\imgui\LICENSE.txt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="ThirdParty\imguizmo\LICENSE.txt">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

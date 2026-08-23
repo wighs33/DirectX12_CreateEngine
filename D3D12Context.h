@@ -54,6 +54,13 @@ public:
     bool RenderFrame();
 
 private:
+    enum class GizmoOperation
+    {
+        Translate,
+        Rotate,
+        Scale
+    };
+
     struct ConstantBufferData
     {
         DirectX::XMFLOAT4X4 worldViewProjection;
@@ -90,6 +97,8 @@ private:
     void ShutdownImGui();
     void BeginImGuiFrame();
     void DrawEditorUI();
+    void ProcessGizmoHotkeys();
+    void DrawTransformGizmo();
     void ProcessObjectDeletionRequest();
     DirectX::XMMATRIX GetProjectionMatrix() const;
     bool CreatePickingRay(const POINT& mousePosition, Ray& ray) const;
@@ -115,6 +124,7 @@ private:
     Frustum frustum_;
     // Camera 입력을 해석하는 Application 측 상태이며 RMB를 새로 누른 경우에만 활성화됩니다.
     bool isCameraLookActive_ = false;
+    GizmoOperation gizmoOperation_ = GizmoOperation::Translate;
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;

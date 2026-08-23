@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "imgui_impl_dx12.h"
 #include "imgui_impl_win32.h"
+#include "ImGuizmo.h"
 
 #include <algorithm>
 #include <cmath>
@@ -77,7 +78,8 @@ void D3D12Context::Update(float deltaTime)
     // UI 밖에서 RMB를 새로 누른 경우에만 Editor Camera Look Mode를 시작합니다.
     if (Input::WasRightMouseButtonPressed())
     {
-        isCameraLookActive_ = !io.WantCaptureMouse;
+        isCameraLookActive_ =
+            !io.WantCaptureMouse && !ImGuizmo::IsUsing();
         // 누르기 전 Cursor 이동이 첫 Camera Delta에 섞이지 않도록 현재 위치를 기준점으로 삼습니다.
         Input::ResetMousePosition(window_);
     }
@@ -102,11 +104,16 @@ void D3D12Context::Update(float deltaTime)
         deleteObjectRequested_ = true;
     }
 
-    // Inspector가 선택 Object Reference 사용을 끝낸 뒤 Button과 Shortcut의 공통 요청을 처리합니다.
+    // Hotkey와 UI 편집을 처리한 뒤 삭제로 Selection을 정리하고 마지막에 Gizmo를 갱신합니다.
+    ProcessGizmoHotkeys();
+    DrawEditorUI();
     ProcessObjectDeletionRequest();
+    DrawTransformGizmo();
+
+    const bool isGizmoUsing = ImGuizmo::IsUsing();
 
     // Mouse Delta는 이미 한 Frame 동안 이동한 Pixel 양이므로 DeltaTime을 곱하지 않습니다.
-    if (isCameraLookActive_)
+    if (isCameraLookActive_ && !isGizmoUsing)
     {
         const MouseDelta mouseDelta = Input::GetMouseDelta();
         camera_.Rotate(
@@ -116,7 +123,9 @@ void D3D12Context::Update(float deltaTime)
 
     const float movementDistance = cameraSpeed * deltaTime;
 
-    if (isCameraLookActive_ && !io.WantCaptureKeyboard)
+    if (isCameraLookActive_ &&
+        !isGizmoUsing &&
+        !io.WantCaptureKeyboard)
     {
         if (Input::IsKeyDown('W'))
             camera_.MoveForward(movementDistance);
@@ -128,9 +137,18 @@ void D3D12Context::Update(float deltaTime)
             camera_.MoveRight(movementDistance);
     }
 
+    const std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
+    const bool hasValidSelection =
+        selectedObjectIndex_ != InvalidObjectIndex &&
+        selectedObjectIndex_ < gameObjects.size();
+    const bool isGizmoInteraction =
+        hasValidSelection &&
+        (ImGuizmo::IsOver() || isGizmoUsing);
+
     POINT mousePosition{};
     if (Input::WasLeftMouseButtonPressed() &&
         !io.WantCaptureMouse &&
+        !isGizmoInteraction &&
         !isCameraLookActive_ &&
         !Input::IsRightMouseButtonDown() &&
         Input::GetMousePosition(mousePosition))
@@ -423,7 +441,7 @@ void D3D12Context::BeginImGuiFrame()
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-    DrawEditorUI();
+    ImGuizmo::BeginFrame();
 }
 
 void D3D12Context::DrawEditorUI()
@@ -433,6 +451,8 @@ void D3D12Context::DrawEditorUI()
     constexpr float leftPanelWidth = 220.0f;
     constexpr float rightPanelWidth = 280.0f;
     constexpr float createPanelHeight = 130.0f;
+    constexpr float gizmoToolbarWidth = 270.0f;
+    constexpr float gizmoToolbarHeight = 46.0f;
     constexpr ImGuiWindowFlags panelFlags =
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoMove |
@@ -458,6 +478,40 @@ void D3D12Context::DrawEditorUI()
     {
         selectedObjectIndex_ = InvalidObjectIndex;
     }
+
+    ImGui::SetNextWindowPos(
+        ImVec2(
+            workPosition.x + (workSize.x - gizmoToolbarWidth) * 0.5f,
+            workPosition.y + panelMargin),
+        ImGuiCond_Always);
+    ImGui::SetNextWindowSize(
+        ImVec2(gizmoToolbarWidth, gizmoToolbarHeight),
+        ImGuiCond_Always);
+    ImGui::Begin(
+        "Gizmo Toolbar",
+        nullptr,
+        panelFlags | ImGuiWindowFlags_NoTitleBar);
+    if (ImGui::RadioButton(
+            "Move (W)",
+            gizmoOperation_ == GizmoOperation::Translate))
+    {
+        gizmoOperation_ = GizmoOperation::Translate;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton(
+            "Rotate (E)",
+            gizmoOperation_ == GizmoOperation::Rotate))
+    {
+        gizmoOperation_ = GizmoOperation::Rotate;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton(
+            "Scale (R)",
+            gizmoOperation_ == GizmoOperation::Scale))
+    {
+        gizmoOperation_ = GizmoOperation::Scale;
+    }
+    ImGui::End();
 
     ImGui::SetNextWindowPos(
         ImVec2(workPosition.x + panelMargin, workPosition.y + panelMargin),
@@ -605,6 +659,118 @@ void D3D12Context::DrawEditorUI()
         }
     }
     ImGui::End();
+}
+
+void D3D12Context::ProcessGizmoHotkeys()
+{
+    const ImGuiIO& io = ImGui::GetIO();
+    if (isCameraLookActive_ ||
+        Input::IsRightMouseButtonDown() ||
+        io.WantCaptureKeyboard)
+    {
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_W, false))
+    {
+        gizmoOperation_ = GizmoOperation::Translate;
+    }
+    else if (ImGui::IsKeyPressed(ImGuiKey_E, false))
+    {
+        gizmoOperation_ = GizmoOperation::Rotate;
+    }
+    else if (ImGui::IsKeyPressed(ImGuiKey_R, false))
+    {
+        gizmoOperation_ = GizmoOperation::Scale;
+    }
+}
+
+void D3D12Context::DrawTransformGizmo()
+{
+    std::vector<GameObject>& gameObjects = scene_.GetGameObjects();
+    if (selectedObjectIndex_ == InvalidObjectIndex ||
+        selectedObjectIndex_ >= gameObjects.size())
+    {
+        ImGuizmo::Enable(false);
+        return;
+    }
+
+    const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
+    if (viewport.Width <= 0.0f || viewport.Height <= 0.0f)
+    {
+        ImGuizmo::Enable(false);
+        return;
+    }
+
+    // RMB Camera Mode에서는 Gizmo를 표시하되 입력은 받지 않도록 합니다.
+    ImGuizmo::Enable(
+        !isCameraLookActive_ && !Input::IsRightMouseButtonDown());
+    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::SetRect(
+        viewport.TopLeftX,
+        viewport.TopLeftY,
+        viewport.Width,
+        viewport.Height);
+
+    Transform& transform =
+        gameObjects[selectedObjectIndex_].GetTransform();
+
+    DirectX::XMFLOAT4X4 viewMatrix{};
+    DirectX::XMFLOAT4X4 projectionMatrix{};
+    DirectX::XMFLOAT4X4 objectMatrix{};
+    DirectX::XMStoreFloat4x4(&viewMatrix, camera_.GetViewMatrix());
+    DirectX::XMStoreFloat4x4(&projectionMatrix, GetProjectionMatrix());
+    DirectX::XMStoreFloat4x4(&objectMatrix, transform.GetWorldMatrix());
+
+    // DirectXMath의 CPU 행 벡터 Matrix 원본은 ImGuizmo의 메모리 배치와 직접 대응합니다.
+    // GPU Constant Buffer용으로 전치한 Matrix는 이 경로에서 사용하지 않습니다.
+    ImGuizmo::OPERATION operation = ImGuizmo::TRANSLATE;
+    switch (gizmoOperation_)
+    {
+    case GizmoOperation::Translate:
+        operation = ImGuizmo::TRANSLATE;
+        break;
+    case GizmoOperation::Rotate:
+        operation = ImGuizmo::ROTATE;
+        break;
+    case GizmoOperation::Scale:
+        operation = ImGuizmo::SCALE;
+        break;
+    }
+
+    // Translate/Rotate는 World, Scale은 ImGuizmo 특성에 맞춰 Local Mode를 사용합니다.
+    const ImGuizmo::MODE mode = operation == ImGuizmo::SCALE
+        ? ImGuizmo::LOCAL
+        : ImGuizmo::WORLD;
+    const bool wasModified = ImGuizmo::Manipulate(
+        &viewMatrix.m[0][0],
+        &projectionMatrix.m[0][0],
+        operation,
+        mode,
+        &objectMatrix.m[0][0]);
+    if (!wasModified)
+    {
+        return;
+    }
+
+    float translation[3]{};
+    float rotationDegrees[3]{};
+    float scale[3]{};
+    ImGuizmo::DecomposeMatrixToComponents(
+        &objectMatrix.m[0][0],
+        translation,
+        rotationDegrees,
+        scale);
+
+    transform.SetPosition(
+        translation[0],
+        translation[1],
+        translation[2]);
+    transform.SetRotation(
+        DirectX::XMConvertToRadians(rotationDegrees[0]),
+        DirectX::XMConvertToRadians(rotationDegrees[1]),
+        DirectX::XMConvertToRadians(rotationDegrees[2]));
+    transform.SetScale(scale[0], scale[1], scale[2]);
 }
 
 void D3D12Context::ProcessObjectDeletionRequest()
