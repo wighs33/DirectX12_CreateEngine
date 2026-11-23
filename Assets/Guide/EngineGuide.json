@@ -5,9 +5,10 @@
         { "name": "GPU 준비", "color": "violet", "cards": ["device-resources","command-context","swapchain","pipeline"] },
         { "name": "그리는 재료", "color": "teal", "cards": ["shader","mesh","texture","resource-manager"] },
         { "name": "모델", "color": "violet", "cards": ["model-loader","model","texture-heap","gpu-buffer"] },
-        { "name": "장면", "color": "rose", "cards": ["scene","game-object","transform","scene-serializer"] },
-        { "name": "보는 눈과 판정", "color": "slate", "cards": ["camera","frustum","ray","aabb"] },
-        { "name": "엔진 설명", "color": "flame", "cards": ["engine-guide","engine-guide-window"] }
+        { "name": "카툰", "color": "rose", "cards": ["material-style","frame-constant-buffer"] },
+        { "name": "장면", "color": "slate", "cards": ["scene","game-object","transform","scene-serializer"] },
+        { "name": "보는 눈과 판정", "color": "teal", "cards": ["camera","frustum","ray","aabb"] },
+        { "name": "편집기와 설명", "color": "flame", "cards": ["scene-editor","imgui-layer","engine-guide","engine-guide-window"] }
     ],
     "cards": [
         {
@@ -23,7 +24,7 @@
                 { "name": "WindowProc", "description": "Windows 메시지를 ImGui에 먼저 넘기고, 창이 닫히면 종료를 알립니다." },
                 { "name": "반복문", "description": "Tick → Update → RenderFrame을 한 번씩 부릅니다." }
             ],
-            "links": ["timer", "d3d12-context"],
+            "links": ["timer", "d3d12-context", "scene-editor"],
             "picture": [
                 { "shape": "rect", "x": 16, "y": 22, "w": 116, "h": 44, "fill": "box" },
                 { "shape": "text", "x": 74, "y": 44, "size": 14, "text": "메시지 처리" },
@@ -78,7 +79,7 @@
                 { "name": "GetMouseDelta", "description": "마우스가 움직인 픽셀 수를 돌려줍니다." },
                 { "name": "ResetMousePosition", "description": "기준 위치를 다시 잡아 시점이 튀는 것을 막습니다." }
             ],
-            "links": ["d3d12-context", "camera"],
+            "links": ["scene-editor", "camera"],
             "picture": [
                 { "shape": "line", "points": [[16,126],[110,126],[110,66],[230,66],[230,126],[324,126]] },
                 { "shape": "circle", "x": 110, "y": 96, "r": 5, "fill": "dot" },
@@ -96,37 +97,36 @@
             "file": "D3D12Context.cpp",
             "role": "다른 클래스를 연결하고, 한 프레임의 순서를 지휘합니다.",
             "without": "장치, 명령, 화면, 장면이 따로 놀아 무엇을 언제 불러야 할지 정할 곳이 없습니다.",
-            "limit": "렌더링과 편집 UI, 입력 해석이 한 파일에 모여 있습니다. 기능을 더 넣기 전에 나누면 읽기 쉬워집니다.",
+            "limit": "물체를 하나씩 차례로 그립니다. 그림자처럼 여러 번 나눠 그리는 순서는 아직 없습니다.",
             "unreal": "FSceneRenderer(그리기)와 에디터 코드가 나눠 맡는 일을 한 클래스가 하고 있습니다.",
             "functions": [
-                { "name": "Initialize", "description": "장치부터 ImGui까지 순서대로 만듭니다." },
-                { "name": "Update", "description": "입력, 편집 UI, 카메라, 클릭 선택을 처리합니다." },
+                { "name": "Initialize", "description": "장치부터 편집기까지 순서대로 만듭니다." },
+                { "name": "Update", "description": "편집기 프레임을 시작하고 편집기에 넘깁니다." },
                 { "name": "RenderFrame", "description": "주석의 1~22단계대로 한 프레임을 그립니다." },
-                { "name": "DrawEditorUI", "description": "패널과 버튼을 그립니다." },
+                { "name": "BindMaterial", "description": "조각의 텍스처와 그림체 값을 연결합니다." },
                 { "name": "UpdateObjectConstantBuffer", "description": "물체의 행렬을 GPU가 읽을 버퍼에 씁니다." }
             ],
-            "links": ["device-resources", "command-context", "swapchain", "pipeline", "scene", "camera", "frustum", "resource-manager", "engine-guide-window"],
+            "links": ["device-resources", "command-context", "swapchain", "pipeline", "scene", "camera", "frustum", "resource-manager", "scene-editor", "frame-constant-buffer"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 20, "w": 92, "h": 140, "fill": "highlight" },
-                { "shape": "text", "x": 56, "y": 64.5, "size": 14, "text": "Update" },
-                { "shape": "text", "x": 56, "y": 81.5, "size": 14, "text": "입력" },
-                { "shape": "text", "x": 56, "y": 98.5, "size": 14, "text": "편집 UI" },
-                { "shape": "text", "x": 56, "y": 115.5, "size": 14, "text": "카메라" },
+                { "shape": "text", "x": 56.0, "y": 73.0, "size": 14, "text": "Update" },
+                { "shape": "text", "x": 56.0, "y": 90.0, "size": 14, "text": "편집기에" },
+                { "shape": "text", "x": 56.0, "y": 107.0, "size": 14, "text": "넘김" },
                 { "shape": "line", "points": [[102,90],[124,90]], "arrow": "end" },
                 { "shape": "rect", "x": 126, "y": 20, "w": 204, "h": 140, "fill": "box" },
                 { "shape": "text", "x": 228, "y": 37, "size": 14, "text": "RenderFrame" },
                 { "shape": "rect", "x": 136, "y": 54, "w": 52, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 162, "y": 71, "size": 14, "text": "대기" },
+                { "shape": "text", "x": 162.0, "y": 71.0, "size": 14, "text": "대기" },
                 { "shape": "rect", "x": 202, "y": 54, "w": 52, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 228, "y": 71, "size": 14, "text": "설정" },
+                { "shape": "text", "x": 228.0, "y": 71.0, "size": 14, "text": "설정" },
                 { "shape": "rect", "x": 268, "y": 54, "w": 52, "h": 34, "fill": "highlight" },
-                { "shape": "text", "x": 294, "y": 71, "size": 14, "text": "그리기" },
+                { "shape": "text", "x": 294.0, "y": 71.0, "size": 14, "text": "그리기" },
                 { "shape": "rect", "x": 268, "y": 112, "w": 52, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 294, "y": 129, "size": 14, "text": "제출" },
+                { "shape": "text", "x": 294.0, "y": 129.0, "size": 14, "text": "제출" },
                 { "shape": "rect", "x": 202, "y": 112, "w": 52, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 228, "y": 129, "size": 14, "text": "표시" },
+                { "shape": "text", "x": 228.0, "y": 129.0, "size": 14, "text": "표시" },
                 { "shape": "rect", "x": 136, "y": 112, "w": 52, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 162, "y": 129, "size": 14, "text": "신호" },
+                { "shape": "text", "x": 162.0, "y": 129.0, "size": 14, "text": "신호" },
                 { "shape": "line", "points": [[188,71],[200,71]], "arrow": "end" },
                 { "shape": "line", "points": [[254,71],[266,71]], "arrow": "end" },
                 { "shape": "line", "points": [[294,88],[294,110]], "arrow": "end" },
@@ -244,7 +244,7 @@
             "limit": "PSO가 하나뿐입니다. 카툰 외곽선은 CULL_FRONT를 쓰는 두 번째 PSO가 필요합니다.",
             "unreal": "FGraphicsPipelineStateInitializer와 PSO 캐시입니다.",
             "functions": [
-                { "name": "CreateRootSignature", "description": "b0, t0, b1을 어느 칸으로 넘길지 정합니다." },
+                { "name": "CreateRootSignature", "description": "b0, t0, b1, b2를 어느 칸으로 넘길지 정합니다." },
                 { "name": "CreateShaders", "description": "Shader.hlsl의 VSMain과 PSMain을 컴파일합니다." },
                 { "name": "CreatePipelineState", "description": "입력 레이아웃, 컬링, 깊이, 형식을 PSO로 묶습니다." }
             ],
@@ -274,61 +274,33 @@
             "id": "shader",
             "name": "Shader.hlsl",
             "file": "Shader.hlsl",
-            "role": "GPU에서 꼭짓점 위치와 픽셀 색을 계산합니다.",
+            "role": "GPU에서 꼭짓점 위치와 카툰 색을 계산합니다.",
             "without": "삼각형이 화면 어디에 놓이고 무슨 색인지 정할 수 없습니다.",
-            "limit": "부드러운 기본 명암(Lambert)입니다. 카툰 명암은 PSMain의 diffuseAmount를 두 단으로 끊으면 시작됩니다.",
+            "limit": "윤곽선과 그림자는 아직 없습니다. 빛은 방향이 하나인 빛만 다룹니다.",
             "unreal": "머티리얼 그래프가 만들어 내는 셰이더와 .usf 파일입니다.",
             "functions": [
-                { "name": "VSMain", "description": "정점을 화면 좌표로 옮기고 법선을 월드 방향으로 바꿉니다." },
-                { "name": "PSMain", "description": "텍스처 색에 빛의 밝기를 곱합니다." },
+                { "name": "VSMain", "description": "정점을 화면 좌표로 옮기고 법선과 자리를 월드로 바꿉니다." },
+                { "name": "PSMain", "description": "밝은 면과 그늘을 두 단으로 끊고 그늘색을 곱합니다." },
                 { "name": "TransformBuffer (b0)", "description": "물체마다 다른 행렬을 받습니다." },
-                { "name": "LightingBuffer (b1)", "description": "빛의 방향과 색을 받습니다." }
+                { "name": "LightingBuffer (b1)", "description": "빛의 방향과 색, 카메라 위치를 받습니다." },
+                { "name": "MaterialBuffer (b2)", "description": "재질마다 다른 그림체 값을 받습니다." }
             ],
-            "links": ["pipeline", "mesh", "texture", "transform"],
+            "links": ["pipeline", "mesh", "texture", "material-style"],
             "picture": [
-                { "shape": "line", "points": [[30,136],[90,28],[150,136]], "closed": true },
-                { "shape": "circle", "x": 30, "y": 136, "r": 5, "fill": "dot" },
-                { "shape": "circle", "x": 90, "y": 28, "r": 5, "fill": "dot" },
-                { "shape": "circle", "x": 150, "y": 136, "r": 5, "fill": "dot" },
-                { "shape": "text", "x": 90, "y": 161, "size": 13, "text": "VSMain 꼭짓점마다" },
-                { "shape": "line", "points": [[152,82],[192,82]], "arrow": "end" },
-                { "shape": "rect", "x": 200, "y": 28, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 218, "y": 28, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 236, "y": 28, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 254, "y": 28, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 272, "y": 28, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 290, "y": 28, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 200, "y": 46, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 218, "y": 46, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 236, "y": 46, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 254, "y": 46, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 272, "y": 46, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 290, "y": 46, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 200, "y": 64, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 218, "y": 64, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 236, "y": 64, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 254, "y": 64, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 272, "y": 64, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 290, "y": 64, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 200, "y": 82, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 218, "y": 82, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 236, "y": 82, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 254, "y": 82, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 272, "y": 82, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 290, "y": 82, "w": 18, "h": 18, "fill": "none", "dashed": true },
-                { "shape": "rect", "x": 200, "y": 100, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 218, "y": 100, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 236, "y": 100, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 254, "y": 100, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 272, "y": 100, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 290, "y": 100, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 200, "y": 118, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 218, "y": 118, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 236, "y": 118, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 254, "y": 118, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 272, "y": 118, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "rect", "x": 290, "y": 118, "w": 18, "h": 18, "fill": "highlight" },
-                { "shape": "text", "x": 254, "y": 161, "size": 13, "text": "PSMain 픽셀마다" }
+                { "shape": "line", "points": [[60,24],[112,136],[8,136]], "closed": true },
+                { "shape": "circle", "x": 60, "y": 24, "r": 5, "fill": "dot" },
+                { "shape": "circle", "x": 112, "y": 136, "r": 5, "fill": "dot" },
+                { "shape": "circle", "x": 8, "y": 136, "r": 5, "fill": "dot" },
+                { "shape": "text", "x": 60, "y": 162, "size": 13, "text": "VSMain" },
+                { "shape": "line", "points": [[118,86],[146,86]], "arrow": "end" },
+                { "shape": "circle", "x": 210, "y": 86, "r": 56, "fill": "box" },
+                { "shape": "line", "points": [[180,39],[205,60],[222,88],[226,118],[218,141]] },
+                { "shape": "text", "x": 186, "y": 100, "size": 14, "text": "밝음" },
+                { "shape": "text", "x": 248, "y": 72, "size": 14, "text": "그늘" },
+                { "shape": "text", "x": 210, "y": 162, "size": 13, "text": "PSMain" },
+                { "shape": "rect", "x": 282, "y": 66, "w": 50, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 307.0, "y": 86.0, "size": 14, "text": "2단" },
+                { "shape": "line", "points": [[266,86],[280,86]], "arrow": "end" }
             ]
         },
         {
@@ -424,7 +396,7 @@
             "file": "ResourceManager.cpp",
             "role": "같은 텍스처와 모델을 두 번 읽지 않도록 보관합니다.",
             "without": "물체 100개가 같은 그림을 쓰면 같은 파일을 100번 읽고 메모리도 100배 씁니다.",
-            "limit": "재질은 텍스처 하나만 연결합니다. 그늘색 같은 재질 값은 아직 없습니다.",
+            "limit": "모델과 텍스처를 한 번 읽으면 프로그램이 끝날 때까지 가지고 있습니다.",
             "unreal": "UAssetManager와 FStreamableManager가 하는 일의 작은 버전입니다.",
             "functions": [
                 { "name": "LoadTexture", "description": "경로로 찾아보고, 없을 때만 새로 읽습니다." },
@@ -491,7 +463,7 @@
             "file": "Model.cpp",
             "role": "여러 조각을 하나의 캐릭터로 묶어 둡니다.",
             "without": "몸, 머리카락, 옷을 따로 놓고 따로 움직여야 합니다.",
-            "limit": "조각을 켜고 끄거나 갈아입힐 수 없습니다.",
+            "limit": "조각을 켜고 끄거나 갈아입힐 수 없습니다. 재질 값은 모델을 쓰는 물체가 모두 함께 씁니다.",
             "unreal": "USkeletalMesh의 섹션과 머티리얼 슬롯에 해당합니다.",
             "functions": [
                 { "name": "Initialize", "description": "조각마다 버퍼를 만들고 텍스처를 연결합니다." },
@@ -499,7 +471,7 @@
                 { "name": "GetLocalBounds", "description": "모든 조각을 감싸는 상자를 줍니다." },
                 { "name": "CreateCubeGeometry", "description": "파일 없이 큐브의 모양을 만듭니다(PrimitiveGeometry)." }
             ],
-            "links": ["mesh", "texture", "model-loader", "game-object"],
+            "links": ["mesh", "texture", "model-loader", "material-style"],
             "picture": [
                 { "shape": "rect", "x": 14, "y": 60, "w": 92, "h": 60, "fill": "highlight" },
                 { "shape": "text", "x": 60, "y": 90, "size": 14, "text": "Luna" },
@@ -590,6 +562,77 @@
                 { "shape": "text", "x": 222, "y": 50, "size": 13, "text": "복사" },
                 { "shape": "text", "x": 284, "y": 134, "size": 13, "text": "GPU 전용" },
                 { "shape": "text", "x": 166, "y": 134, "size": 13, "text": "끝나면 버림" }
+            ]
+        },
+        {
+            "id": "material-style",
+            "name": "MaterialStyle",
+            "file": "MaterialStyle.cpp",
+            "role": "재질마다 다른 카툰 그림체 값을 담습니다.",
+            "without": "피부와 옷과 머리카락의 그늘이 모두 같은 색으로 어두워집니다.",
+            "limit": "값을 파일에서만 바꿀 수 있습니다. 화면에서 조절하는 패널은 아직 없습니다.",
+            "unreal": "머티리얼 인스턴스의 파라미터입니다.",
+            "functions": [
+                { "name": "MaterialStyleLibrary::Load", "description": "PandoraStyle.json을 읽습니다." },
+                { "name": "MaterialStyleLibrary::Find", "description": "재질 이름으로 값을 찾고 없으면 기본값을 줍니다." },
+                { "name": "CreateMaterialConstants", "description": "화면의 색을 빛 계산에 쓰는 선형 색으로 바꿉니다." }
+            ],
+            "links": ["model", "shader", "frame-constant-buffer", "resource-manager"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 20, "w": 100, "h": 140, "fill": "box" },
+                { "shape": "text", "x": 60, "y": 81.5, "size": 14, "text": "이름으로" },
+                { "shape": "text", "x": 60, "y": 98.5, "size": 14, "text": "찾기" },
+                { "shape": "line", "points": [[110,52],[138,44]], "arrow": "end" },
+                { "shape": "line", "points": [[110,90],[138,90]], "arrow": "end" },
+                { "shape": "line", "points": [[110,128],[138,136]], "arrow": "end" },
+                { "shape": "rect", "x": 140, "y": 22, "w": 92, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 186, "y": 42, "size": 14, "text": "Luna_Body" },
+                { "shape": "rect", "x": 140, "y": 70, "w": 92, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 186, "y": 90, "size": 14, "text": "Luna_Hair" },
+                { "shape": "rect", "x": 140, "y": 118, "w": 92, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 186, "y": 138, "size": 14, "text": "Luna_Jacket" },
+                { "shape": "line", "points": [[232,42],[256,42]], "arrow": "end" },
+                { "shape": "line", "points": [[232,90],[256,90]], "arrow": "end" },
+                { "shape": "line", "points": [[232,138],[256,138]], "arrow": "end" },
+                { "shape": "rect", "x": 258, "y": 22, "w": 72, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 294, "y": 42, "size": 14, "text": "그늘색" },
+                { "shape": "rect", "x": 258, "y": 70, "w": 72, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 294, "y": 90, "size": 14, "text": "경계" },
+                { "shape": "rect", "x": 258, "y": 118, "w": 72, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 294, "y": 138, "size": 14, "text": "림" }
+            ]
+        },
+        {
+            "id": "frame-constant-buffer",
+            "name": "FrameConstantBuffer",
+            "file": "FrameConstantBuffer.cpp",
+            "role": "상수 값을 프레임마다 다른 구역에 나눠 씁니다.",
+            "without": "GPU가 읽는 중인 값을 CPU가 덮어써 화면이 튑니다.",
+            "limit": "칸을 줄이지는 않습니다. 한 번 커진 버퍼는 그대로 둡니다.",
+            "unreal": "프레임마다 나눠 쓰는 유니폼 버퍼 링 할당기입니다.",
+            "functions": [
+                { "name": "EnsureCapacity", "description": "칸이 모자랄 때만 두 배로 늘립니다." },
+                { "name": "Write", "description": "이번 프레임 구역의 칸에 값을 씁니다." },
+                { "name": "GetGpuAddress", "description": "루트 CBV에 연결할 칸의 주소를 줍니다." }
+            ],
+            "links": ["d3d12-context", "material-style", "command-context", "pipeline"],
+            "picture": [
+                { "shape": "text", "x": 80, "y": 24, "size": 14, "text": "프레임 0" },
+                { "shape": "rect", "x": 16, "y": 38, "w": 64, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 48, "y": 55, "size": 14, "text": "0칸" },
+                { "shape": "rect", "x": 80, "y": 38, "w": 64, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 112, "y": 55, "size": 14, "text": "1칸" },
+                { "shape": "text", "x": 258, "y": 24, "size": 14, "text": "프레임 1" },
+                { "shape": "rect", "x": 194, "y": 38, "w": 64, "h": 34, "fill": "highlight" },
+                { "shape": "text", "x": 226, "y": 55, "size": 14, "text": "0칸" },
+                { "shape": "rect", "x": 258, "y": 38, "w": 64, "h": 34, "fill": "highlight" },
+                { "shape": "text", "x": 290, "y": 55, "size": 14, "text": "1칸" },
+                { "shape": "rect", "x": 26, "y": 116, "w": 108, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 80, "y": 136, "size": 14, "text": "GPU가 읽음" },
+                { "shape": "line", "points": [[80,116],[80,78]], "arrow": "end" },
+                { "shape": "rect", "x": 204, "y": 116, "w": 108, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 258, "y": 136, "size": 14, "text": "CPU가 씀" },
+                { "shape": "line", "points": [[258,116],[258,78]], "arrow": "end" }
             ]
         },
         {
@@ -715,14 +758,15 @@
             "file": "Camera.cpp",
             "role": "어디에서 어디를 보는지 정하고 View 행렬을 만듭니다.",
             "without": "보는 자리를 옮길 수 없습니다.",
-            "limit": "원근(Projection)은 D3D12Context가 따로 만들고, 시야각 45도가 코드에 정해져 있습니다.",
+            "limit": "시야각 45도가 코드에 정해져 있습니다.",
             "unreal": "UCameraComponent와 FMinimalViewInfo입니다.",
             "functions": [
                 { "name": "MoveForward · MoveRight", "description": "보는 방향을 기준으로 움직입니다." },
                 { "name": "Rotate", "description": "마우스 이동만큼 돌리고, 위아래는 뒤집히지 않게 막습니다." },
-                { "name": "GetViewMatrix", "description": "월드를 카메라 기준으로 바꾸는 행렬을 줍니다." }
+                { "name": "GetViewMatrix", "description": "월드를 카메라 기준으로 바꾸는 행렬을 줍니다." },
+                { "name": "GetProjectionMatrix", "description": "원근을 만드는 행렬을 줍니다." }
             ],
-            "links": ["input", "frustum", "ray", "d3d12-context"],
+            "links": ["input", "frustum", "ray", "scene-editor"],
             "picture": [
                 { "shape": "circle", "x": 64, "y": 108, "r": 9, "fill": "dot" },
                 { "shape": "line", "points": [[64,108],[268,108]], "arrow": "end" },
@@ -775,7 +819,7 @@
             "functions": [
                 { "name": "IntersectRayAABB", "description": "세 축에서 들어가고 나가는 거리를 겹쳐 닿는지 판단합니다." }
             ],
-            "links": ["aabb", "camera", "d3d12-context"],
+            "links": ["aabb", "camera", "scene-editor"],
             "picture": [
                 { "shape": "circle", "x": 26, "y": 136, "r": 8, "fill": "dot" },
                 { "shape": "line", "points": [[92,56],[92,164]] },
@@ -810,6 +854,63 @@
                 { "shape": "text", "x": 78, "y": 153, "size": 14, "text": "Min" },
                 { "shape": "text", "x": 264, "y": 25, "size": 14, "text": "Max" },
                 { "shape": "text", "x": 170, "y": 88, "size": 14, "text": "물체" }
+            ]
+        },
+        {
+            "id": "scene-editor",
+            "name": "SceneEditor",
+            "file": "SceneEditor.cpp",
+            "role": "패널, 기즈모, 클릭 선택, 카메라 조작을 맡습니다.",
+            "without": "화면에 물체가 보여도 고르거나 옮길 방법이 없습니다.",
+            "limit": "되돌리기가 없고 한 번에 물체 하나만 고를 수 있습니다.",
+            "unreal": "언리얼 에디터의 레벨 뷰포트와 디테일 패널입니다.",
+            "functions": [
+                { "name": "Update", "description": "입력을 해석하고 편집 UI를 차례로 처리합니다." },
+                { "name": "DrawEditorUI", "description": "패널과 버튼을 그립니다." },
+                { "name": "DrawTransformGizmo", "description": "축을 끌어 바뀐 값을 물체에 넣습니다." },
+                { "name": "PerformViewportPicking", "description": "클릭한 자리의 가장 가까운 물체를 고릅니다." },
+                { "name": "UpdateCamera", "description": "오른쪽 버튼을 누른 동안 카메라를 움직입니다." }
+            ],
+            "links": ["imgui-layer", "input", "scene", "camera", "ray", "engine-guide-window"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 14, "w": 74, "h": 60, "fill": "box" },
+                { "shape": "text", "x": 47, "y": 44, "size": 14, "text": "Create" },
+                { "shape": "rect", "x": 10, "y": 82, "w": 74, "h": 84, "fill": "box" },
+                { "shape": "text", "x": 47, "y": 124, "size": 14, "text": "Hierarchy" },
+                { "shape": "rect", "x": 256, "y": 14, "w": 74, "h": 152, "fill": "box" },
+                { "shape": "text", "x": 293, "y": 90, "size": 14, "text": "Inspector" },
+                { "shape": "rect", "x": 94, "y": 14, "w": 152, "h": 152, "fill": "box" },
+                { "shape": "rect", "x": 138, "y": 58, "w": 50, "h": 50, "fill": "highlight" },
+                { "shape": "line", "points": [[163,83],[222,83]], "arrow": "end" },
+                { "shape": "line", "points": [[163,83],[163,32]], "arrow": "end" },
+                { "shape": "circle", "x": 163, "y": 83, "r": 5, "fill": "dot" },
+                { "shape": "text", "x": 170, "y": 140, "size": 14, "text": "화면에서 편집" }
+            ]
+        },
+        {
+            "id": "imgui-layer",
+            "name": "ImGuiLayer",
+            "file": "ImGuiLayer.cpp",
+            "role": "ImGui를 시작하고 끝내며 화면 위에 그립니다.",
+            "without": "버튼과 숫자 칸 같은 편집 UI를 그릴 수 없습니다.",
+            "limit": "창을 여러 개로 떼어 내는 기능은 켜지 않았습니다.",
+            "unreal": "에디터 UI를 그리는 Slate 렌더러에 해당합니다.",
+            "functions": [
+                { "name": "Initialize", "description": "Win32와 DirectX 12 연결을 준비합니다." },
+                { "name": "BeginFrame", "description": "이번 프레임의 UI를 시작합니다." },
+                { "name": "Render", "description": "장면을 그린 화면 위에 UI를 덧그립니다." },
+                { "name": "AllocateDescriptor", "description": "글꼴 그림을 연결할 칸을 줍니다." }
+            ],
+            "links": ["scene-editor", "engine-guide-window", "d3d12-context", "swapchain"],
+            "picture": [
+                { "shape": "rect", "x": 20, "y": 40, "w": 130, "h": 100, "fill": "box" },
+                { "shape": "text", "x": 85, "y": 81.5, "size": 14, "text": "장면" },
+                { "shape": "text", "x": 85, "y": 98.5, "size": 14, "text": "sRGB RTV" },
+                { "shape": "line", "points": [[150,90],[186,90]], "arrow": "end" },
+                { "shape": "rect", "x": 188, "y": 40, "w": 130, "h": 100, "fill": "highlight" },
+                { "shape": "text", "x": 253, "y": 81.5, "size": 14, "text": "장면 + UI" },
+                { "shape": "text", "x": 253, "y": 98.5, "size": 14, "text": "변환 없는 RTV" },
+                { "shape": "text", "x": 168, "y": 78, "size": 13, "text": "위에" }
             ]
         },
         {
@@ -857,7 +958,7 @@
                 { "name": "Draw", "description": "지금 보고 있는 화면을 그립니다." },
                 { "name": "DrawPicture", "description": "상자와 선으로 카드 그림을 그립니다." }
             ],
-            "links": ["engine-guide", "d3d12-context"],
+            "links": ["engine-guide", "scene-editor"],
             "picture": [
                 { "shape": "rect", "x": 8, "y": 64, "w": 92, "h": 52, "fill": "box" },
                 { "shape": "text", "x": 40, "y": 90, "size": 14, "text": "기능" },
@@ -892,10 +993,10 @@
             "name": "물체 만들기",
             "howTo": "Create 패널의 Cube, Sphere 버튼을 누릅니다.",
             "steps": [
-                { "card": "d3d12-context", "function": "DrawEditorUI", "description": "버튼이 눌렸는지 확인합니다." },
+                { "card": "scene-editor", "function": "DrawEditorUI", "description": "버튼이 눌렸는지 확인합니다." },
                 { "card": "resource-manager", "function": "FindModel", "description": "미리 등록한 도형 모델을 찾습니다." },
                 { "card": "game-object", "function": "GameObject", "description": "모델을 빌려 쓰는 새 물체를 만듭니다." },
-                { "card": "d3d12-context", "function": "CreateUniqueObjectName", "description": "겹치지 않는 이름을 정합니다." },
+                { "card": "scene-editor", "function": "CreateUniqueObjectName", "description": "겹치지 않는 이름을 정합니다." },
                 { "card": "scene", "function": "AddGameObject", "description": "목록에 넣고 바로 선택합니다." }
             ]
         },
@@ -904,7 +1005,7 @@
             "name": "모델 불러오기",
             "howTo": "Create 패널에서 모델을 고르고 Add 버튼을 누릅니다.",
             "steps": [
-                { "card": "d3d12-context", "function": "DrawModelPicker", "description": "Assets/Models의 glTF 파일을 목록으로 보여 줍니다." },
+                { "card": "scene-editor", "function": "DrawModelPicker", "description": "Assets/Models의 glTF 파일을 목록으로 보여 줍니다." },
                 { "card": "resource-manager", "function": "LoadModel", "description": "이미 읽은 모델이면 그대로 돌려줍니다." },
                 { "card": "model-loader", "function": "LoadGltf", "description": "처음이면 파일을 읽어 조각과 재질로 바꿉니다." },
                 { "card": "gpu-buffer", "function": "CreateDefaultBuffer", "description": "조각의 정점과 인덱스를 GPU 메모리로 옮깁니다." },
@@ -917,10 +1018,10 @@
             "name": "장면 저장과 불러오기",
             "howTo": "Create 패널의 Save Scene, Load Scene 버튼을 누릅니다.",
             "steps": [
-                { "card": "d3d12-context", "function": "DrawEditorUI", "description": "버튼이 눌렸는지 확인합니다." },
+                { "card": "scene-editor", "function": "DrawEditorUI", "description": "버튼이 눌렸는지 확인합니다." },
                 { "card": "scene-serializer", "function": "SaveScene · LoadScene", "description": "JSON 파일에 적거나 읽어 옵니다." },
                 { "card": "scene", "function": "AddGameObject", "description": "불러올 때 임시 장면을 채우고, 다 되면 바꿉니다." },
-                { "card": "d3d12-context", "function": "selectedObjectIndex_", "description": "불러온 뒤에는 선택을 풉니다." }
+                { "card": "scene-editor", "function": "selectedObjectIndex_", "description": "불러온 뒤에는 선택을 풉니다." }
             ]
         },
         {
@@ -930,7 +1031,7 @@
             "steps": [
                 { "card": "scene", "function": "GetGameObjects", "description": "지금 있는 물체를 모두 줍니다." },
                 { "card": "game-object", "function": "GetName", "description": "목록에 보일 이름을 줍니다." },
-                { "card": "d3d12-context", "function": "selectedObjectIndex_", "description": "누른 물체의 번호를 기억합니다." }
+                { "card": "scene-editor", "function": "selectedObjectIndex_", "description": "누른 물체의 번호를 기억합니다." }
             ]
         },
         {
@@ -939,7 +1040,7 @@
             "howTo": "Inspector 패널의 숫자를 좌우로 끕니다.",
             "steps": [
                 { "card": "game-object", "function": "GetTransform", "description": "선택한 물체의 값을 꺼냅니다." },
-                { "card": "d3d12-context", "function": "DrawEditorUI", "description": "회전은 도 단위로 바꿔 보여 줍니다." },
+                { "card": "scene-editor", "function": "DrawEditorUI", "description": "회전은 도 단위로 바꿔 보여 줍니다." },
                 { "card": "transform", "function": "SetPosition · SetRotation · SetScale", "description": "고친 값을 넣습니다." },
                 { "card": "transform", "function": "GetWorldMatrix", "description": "다음에 그릴 때 새 행렬이 쓰입니다." }
             ]
@@ -949,9 +1050,9 @@
             "name": "기즈모로 움직이기",
             "howTo": "W 이동, E 회전, R 크기를 고르고 화면의 축을 끕니다.",
             "steps": [
-                { "card": "d3d12-context", "function": "ProcessGizmoHotkeys", "description": "눌린 키로 조작 종류를 고릅니다." },
+                { "card": "scene-editor", "function": "ProcessGizmoHotkeys", "description": "눌린 키로 조작 종류를 고릅니다." },
                 { "card": "camera", "function": "GetViewMatrix", "description": "축을 화면의 알맞은 자리에 그리도록 시점을 줍니다." },
-                { "card": "d3d12-context", "function": "DrawTransformGizmo", "description": "ImGuizmo가 바꾼 행렬을 이동, 회전, 크기로 나눕니다." },
+                { "card": "scene-editor", "function": "DrawTransformGizmo", "description": "ImGuizmo가 바꾼 행렬을 이동, 회전, 크기로 나눕니다." },
                 { "card": "transform", "function": "SetPosition · SetRotation · SetScale", "description": "나눈 값을 물체에 넣습니다." }
             ]
         },
@@ -961,10 +1062,10 @@
             "howTo": "화면의 물체를 왼쪽 버튼으로 누릅니다.",
             "steps": [
                 { "card": "input", "function": "WasLeftMouseButtonPressed", "description": "방금 눌린 한 번만 골라냅니다." },
-                { "card": "d3d12-context", "function": "CreatePickingRay", "description": "마우스 자리를 3D 공간의 선으로 바꿉니다." },
+                { "card": "scene-editor", "function": "CreatePickingRay", "description": "마우스 자리를 3D 공간의 선으로 바꿉니다." },
                 { "card": "game-object", "function": "GetWorldBounds", "description": "물체마다 감싸는 상자를 구합니다." },
                 { "card": "ray", "function": "IntersectRayAABB", "description": "선이 상자에 닿는지, 얼마나 먼지 봅니다." },
-                { "card": "d3d12-context", "function": "PerformViewportPicking", "description": "가장 가까운 물체를 선택합니다." }
+                { "card": "scene-editor", "function": "PerformViewportPicking", "description": "가장 가까운 물체를 선택합니다." }
             ]
         },
         {
@@ -984,7 +1085,7 @@
             "howTo": "Delete 키나 Inspector의 Delete Object 버튼을 누릅니다.",
             "steps": [
                 { "card": "input", "function": "IsKeyDown", "description": "Delete 키가 눌렸는지 확인합니다." },
-                { "card": "d3d12-context", "function": "ProcessObjectDeletionRequest", "description": "UI를 다 그린 뒤에 지워 목록이 중간에 바뀌지 않게 합니다." },
+                { "card": "scene-editor", "function": "ProcessObjectDeletionRequest", "description": "UI를 다 그린 뒤에 지워 목록이 중간에 바뀌지 않게 합니다." },
                 { "card": "scene", "function": "RemoveGameObject", "description": "목록에서 빼고 선택을 풉니다." }
             ]
         },
@@ -997,6 +1098,18 @@
                 { "card": "engine-guide-window", "function": "Open", "description": "그 이름의 설명으로 창을 엽니다." },
                 { "card": "engine-guide", "function": "FindFeature · FindCard", "description": "읽어 둔 내용에서 설명을 찾습니다." },
                 { "card": "engine-guide-window", "function": "Draw", "description": "순서, 카드, 그림을 창에 그립니다." }
+            ]
+        },
+        {
+            "id": "feature-toon",
+            "name": "카툰 명암",
+            "howTo": "Assets/Styles/PandoraStyle.json에서 재질마다 그늘색과 경계를 정합니다.",
+            "steps": [
+                { "card": "material-style", "function": "MaterialStyleLibrary::Find", "description": "재질 이름으로 그림체 값을 찾습니다." },
+                { "card": "d3d12-context", "function": "BindMaterial", "description": "조각을 그리기 전에 값을 b2에 연결합니다." },
+                { "card": "frame-constant-buffer", "function": "Write", "description": "이번 프레임 구역에 값을 씁니다." },
+                { "card": "shader", "function": "PSMain", "description": "빛과 면의 방향을 비교해 밝은 면과 그늘로 끊습니다." },
+                { "card": "shader", "function": "PSMain", "description": "그늘에 재질의 색을 곱하고 가장자리에 빛을 더합니다." }
             ]
         }
     ]

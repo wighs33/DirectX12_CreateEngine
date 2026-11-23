@@ -198,7 +198,7 @@ void SceneEditor::DrawEditorUI()
     constexpr float createPanelHeight = 162.0f;
     constexpr float gizmoToolbarWidth = 320.0f;
     constexpr float gizmoToolbarHeight = 46.0f;
-    constexpr float viewportHelpWidth = 327.0f;
+    constexpr float viewportHelpWidth = 386.0f;
     constexpr float viewportHelpHeight = 36.0f;
     constexpr ImGuiWindowFlags panelFlags =
         ImGuiWindowFlags_NoCollapse |
@@ -435,6 +435,9 @@ void SceneEditor::DrawEditorUI()
     ImGui::SameLine();
     ImGui::TextUnformatted("Stats");
     engineGuideWindow_.DrawHelpButton("feature-stats");
+    ImGui::SameLine();
+    ImGui::TextUnformatted("Toon");
+    engineGuideWindow_.DrawHelpButton("feature-toon");
     ImGui::SameLine();
     if (ImGui::SmallButton("Guide"))
     {
