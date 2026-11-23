@@ -1,5 +1,4 @@
 #include "D3D12Context.h"
-#include "EditorHelp.h"
 #include "Input.h"
 #include "Ray.h"
 #include "SceneSerializer.h"
@@ -26,6 +25,13 @@ namespace
         static const std::filesystem::path sceneFilePath =
             std::filesystem::path("Scenes") / "Scene.json";
         return sceneFilePath;
+    }
+
+    const std::filesystem::path& GetGuideFilePath()
+    {
+        static const std::filesystem::path guideFilePath =
+            std::filesystem::path("Assets") / "Guide" / "EngineGuide.json";
+        return guideFilePath;
     }
 }
 
@@ -395,6 +401,7 @@ bool D3D12Context::InitializeImGui()
     // 이번 단계의 Panel은 코드에서 고정 배치하므로 실행 폴더에 imgui.ini를 만들지 않습니다.
     io.IniFilename = nullptr;
     ImGui::StyleColorsDark();
+    engineGuideWindow_.Initialize(GetGuideFilePath());
 
     if (!ImGui_ImplWin32_Init(window_))
     {
@@ -466,7 +473,7 @@ void D3D12Context::DrawEditorUI()
     constexpr float createPanelHeight = 130.0f;
     constexpr float gizmoToolbarWidth = 320.0f;
     constexpr float gizmoToolbarHeight = 46.0f;
-    constexpr float viewportHelpWidth = 276.0f;
+    constexpr float viewportHelpWidth = 327.0f;
     constexpr float viewportHelpHeight = 36.0f;
     constexpr ImGuiWindowFlags panelFlags =
         ImGuiWindowFlags_NoCollapse |
@@ -526,7 +533,7 @@ void D3D12Context::DrawEditorUI()
     {
         gizmoOperation_ = GizmoOperation::Scale;
     }
-    EditorHelp::DrawButton("feature-gizmo");
+    engineGuideWindow_.DrawHelpButton("feature-gizmo");
     ImGui::End();
 
     ImGui::SetNextWindowPos(
@@ -543,7 +550,7 @@ void D3D12Context::DrawEditorUI()
 
         selectedObjectIndex_ = scene_.AddGameObject(std::move(cube));
     }
-    EditorHelp::DrawButtonAtRight("feature-create");
+    engineGuideWindow_.DrawHelpButtonAtRight("feature-create");
     if (ImGui::Button("Sphere", ImVec2(120.0f, 0.0f)))
     {
         GameObject sphere(&sphereMesh_, PrimitiveType::Sphere);
@@ -570,7 +577,7 @@ void D3D12Context::DrawEditorUI()
             deleteObjectRequested_ = false;
         }
     }
-    EditorHelp::DrawButtonAtRight("feature-save");
+    engineGuideWindow_.DrawHelpButtonAtRight("feature-save");
     ImGui::End();
 
     ImGui::SetNextWindowPos(
@@ -583,7 +590,7 @@ void D3D12Context::DrawEditorUI()
         ImGuiCond_Always);
     ImGui::Begin("Hierarchy", nullptr, panelFlags);
     ImGui::TextUnformatted("Objects");
-    EditorHelp::DrawButtonAtRight("feature-hierarchy");
+    engineGuideWindow_.DrawHelpButtonAtRight("feature-hierarchy");
     ImGui::Separator();
     if (gameObjects.empty())
     {
@@ -628,7 +635,7 @@ void D3D12Context::DrawEditorUI()
         ImGui::TextUnformatted(selectedObject.GetName().c_str());
 
         ImGui::SeparatorText("Transform");
-        EditorHelp::DrawButtonAtRight("feature-inspector");
+        engineGuideWindow_.DrawHelpButtonAtRight("feature-inspector");
 
         const DirectX::XMFLOAT3& currentPosition = transform.GetPosition();
         float position[] =
@@ -679,11 +686,11 @@ void D3D12Context::DrawEditorUI()
         ImGui::Separator();
         if (ImGui::Button(
                 "Delete Object",
-                ImVec2(-EditorHelp::GetReservedWidth(), 0.0f)))
+                ImVec2(-EngineGuideWindow::GetHelpButtonReservedWidth(), 0.0f)))
         {
             deleteObjectRequested_ = true;
         }
-        EditorHelp::DrawButtonAtRight("feature-delete");
+        engineGuideWindow_.DrawHelpButtonAtRight("feature-delete");
     }
     ImGui::End();
 
@@ -701,14 +708,21 @@ void D3D12Context::DrawEditorUI()
         nullptr,
         panelFlags | ImGuiWindowFlags_NoTitleBar);
     ImGui::TextUnformatted("Look (RMB)");
-    EditorHelp::DrawButton("feature-camera");
+    engineGuideWindow_.DrawHelpButton("feature-camera");
     ImGui::SameLine();
     ImGui::TextUnformatted("Pick (LMB)");
-    EditorHelp::DrawButton("feature-picking");
+    engineGuideWindow_.DrawHelpButton("feature-picking");
     ImGui::SameLine();
     ImGui::TextUnformatted("Stats");
-    EditorHelp::DrawButton("feature-stats");
+    engineGuideWindow_.DrawHelpButton("feature-stats");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Guide"))
+    {
+        engineGuideWindow_.OpenHome();
+    }
     ImGui::End();
+
+    engineGuideWindow_.Draw();
 }
 
 std::string D3D12Context::CreateUniqueObjectName(

@@ -168,7 +168,8 @@
     <ClCompile Include="D3D12Pipeline.cpp" />
     <ClCompile Include="D3D12SwapChain.cpp" />
     <ClCompile Include="DirectX12_Study.cpp" />
-    <ClCompile Include="EditorHelp.cpp" />
+    <ClCompile Include="EngineGuide.cpp" />
+    <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="Input.cpp" />
@@ -197,7 +198,8 @@
     <ClInclude Include="D3D12DeviceResources.h" />
     <ClInclude Include="D3D12Pipeline.h" />
     <ClInclude Include="D3D12SwapChain.h" />
-    <ClInclude Include="EditorHelp.h" />
+    <ClInclude Include="EngineGuide.h" />
+    <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="Input.h" />
@@ -221,6 +223,7 @@
     <ClInclude Include="Transform.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Assets\Guide\EngineGuide.json" />
     <None Include="Shader.hlsl" />
     <None Include="ThirdParty\imgui\LICENSE.txt" />
     <None Include="ThirdParty\imguizmo\LICENSE.txt" />

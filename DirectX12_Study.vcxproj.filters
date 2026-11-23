@@ -90,7 +90,10 @@
     <ClCompile Include="SceneSerializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="EditorHelp.cpp">
+    <ClCompile Include="EngineGuide.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="EngineGuideWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -179,7 +182,10 @@
     <ClInclude Include="SceneSerializer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EditorHelp.h">
+    <ClInclude Include="EngineGuide.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="EngineGuideWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\json\json.hpp">
@@ -187,6 +193,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Assets\Guide\EngineGuide.json">
+      <Filter>Resource Files</Filter>
+    </None>
     <None Include="Shader.hlsl">
       <Filter>Resource Files</Filter>
     </None>

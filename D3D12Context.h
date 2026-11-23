@@ -6,6 +6,7 @@
 #include "D3D12DeviceResources.h"
 #include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
+#include "EngineGuideWindow.h"
 #include "Frustum.h"
 #include "Mesh.h"
 #include "ResourceManager.h"
@@ -146,6 +147,8 @@ private:
     std::vector<UINT> imguiFreeDescriptorIndices_;
     UINT imguiDescriptorSize_ = 0;
     bool imguiInitialized_ = false;
+    // 물음표 Button과 엔진 도감 창이며 ImGui Context를 만든 뒤에 초기화합니다.
+    EngineGuideWindow engineGuideWindow_;
     // Selection은 Scene Object 자체가 아닌 Editor가 관리하며 vector 재배치에 안전한 Index를 사용합니다.
     std::size_t selectedObjectIndex_ = InvalidObjectIndex;
     bool deleteObjectRequested_ = false;
