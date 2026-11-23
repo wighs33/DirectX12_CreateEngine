@@ -1255,6 +1255,7 @@ bool D3D12Context::CreateCubeMesh()
     // Cube 데이터는 외부에서 정의하고 Mesh는 전달받은 Geometry로 GPU Buffer를 생성합니다.
     return cubeMesh_.Initialize(
         deviceResources_.GetDevice(),
+        commandContext_,
         cubeVertices,
         vertexCount,
         cubeIndices,
@@ -1426,6 +1427,7 @@ bool D3D12Context::CreateSphereMesh()
 
     return sphereMesh_.Initialize(
         deviceResources_.GetDevice(),
+        commandContext_,
         vertices.data(),
         static_cast<UINT>(vertices.size()),
         indices.data(),

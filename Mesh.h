@@ -8,6 +8,8 @@
 
 #include <cstdint>
 
+class D3D12CommandContext;
+
 // 현재 Input Layout과 HLSL Vertex 입력에 대응하는 Position + Color + UV 정점 데이터입니다.
 struct Vertex
 {
@@ -27,8 +29,10 @@ public:
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;
 
+    // 정점과 인덱스를 GPU 전용 Default Heap에 올리므로 복사 명령을 기록할 CommandContext가 필요합니다.
     bool Initialize(
         ID3D12Device* device,
+        D3D12CommandContext& commandContext,
         const Vertex* vertices,
         UINT vertexCount,
         const std::uint32_t* indices,
@@ -43,10 +47,12 @@ public:
 private:
     bool CreateVertexBuffer(
         ID3D12Device* device,
+        D3D12CommandContext& commandContext,
         const Vertex* vertices,
         UINT vertexCount);
     bool CreateIndexBuffer(
         ID3D12Device* device,
+        D3D12CommandContext& commandContext,
         const std::uint32_t* indices,
         UINT indexCount);
     bool CalculateLocalBounds(const Vertex* vertices, UINT vertexCount);
