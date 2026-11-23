@@ -1,5 +1,7 @@
 #include "D3D12Pipeline.h"
 
+#include "D3D12Config.h"
+
 #include <climits>
 #include <cstdio>
 
@@ -331,7 +333,7 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
     // PSO가 Triangle 계열 Primitive를 처리
     description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     description.NumRenderTargets = 1;
-    description.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    description.RTVFormats[0] = D3D12Config::SceneTargetFormat;
     description.DSVFormat = DXGI_FORMAT_D32_FLOAT;
     description.SampleDesc.Count = 1;
     description.SampleDesc.Quality = 0;

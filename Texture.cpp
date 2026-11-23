@@ -21,7 +21,8 @@ using Microsoft::WRL::ComPtr;
 namespace
 {
     constexpr UINT BytesPerPixel = 4;
-    constexpr DXGI_FORMAT TextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    // 색 이미지는 sRGB로 저장되어 있으므로 Sample할 때 GPU가 선형 색으로 바꾸게 합니다.
+    constexpr DXGI_FORMAT TextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
     constexpr UINT TextureMipLevels = 1;
 
     std::string ToUTF8(const std::wstring& text)
@@ -171,7 +172,7 @@ namespace
                 return false;
             }
 
-            // WIC의 32bpp RGBA 메모리 순서는 DXGI_FORMAT_R8G8B8A8_UNORM과 일치합니다.
+            // WIC의 32bpp RGBA 메모리 순서는 R8G8B8A8 형식과 일치합니다.
             result = formatConverter->Initialize(
                 frame.Get(),
                 GUID_WICPixelFormat32bppRGBA,

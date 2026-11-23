@@ -51,6 +51,7 @@ VertexOutput VSMain(VertexInput input)
 
 // Shader 실행이 시작되는 함수 : Rasterizer가 만든 Pixel 후보마다 실행
 // Rasterizer가 보간한 UV로 Texture를 Sample하고 Vertex 색상을 곱해 최종 색상을 출력합니다.
+// Texture는 읽을 때 선형 색이 되고 출력은 RTV가 sRGB로 바꾸므로 빛 계산은 모두 선형 색으로 합니다.
 float4 PSMain(VertexOutput input) : SV_TARGET
 {
     const float4 textureColor = texture0.Sample(sampler0, input.uv);

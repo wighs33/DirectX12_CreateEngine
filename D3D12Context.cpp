@@ -277,11 +277,12 @@ bool D3D12Context::RenderFrame()
     // [10단계] Color 출력용 RTV와 깊이 비교/기록용 DSV를 Output Merger에 함께 연결합니다.
     commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
+    // sRGB RTV에 저장되면 화면에서 (0.1, 0.2, 0.4)로 보이는 선형 색입니다.
     constexpr float clearColor[] =
     {
-        0.1f,
-        0.2f,
-        0.4f,
+        0.0100f,
+        0.0331f,
+        0.1329f,
         1.0f
     };
 
@@ -376,6 +377,10 @@ bool D3D12Context::RenderFrame()
     commandList->SetDescriptorHeaps(
         _countof(imguiDescriptorHeaps),
         imguiDescriptorHeaps);
+    // ImGui의 색은 이미 sRGB 값이므로 변환하지 않는 RTV로 바꿔 그립니다.
+    const D3D12_CPU_DESCRIPTOR_HANDLE editorRtvHandle =
+        swapChain_.GetEditorRTV(frameIndex);
+    commandList->OMSetRenderTargets(1, &editorRtvHandle, FALSE, &dsvHandle);
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
     // [18단계] Scene과 Editor 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
@@ -451,7 +456,7 @@ bool D3D12Context::InitializeImGui()
     initializationInformation.Device = device;
     initializationInformation.CommandQueue = commandContext_.GetCommandQueue();
     initializationInformation.NumFramesInFlight = D3D12Config::FrameCount;
-    initializationInformation.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    initializationInformation.RTVFormat = D3D12Config::BackBufferFormat;
     initializationInformation.DSVFormat = DXGI_FORMAT_D32_FLOAT;
     initializationInformation.UserData = this;
     initializationInformation.SrvDescriptorHeap = imguiDescriptorHeap_.Get();
