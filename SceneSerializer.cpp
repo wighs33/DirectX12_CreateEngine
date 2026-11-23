@@ -20,7 +20,9 @@
 
 namespace
 {
-    constexpr int SceneFormatVersion = 1;
+    // version 1은 기본 도형 이름을 "primitive"에, version 2는 모델 이름이나 경로를 "model"에 적습니다.
+    constexpr int SceneFormatVersion = 2;
+    constexpr int PrimitiveOnlyVersion = 1;
 
     struct SerializedObject
     {
@@ -55,9 +57,23 @@ namespace
         return false;
     }
 
-    bool IsPrimitiveName(const std::string& name)
+    // 이미 있는 모델을 먼저 찾고, 없으면 프로젝트 안의 glTF 경로로 보고 읽습니다.
+    const Model* ResolveModel(
+        ResourceManager& resourceManager,
+        const std::string& modelId)
     {
-        return name == "Cube" || name == "Sphere";
+        if (const Model* const model = resourceManager.FindModel(modelId))
+        {
+            return model;
+        }
+
+        const std::filesystem::path path = std::filesystem::u8path(modelId);
+        if (path.extension() != ".gltf" || path.is_absolute())
+        {
+            return nullptr;
+        }
+
+        return resourceManager.LoadModel(path);
     }
 
     bool IsFiniteFloat3(const DirectX::XMFLOAT3& value)
@@ -121,11 +137,11 @@ bool SceneSerializer::SaveScene(
         for (const GameObject& gameObject : scene.GetGameObjects())
         {
             const Model* const model = gameObject.GetModel();
-            if (model == nullptr || !IsPrimitiveName(model->GetId()))
+            if (model == nullptr)
             {
                 return ReportSaveError(
                     filePath,
-                    "the scene contains an unsupported primitive type");
+                    "the scene contains an object without a model");
             }
 
             const Transform& transform = gameObject.GetTransform();
@@ -143,7 +159,7 @@ bool SceneSerializer::SaveScene(
 
             nlohmann::json objectJson = nlohmann::json::object();
             objectJson["name"] = gameObject.GetName();
-            objectJson["primitive"] = model->GetId();
+            objectJson["model"] = model->GetId();
             objectJson["transform"] =
             {
                 {
@@ -242,7 +258,9 @@ bool SceneSerializer::LoadScene(
                 filePath,
                 "version is missing or is not an integer");
         }
-        if (*version != SceneFormatVersion)
+        const int fileVersion = version->get<int>();
+        if (fileVersion != SceneFormatVersion &&
+            fileVersion != PrimitiveOnlyVersion)
         {
             return ReportLoadError(
                 filePath,
@@ -281,13 +299,15 @@ bool SceneSerializer::LoadScene(
                     objectPrefix + "name is missing or is not a string");
             }
 
-            const auto primitive = objectJson.find("primitive");
-            if (primitive == objectJson.end() || !primitive->is_string())
+            const char* const modelKey =
+                fileVersion == PrimitiveOnlyVersion ? "primitive" : "model";
+            const auto model = objectJson.find(modelKey);
+            if (model == objectJson.end() || !model->is_string())
             {
                 return ReportLoadError(
                     filePath,
-                    objectPrefix +
-                        "primitive is missing or is not a string");
+                    objectPrefix + modelKey +
+                        " is missing or is not a string");
             }
 
             const auto transform = objectJson.find("transform");
@@ -301,13 +321,7 @@ bool SceneSerializer::LoadScene(
 
             SerializedObject serializedObject{};
             serializedObject.name = name->get<std::string>();
-            serializedObject.modelId = primitive->get<std::string>();
-            if (!IsPrimitiveName(serializedObject.modelId))
-            {
-                return ReportLoadError(
-                    filePath,
-                    objectPrefix + "primitive must be Cube or Sphere");
-            }
+            serializedObject.modelId = model->get<std::string>();
 
             const auto position = transform->find("position");
             if (position == transform->end() ||
@@ -344,7 +358,7 @@ bool SceneSerializer::LoadScene(
         for (const SerializedObject& serializedObject : serializedObjects)
         {
             const Model* const model =
-                resourceManager.FindModel(serializedObject.modelId);
+                ResolveModel(resourceManager, serializedObject.modelId);
             if (model == nullptr)
             {
                 return ReportLoadError(
