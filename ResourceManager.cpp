@@ -4,6 +4,7 @@
 #include "ModelLoader.h"
 
 #include <cstdio>
+#include <filesystem>
 #include <cwchar>
 #include <utility>
 
@@ -19,6 +20,9 @@ bool ResourceManager::Initialize(
 
     device_ = device;
     commandContext_ = &commandContext;
+
+    // 그림체 파일이 없어도 모든 재질이 기본 그림체로 그려집니다.
+    styles_.Load(std::filesystem::path("Assets") / "Styles" / "PandoraStyle.json");
 
     return textureHeap_.Initialize(device, TextureHeapCapacity) &&
         CreateWhiteTexture();
@@ -87,11 +91,17 @@ Model* ResourceManager::AddModel(
         return nullptr;
     }
 
-    std::vector<const Texture*> materialTextures;
-    for (const ModelMaterialData& material : modelData.materials)
+    std::vector<ModelMaterial> materials;
+    for (const ModelMaterialData& materialData : modelData.materials)
     {
-        materialTextures.push_back(GetMaterialTexture(material));
+        ModelMaterial material;
+        material.name = materialData.name;
+        material.texture = GetMaterialTexture(materialData);
+        material.style = styles_.Find(materialData.name);
+        material.constantSlot = materialCount_ + materials.size();
+        materials.push_back(std::move(material));
     }
+    const std::size_t addedMaterialCount = materials.size();
 
     auto model = std::make_unique<Model>();
     if (!model->Initialize(
@@ -99,12 +109,13 @@ Model* ResourceManager::AddModel(
             *commandContext_,
             id,
             modelData,
-            materialTextures))
+            std::move(materials)))
     {
         std::fprintf(stderr, "Model을 만들지 못했습니다: %s\n", id.c_str());
         return nullptr;
     }
 
+    materialCount_ += addedMaterialCount;
     Model* const modelPointer = model.get();
     models_[id] = std::move(model);
     return modelPointer;
@@ -142,6 +153,11 @@ Model* ResourceManager::FindModel(const std::string& id)
 const TextureHeap& ResourceManager::GetTextureHeap() const
 {
     return textureHeap_;
+}
+
+std::size_t ResourceManager::GetMaterialCount() const
+{
+    return materialCount_;
 }
 
 bool ResourceManager::CreateWhiteTexture()

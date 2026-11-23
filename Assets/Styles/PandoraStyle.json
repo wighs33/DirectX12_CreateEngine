@@ -1,0 +1,68 @@
+{
+    "version": 1,
+    "materials": {
+        "Luna_Body": {
+            "shadeColor": [0.95, 0.84, 0.86],
+            "shadeThreshold": -0.45,
+            "shadeSoftness": 0.06,
+            "ambientWeight": 0.2,
+            "rimColor": [1, 1, 1],
+            "rimStrength": 0.0,
+            "rimWidth": 0.3
+        },
+        "Luna_Hair": {
+            "shadeColor": [0.86, 0.83, 0.93],
+            "shadeThreshold": -0.2,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.2,
+            "rimColor": [1, 1, 1],
+            "rimStrength": 0.25,
+            "rimWidth": 0.3
+        },
+        "Luna_Jacket": {
+            "shadeColor": [0.84, 0.82, 0.94],
+            "shadeThreshold": -0.15,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.2,
+            "rimColor": [1, 1, 1],
+            "rimStrength": 0.15,
+            "rimWidth": 0.3
+        },
+        "Luna_Shorts": {
+            "shadeColor": [0.84, 0.82, 0.94],
+            "shadeThreshold": -0.15,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.2,
+            "rimColor": [1, 1, 1],
+            "rimStrength": 0.15,
+            "rimWidth": 0.3
+        },
+        "Luna_Ornament": {
+            "shadeColor": [0.88, 0.82, 0.86],
+            "shadeThreshold": 0.0,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.25,
+            "rimColor": [1, 1, 1],
+            "rimStrength": 0.2,
+            "rimWidth": 0.3
+        },
+        "Luna_OrnamentAntique": {
+            "shadeColor": [0.88, 0.82, 0.86],
+            "shadeThreshold": 0.0,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.25,
+            "rimColor": [1, 1, 1],
+            "rimStrength": 0.2,
+            "rimWidth": 0.3
+        },
+        "Luna_OrnamentPearl": {
+            "shadeColor": [0.88, 0.82, 0.86],
+            "shadeThreshold": 0.0,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.25,
+            "rimColor": [1, 1, 1],
+            "rimStrength": 0.2,
+            "rimWidth": 0.3
+        }
+    }
+}

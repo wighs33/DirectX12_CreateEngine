@@ -172,6 +172,7 @@
     <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="MaterialStyle.cpp" />
     <ClCompile Include="FrameConstantBuffer.cpp" />
     <ClCompile Include="SceneEditor.cpp" />
     <ClCompile Include="ImGuiLayer.cpp" />
@@ -210,6 +211,7 @@
     <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="MaterialStyle.h" />
     <ClInclude Include="FrameConstantBuffer.h" />
     <ClInclude Include="SceneEditor.h" />
     <ClInclude Include="ImGuiLayer.h" />
@@ -241,6 +243,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Guide\EngineGuide.json" />
+    <None Include="Assets\Styles\PandoraStyle.json" />
     <None Include="Shader.hlsl" />
     <None Include="ThirdParty\imgui\LICENSE.txt" />
     <None Include="ThirdParty\imguizmo\LICENSE.txt" />

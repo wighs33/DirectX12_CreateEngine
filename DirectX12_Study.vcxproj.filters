@@ -90,6 +90,9 @@
     <ClCompile Include="SceneSerializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MaterialStyle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="FrameConstantBuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -206,6 +209,9 @@
     <ClInclude Include="SceneSerializer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MaterialStyle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="FrameConstantBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -245,6 +251,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Guide\EngineGuide.json">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Assets\Styles\PandoraStyle.json">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="Shader.hlsl">

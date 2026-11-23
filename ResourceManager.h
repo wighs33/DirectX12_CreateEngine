@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MaterialStyle.h"
 #include "Model.h"
 #include "ModelData.h"
 #include "Texture.h"
@@ -7,6 +8,7 @@
 
 #include <d3d12.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -42,6 +44,9 @@ public:
     // 모든 Texture의 SRV가 들어 있는 Heap입니다.
     const TextureHeap& GetTextureHeap() const;
 
+    // 지금까지 만든 재질의 수이며 재질 상수 버퍼에 필요한 칸 수입니다.
+    std::size_t GetMaterialCount() const;
+
     void Clear();
 
 private:
@@ -57,6 +62,8 @@ private:
 
     TextureHeap textureHeap_;
     Texture whiteTexture_;
+    MaterialStyleLibrary styles_;
+    std::size_t materialCount_ = 0;
     std::unordered_map<std::wstring, std::unique_ptr<Texture>> textures_;
     std::unordered_map<std::string, std::unique_ptr<Model>> models_;
 };

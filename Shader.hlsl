@@ -14,6 +14,19 @@ cbuffer LightingBuffer : register(b1)
     float4 ambientColor;
 };
 
+// C++ Root Signature의 네 번째 Parameter가 가리키는 재질별 그림체 값입니다. MaterialConstants와 배치가 같습니다.
+cbuffer MaterialBuffer : register(b2)
+{
+    float3 shadeColor;
+    float shadeThreshold;
+    float3 rimColor;
+    float rimStrength;
+    float shadeSoftness;
+    float ambientWeight;
+    float rimWidth;
+    float materialPadding;
+};
+
 // C++ Root Signature의 두 번째 Parameter와 Static Sampler가 각각 t0와 s0에 연결됩니다.
 Texture2D texture0 : register(t0);
 SamplerState sampler0 : register(s0);

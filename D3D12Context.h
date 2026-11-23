@@ -67,6 +67,10 @@ private:
 
     bool CreatePrimitiveModels();
     void UpdateLightingConstantBuffer(UINT frameIndex);
+    void BindMaterial(
+        ID3D12GraphicsCommandList* commandList,
+        UINT frameIndex,
+        const ModelMaterial& material);
     void UpdateObjectConstantBuffer(
         UINT frameIndex,
         std::size_t objectIndex,
@@ -92,8 +96,9 @@ private:
     ImGuiLayer imguiLayer_;
     SceneEditor sceneEditor_;
 
-    // Object마다 한 칸, 조명은 Frame마다 한 칸을 사용합니다.
+    // Object와 재질마다 한 칸, 조명은 Frame마다 한 칸을 사용합니다.
     FrameConstantBuffer objectConstants_{ static_cast<UINT>(sizeof(ConstantBufferData)) };
+    FrameConstantBuffer materialConstants_{ static_cast<UINT>(sizeof(MaterialConstants)) };
     FrameConstantBuffer lightingConstants_{ static_cast<UINT>(sizeof(LightingConstantBufferData)) };
     RenderingStats renderingStats_;
     float statisticsElapsedTime_ = 0.0f;

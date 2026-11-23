@@ -49,7 +49,7 @@ bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
     srvRange.RegisterSpace = 0;
     srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    D3D12_ROOT_PARAMETER rootParameters[3]{};
+    D3D12_ROOT_PARAMETER rootParameters[4]{};
 
     // 첫 번째 Parameter는 Vertex Shader의 register(b0)와 연결할 Object별 Root CBV입니다.
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -68,6 +68,12 @@ bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[2].Descriptor.ShaderRegister = 1;
     rootParameters[2].Descriptor.RegisterSpace = 0;
     rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 네 번째 Parameter는 조각의 재질마다 바뀌는 Pixel Shader register(b2) Material CBV입니다.
+    rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[3].Descriptor.ShaderRegister = 2;
+    rootParameters[3].Descriptor.RegisterSpace = 0;
+    rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     // 이번 단계에서는 변하지 않는 단일 Sampler를 Root Signature에 직접 포함합니다.
     D3D12_STATIC_SAMPLER_DESC staticSampler{};

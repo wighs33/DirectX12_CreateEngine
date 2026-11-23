@@ -10,18 +10,18 @@ bool Model::Initialize(
     D3D12CommandContext& commandContext,
     const std::string& id,
     const ModelData& modelData,
-    const std::vector<const Texture*>& materialTextures)
+    std::vector<ModelMaterial> materials)
 {
     std::vector<std::unique_ptr<ModelPart>> parts;
     for (const ModelPartData& partData : modelData.parts)
     {
         auto part = std::make_unique<ModelPart>();
         part->name = partData.name;
-        if (partData.materialIndex >= materialTextures.size())
+        if (partData.materialIndex >= materials.size())
         {
             return false;
         }
-        part->texture = materialTextures[partData.materialIndex];
+        part->materialIndex = partData.materialIndex;
 
         // 32bit Index와 D3D12 Buffer View가 다룰 수 있는 개수인지는 Mesh가 다시 확인합니다.
         if (partData.vertices.size() > (std::numeric_limits<UINT>::max)() ||
@@ -62,6 +62,7 @@ bool Model::Initialize(
 
     DirectX::XMStoreFloat3(&localBounds_.minimum, minimum);
     DirectX::XMStoreFloat3(&localBounds_.maximum, maximum);
+    materials_ = std::move(materials);
     parts_ = std::move(parts);
     id_ = id;
     return true;
@@ -75,6 +76,11 @@ const std::string& Model::GetId() const
 const std::vector<std::unique_ptr<ModelPart>>& Model::GetParts() const
 {
     return parts_;
+}
+
+const std::vector<ModelMaterial>& Model::GetMaterials() const
+{
+    return materials_;
 }
 
 const AABB& Model::GetLocalBounds() const

@@ -1,5 +1,7 @@
 #include "D3D12Context.h"
+
 #include "PrimitiveGeometry.h"
+#include "Texture.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -64,7 +66,11 @@ bool D3D12Context::RenderFrame()
     if (!objectConstants_.EnsureCapacity(
             deviceResources_.GetDevice(),
             commandContext_,
-            sceneObjectCount))
+            sceneObjectCount) ||
+        !materialConstants_.EnsureCapacity(
+            deviceResources_.GetDevice(),
+            commandContext_,
+            resourceManager_.GetMaterialCount()))
     {
         return false;
     }
@@ -198,10 +204,10 @@ bool D3D12Context::RenderFrame()
         ++renderingStats_.renderedObjectCount;
         for (const std::unique_ptr<ModelPart>& part : model->GetParts())
         {
-            // Root Parameter 1의 t0 Table이 현재 조각의 Texture 칸을 가리키게 합니다.
-            commandList->SetGraphicsRootDescriptorTable(
-                1,
-                textureHeap.GetGpuHandle(part->texture->GetDescriptorSlot()));
+            BindMaterial(
+                commandList,
+                frameIndex,
+                model->GetMaterials()[part->materialIndex]);
 
             // [15단계] 현재 조각의 Vertex Buffer View를 Input Slot 0에 연결합니다.
             const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView =
@@ -305,6 +311,25 @@ void D3D12Context::UpdateLightingConstantBuffer(UINT frameIndex)
         DirectX::XMFLOAT4(0.18f, 0.20f, 0.24f, 0.0f)
     };
     lightingConstants_.Write(frameIndex, 0, &lightingData);
+}
+
+void D3D12Context::BindMaterial(
+    ID3D12GraphicsCommandList* commandList,
+    UINT frameIndex,
+    const ModelMaterial& material)
+{
+    // Root Parameter 1의 t0 Table이 재질의 Texture 칸을 가리키게 합니다.
+    commandList->SetGraphicsRootDescriptorTable(
+        1,
+        resourceManager_.GetTextureHeap().GetGpuHandle(
+            material.texture->GetDescriptorSlot()));
+
+    // Root Parameter 3의 b2에 재질의 그림체 값을 연결합니다.
+    const MaterialConstants constants = CreateMaterialConstants(material.style);
+    materialConstants_.Write(frameIndex, material.constantSlot, &constants);
+    commandList->SetGraphicsRootConstantBufferView(
+        3,
+        materialConstants_.GetGpuAddress(frameIndex, material.constantSlot));
 }
 
 void D3D12Context::UpdateObjectConstantBuffer(
