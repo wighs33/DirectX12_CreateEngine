@@ -6,11 +6,12 @@
 #include "D3D12DeviceResources.h"
 #include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
-#include "EngineGuideWindow.h"
 #include "Frustum.h"
+#include "ImGuiLayer.h"
 #include "Model.h"
 #include "ResourceManager.h"
 #include "Scene.h"
+#include "SceneEditor.h"
 
 #include <DirectXMath.h>
 #include <d3d12.h>
@@ -18,13 +19,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <filesystem>
-#include <limits>
-#include <string>
-#include <vector>
-
-struct ImGui_ImplDX12_InitInfo;
-struct Ray;
 
 struct RenderingStats
 {
@@ -50,20 +44,13 @@ public:
     // HWND에 연결할 DirectX 12 객체를 순서대로 생성합니다.
     bool Initialize(HWND window, UINT width, UINT height);
 
-    // Keyboard/Mouse 입력과 DeltaTime을 이용해 CPU 측 Camera 상태를 갱신합니다.
+    // Editor Frame을 시작하고 입력과 편집 UI를 처리합니다.
     void Update(float deltaTime);
 
     // 현재 BackBuffer를 지정한 색으로 지우고 화면에 표시하는 한 프레임을 실행합니다.
     bool RenderFrame();
 
 private:
-    enum class GizmoOperation
-    {
-        Translate,
-        Rotate,
-        Scale
-    };
-
     struct ConstantBufferData
     {
         DirectX::XMFLOAT4X4 worldViewProjection;
@@ -85,36 +72,11 @@ private:
     static constexpr UINT AlignedLightingConstantBufferSize =
         (static_cast<UINT>(sizeof(LightingConstantBufferData)) + ConstantBufferAlignment - 1) &
         ~(ConstantBufferAlignment - 1);
-    static constexpr UINT ImGuiDescriptorCount = 16;
-    static constexpr std::size_t InvalidObjectIndex =
-        (std::numeric_limits<std::size_t>::max)();
 
     bool CreatePrimitiveModels();
-    bool CreateConstantBuffer(UINT width, UINT height);
     bool EnsureConstantBufferCapacity(std::size_t requiredCapacity);
     bool RecreateConstantBuffer(std::size_t newCapacity);
     bool CreateLightingConstantBuffer();
-    bool InitializeImGui();
-    void ShutdownImGui();
-    void BeginImGuiFrame();
-    void DrawEditorUI();
-    void DrawModelPicker();
-    void AddSceneObject(const Model* model, const std::string& baseName);
-    std::string CreateUniqueObjectName(const std::string& baseName) const;
-    void ProcessGizmoHotkeys();
-    void DrawTransformGizmo();
-    void ProcessObjectDeletionRequest();
-    DirectX::XMMATRIX GetProjectionMatrix() const;
-    bool CreatePickingRay(const POINT& mousePosition, Ray& ray) const;
-    void PerformViewportPicking(const POINT& mousePosition);
-    static void AllocateImGuiDescriptor(
-        ImGui_ImplDX12_InitInfo* information,
-        D3D12_CPU_DESCRIPTOR_HANDLE* cpuHandle,
-        D3D12_GPU_DESCRIPTOR_HANDLE* gpuHandle);
-    static void FreeImGuiDescriptor(
-        ImGui_ImplDX12_InitInfo* information,
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
     void UpdateObjectConstantBuffer(
         UINT frameIndex,
         std::size_t objectIndex,
@@ -126,9 +88,6 @@ private:
     // Camera는 Scene을 바라보는 View Matrix만 제공하며 GameObject와 별도로 유지합니다.
     Camera camera_;
     Frustum frustum_;
-    // Camera 입력을 해석하는 Application 측 상태이며 RMB를 새로 누른 경우에만 활성화됩니다.
-    bool isCameraLookActive_ = false;
-    GizmoOperation gizmoOperation_ = GizmoOperation::Translate;
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;
@@ -139,20 +98,9 @@ private:
     ResourceManager resourceManager_;
     Scene scene_;
 
-    // Scene SRV Heap과 분리된 Editor 전용 Shader Visible Heap입니다.
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> imguiDescriptorHeap_;
-    std::vector<UINT> imguiFreeDescriptorIndices_;
-    UINT imguiDescriptorSize_ = 0;
-    bool imguiInitialized_ = false;
-    // 물음표 Button과 엔진 도감 창이며 ImGui Context를 만든 뒤에 초기화합니다.
-    EngineGuideWindow engineGuideWindow_;
-    // Create Panel에서 고를 수 있는 Assets/Models 안의 glTF 파일입니다.
-    std::vector<std::filesystem::path> modelFiles_;
-    std::size_t selectedModelFile_ = 0;
-    // Selection은 Scene Object 자체가 아닌 Editor가 관리하며 vector 재배치에 안전한 Index를 사용합니다.
-    std::size_t selectedObjectIndex_ = InvalidObjectIndex;
-    bool deleteObjectRequested_ = false;
-    bool deleteKeyWasDown_ = false;
+    // Scene을 편집하는 UI와 그것을 그리는 ImGui Backend입니다.
+    ImGuiLayer imguiLayer_;
+    SceneEditor sceneEditor_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;
@@ -162,8 +110,6 @@ private:
     RenderingStats renderingStats_;
     float statisticsElapsedTime_ = 0.0f;
     std::uint32_t statisticsFrameCount_ = 0;
-    UINT clientWidth_ = 0;
-    UINT clientHeight_ = 0;
     HWND window_ = nullptr;
 
     // 마지막에 선언하여 소멸 시 다른 GPU Resource보다 먼저 대기와 동기화 정리를 수행합니다.

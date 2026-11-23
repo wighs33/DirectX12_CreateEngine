@@ -22,6 +22,14 @@ void Camera::SetTarget(float x, float y, float z)
     UpdateAnglesFromTarget();
 }
 
+void Camera::SetAspectRatio(float aspectRatio)
+{
+    if (aspectRatio > 0.0f)
+    {
+        aspectRatio_ = aspectRatio;
+    }
+}
+
 void Camera::MoveForward(float distance)
 {
     DirectX::XMVECTOR position = DirectX::XMLoadFloat3(&position_);
@@ -80,6 +88,15 @@ DirectX::XMMATRIX Camera::GetViewMatrix() const
     const DirectX::XMVECTOR up = DirectX::XMLoadFloat3(&up_);
 
     return DirectX::XMMatrixLookAtLH(position, target, up);
+}
+
+DirectX::XMMATRIX Camera::GetProjectionMatrix() const
+{
+    return DirectX::XMMatrixPerspectiveFovLH(
+        DirectX::XMConvertToRadians(45.0f),
+        aspectRatio_,
+        0.1f,
+        100.0f);
 }
 
 DirectX::XMVECTOR Camera::GetForwardVector() const
