@@ -55,6 +55,7 @@ private:
     struct ConstantBufferData
     {
         DirectX::XMFLOAT4X4 worldViewProjection;
+        DirectX::XMFLOAT4X4 world;
         DirectX::XMFLOAT4X4 worldInverseTranspose;
     };
 
@@ -63,6 +64,7 @@ private:
         DirectX::XMFLOAT4 lightDirection;
         DirectX::XMFLOAT4 lightColor;
         DirectX::XMFLOAT4 ambientColor;
+        DirectX::XMFLOAT4 cameraPosition;
     };
 
     bool CreatePrimitiveModels();

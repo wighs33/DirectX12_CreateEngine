@@ -305,11 +305,17 @@ void D3D12Context::UpdateLightingConstantBuffer(UINT frameIndex)
 {
     // Direction은 빛이 진행하는 방향이며, lightColor.w는 빛의 강도입니다.
     // 빛과 주변광의 색은 Pandora Arena 장면의 값을 선형으로 바꾼 것입니다.
+    const DirectX::XMFLOAT3& cameraPosition = camera_.GetPosition();
     const LightingConstantBufferData lightingData
     {
         DirectX::XMFLOAT4(0.35f, -0.75f, 0.55f, 0.0f),
         DirectX::XMFLOAT4(1.0f, 0.888f, 0.730f, 1.0f),
-        DirectX::XMFLOAT4(0.46f, 0.42f, 0.46f, 0.0f)
+        DirectX::XMFLOAT4(0.46f, 0.42f, 0.46f, 0.0f),
+        DirectX::XMFLOAT4(
+            cameraPosition.x,
+            cameraPosition.y,
+            cameraPosition.z,
+            1.0f)
     };
     lightingConstants_.Write(frameIndex, 0, &lightingData);
 }
@@ -350,6 +356,9 @@ void D3D12Context::UpdateObjectConstantBuffer(
     DirectX::XMStoreFloat4x4(
         &constantBufferData.worldViewProjection,
         DirectX::XMMatrixTranspose(worldViewProjectionMatrix));
+    DirectX::XMStoreFloat4x4(
+        &constantBufferData.world,
+        DirectX::XMMatrixTranspose(worldMatrix));
     DirectX::XMStoreFloat4x4(
         &constantBufferData.worldInverseTranspose,
         DirectX::XMMatrixTranspose(worldInverseTransposeMatrix));

@@ -4,6 +4,7 @@
 cbuffer TransformBuffer : register(b0)
 {
     float4x4 worldViewProjection;
+    float4x4 world;
     float4x4 worldInverseTranspose;
 };
 
@@ -12,6 +13,7 @@ cbuffer LightingBuffer : register(b1)
     float4 lightDirection;
     float4 lightColor;
     float4 ambientColor;
+    float4 cameraPosition;
 };
 
 // C++ Root Signature의 네 번째 Parameter가 가리키는 재질별 그림체 값입니다. MaterialConstants와 배치가 같습니다.
@@ -47,6 +49,7 @@ struct VertexOutput
     float4 color : COLOR;
     float2 uv : TEXCOORD;
     float3 worldNormal : NORMAL;
+    float3 worldPosition : POSITION;
 };
 
 // Shader 실행이 시작되는 함수 : Vertex마다 실행
@@ -59,6 +62,7 @@ VertexOutput VSMain(VertexInput input)
     output.uv = input.uv;
     output.worldNormal = normalize(
         mul(float4(input.normal, 0.0f), worldInverseTranspose).xyz);
+    output.worldPosition = mul(float4(input.position, 1.0f), world).xyz;
     return output;
 }
 
@@ -83,6 +87,14 @@ float4 PSMain(VertexOutput input) : SV_TARGET
     float3 color = baseColor.rgb * lerp(shadeColor, 1.0f, lit) *
         lightColor.rgb * lightColor.w;
     color += baseColor.rgb * ambientColor.rgb * ambientWeight;
+
+    // 시선과 거의 직각인 가장자리 중 빛을 받는 쪽에만 밝은 테두리를 더합니다.
+    const float3 surfaceToCamera = normalize(
+        cameraPosition.xyz - input.worldPosition);
+    const float rim = step(
+        1.0f - rimWidth,
+        1.0f - saturate(dot(normal, surfaceToCamera))) * lit;
+    color += rimColor * (rimStrength * rim);
 
     return float4(color, baseColor.a);
 }
