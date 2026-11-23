@@ -14,6 +14,7 @@ void ViewportHelpBar::Draw(EngineGuideWindow& guideWindow)
     DrawItem("Pick (LMB)", "feature-picking", guideWindow);
     DrawItem("Stats", "feature-stats", guideWindow);
     DrawItem("Toon", "feature-toon", guideWindow);
+    DrawItem("Shadow", "feature-shadow", guideWindow);
     DrawItem("Outline", "feature-outline", guideWindow);
     if (ImGui::SmallButton("Guide"))
     {

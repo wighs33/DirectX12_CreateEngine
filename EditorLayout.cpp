@@ -11,7 +11,7 @@ namespace
     constexpr float CreatePanelHeight = 162.0f;
     constexpr float GizmoToolbarWidth = 320.0f;
     constexpr float GizmoToolbarHeight = 46.0f;
-    constexpr float ViewportHelpWidth = 474.0f;
+    constexpr float ViewportHelpWidth = 548.0f;
     constexpr float ViewportHelpHeight = 36.0f;
     constexpr float MinimumPanelHeight = 100.0f;
 
