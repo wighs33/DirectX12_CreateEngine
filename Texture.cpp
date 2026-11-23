@@ -247,6 +247,28 @@ bool Texture::LoadFromFile(
         return false;
     }
 
+    return CreateFromPixels(
+        device,
+        commandContext,
+        pixels,
+        decodedWidth,
+        decodedHeight);
+}
+
+bool Texture::CreateFromPixels(
+    ID3D12Device* device,
+    D3D12CommandContext& commandContext,
+    const std::vector<std::uint8_t>& pixels,
+    UINT width,
+    UINT height)
+{
+    if (device == nullptr || width == 0 || height == 0 ||
+        pixels.size() != static_cast<std::size_t>(width) * height * BytesPerPixel)
+    {
+        std::fprintf(stderr, "Texture::CreateFromPixels에 유효하지 않은 인자가 전달되었습니다.\n");
+        return false;
+    }
+
     D3D12_HEAP_PROPERTIES defaultHeapProperties{};
     defaultHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
     defaultHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -257,8 +279,8 @@ bool Texture::LoadFromFile(
     D3D12_RESOURCE_DESC textureDescription{};
     textureDescription.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     textureDescription.Alignment = 0;
-    textureDescription.Width = decodedWidth;
-    textureDescription.Height = decodedHeight;
+    textureDescription.Width = width;
+    textureDescription.Height = height;
     textureDescription.DepthOrArraySize = 1;
     textureDescription.MipLevels = TextureMipLevels;
     textureDescription.Format = TextureFormat;
@@ -300,8 +322,8 @@ bool Texture::LoadFromFile(
         &uploadBufferSize);
 
     const UINT64 sourceRowSize =
-        static_cast<UINT64>(decodedWidth) * BytesPerPixel;
-    if (uploadRowCount != decodedHeight || uploadRowSize != sourceRowSize)
+        static_cast<UINT64>(width) * BytesPerPixel;
+    if (uploadRowCount != height || uploadRowSize != sourceRowSize)
     {
         std::fprintf(stderr, "Texture Upload Footprint가 디코딩된 이미지 데이터와 일치하지 않습니다.\n");
         return false;
@@ -358,7 +380,7 @@ bool Texture::LoadFromFile(
 
     auto* const destination =
         static_cast<std::uint8_t*>(mappedUploadData) + uploadFootprint.Offset;
-    for (UINT row = 0; row < decodedHeight; ++row)
+    for (UINT row = 0; row < height; ++row)
     {
         std::memcpy(
             destination + static_cast<SIZE_T>(row) * uploadFootprint.Footprint.RowPitch,
@@ -414,9 +436,19 @@ bool Texture::LoadFromFile(
 
     // GPU가 Upload Buffer를 모두 사용한 뒤에만 최종 Resource와 파일 크기를 Texture가 소유합니다.
     textureResource_ = std::move(textureResource);
-    width_ = decodedWidth;
-    height_ = decodedHeight;
+    width_ = width;
+    height_ = height;
     return true;
+}
+
+void Texture::SetDescriptorSlot(UINT slot)
+{
+    descriptorSlot_ = slot;
+}
+
+UINT Texture::GetDescriptorSlot() const
+{
+    return descriptorSlot_;
 }
 
 ID3D12Resource* Texture::GetResource() const

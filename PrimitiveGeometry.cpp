@@ -21,7 +21,7 @@ namespace
         part.indices = std::move(indices);
 
         ModelData model;
-        model.materials.push_back({ name, {} });
+        model.materials.push_back({ name, L"Assets/Textures/Test.png" });
         model.parts.push_back(std::move(part));
         return model;
     }

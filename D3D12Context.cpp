@@ -93,8 +93,6 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     }
     if (!pipeline_.Initialize(device))
         return false;
-    if (!CreateTexture())
-        return false;
     if (!CreatePrimitiveModels())
         return false;
 
@@ -257,15 +255,13 @@ bool D3D12Context::RenderFrame()
     // [7단계] b0 Constant Buffer와 t0 Texture를 사용할 Root Signature를 연결합니다.
     commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
 
-    // Shader Visible SRV Heap과 그 첫 Descriptor를 Root Parameter 1의 t0 Table에 연결합니다.
+    // 모든 Texture의 SRV가 들어 있는 Heap을 연결하고 어느 칸을 쓸지는 조각마다 정합니다.
+    const TextureHeap& textureHeap = resourceManager_.GetTextureHeap();
     ID3D12DescriptorHeap* const descriptorHeaps[] =
     {
-        srvDescriptorHeap_.Get()
+        textureHeap.GetHeap()
     };
     commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-    commandList->SetGraphicsRootDescriptorTable(
-        1,
-        srvDescriptorHeap_->GetGPUDescriptorHandleForHeapStart());
     commandList->SetGraphicsRootConstantBufferView(
         2,
         lightingConstantBuffer_->GetGPUVirtualAddress());
@@ -344,6 +340,11 @@ bool D3D12Context::RenderFrame()
         ++renderingStats_.renderedObjectCount;
         for (const std::unique_ptr<ModelPart>& part : model->GetParts())
         {
+            // Root Parameter 1의 t0 Table이 현재 조각의 Texture 칸을 가리키게 합니다.
+            commandList->SetGraphicsRootDescriptorTable(
+                1,
+                textureHeap.GetGpuHandle(part->texture->GetDescriptorSlot()));
+
             // [15단계] 현재 조각의 Vertex Buffer View를 Input Slot 0에 연결합니다.
             const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView =
                 part->mesh.GetVertexBufferView();
@@ -1196,61 +1197,6 @@ void D3D12Context::UpdateWindowTitle() const
         renderingStats_.drawCallCount,
         renderingStats_.triangleCount);
     SetWindowTextW(window_, title);
-}
-
-bool D3D12Context::CreateTexture()
-{
-    constexpr wchar_t textureFilePath[] = L"Assets/Textures/Test.png";
-    ID3D12Device* const device = deviceResources_.GetDevice();
-
-    Texture* const texture = resourceManager_.LoadTexture(textureFilePath);
-    if (texture == nullptr)
-    {
-        return false;
-    }
-
-    // 같은 경로를 다시 요청해도 File Decode나 GPU Upload 없이 같은 Instance가 반환되는지 확인합니다.
-    Texture* const cachedTexture = resourceManager_.LoadTexture(textureFilePath);
-    if (cachedTexture != texture || resourceManager_.GetTexture(textureFilePath) != texture)
-    {
-        std::fprintf(stderr, "ResourceManager Texture Cache 검증에 실패했습니다.\n");
-        return false;
-    }
-
-    // ResourceManager는 Texture를 소유하고 D3D12Context는 Shader Visible SRV Heap을 유지합니다.
-    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDescription{};
-    srvHeapDescription.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    srvHeapDescription.NumDescriptors = 1;
-    srvHeapDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    srvHeapDescription.NodeMask = 0;
-
-    const HRESULT result = device->CreateDescriptorHeap(
-        &srvHeapDescription,
-        IID_PPV_ARGS(&srvDescriptorHeap_));
-    if (FAILED(result))
-    {
-        std::fprintf(
-            stderr,
-            "SRV Descriptor Heap 생성에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(result));
-        return false;
-    }
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDescription{};
-    srvDescription.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDescription.Format = texture->GetFormat();
-    srvDescription.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDescription.Texture2D.MostDetailedMip = 0;
-    srvDescription.Texture2D.MipLevels = texture->GetMipLevels();
-    srvDescription.Texture2D.PlaneSlice = 0;
-    srvDescription.Texture2D.ResourceMinLODClamp = 0.0f;
-
-    device->CreateShaderResourceView(
-        texture->GetResource(),
-        &srvDescription,
-        srvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart());
-
-    return true;
 }
 
 bool D3D12Context::CreatePrimitiveModels()

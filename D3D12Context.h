@@ -90,7 +90,6 @@ private:
         (std::numeric_limits<std::size_t>::max)();
 
     bool CreatePrimitiveModels();
-    bool CreateTexture();
     bool CreateConstantBuffer(UINT width, UINT height);
     bool EnsureConstantBufferCapacity(std::size_t requiredCapacity);
     bool RecreateConstantBuffer(std::size_t newCapacity);
@@ -135,11 +134,10 @@ private:
     D3D12SwapChain swapChain_;
     D3D12Pipeline pipeline_;
 
-    // ResourceManager는 공유 Texture와 Model의 수명을 소유하고 SRV Heap은 Shader Binding을 담당합니다.
+    // ResourceManager는 공유 Texture와 Model의 수명, 그리고 Texture를 연결할 SRV Heap을 소유합니다.
     // Scene보다 먼저 생성하고 나중에 파괴하여 GameObject의 비소유 Model 포인터를 안전하게 유지합니다.
     ResourceManager resourceManager_;
     Scene scene_;
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
 
     // Scene SRV Heap과 분리된 Editor 전용 Shader Visible Heap입니다.
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> imguiDescriptorHeap_;

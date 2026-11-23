@@ -19,7 +19,9 @@ bool ResourceManager::Initialize(
 
     device_ = device;
     commandContext_ = &commandContext;
-    return true;
+
+    return textureHeap_.Initialize(device, TextureHeapCapacity) &&
+        CreateWhiteTexture();
 }
 
 Texture* ResourceManager::LoadTexture(const std::wstring& filePath)
@@ -48,6 +50,13 @@ Texture* ResourceManager::LoadTexture(const std::wstring& filePath)
         // 실패한 Texture는 Cache에 넣지 않으므로 다음 요청에서 다시 시도할 수 있습니다.
         return nullptr;
     }
+
+    UINT slot = 0;
+    if (!textureHeap_.Add(device_, *texture, slot))
+    {
+        return nullptr;
+    }
+    texture->SetDescriptorSlot(slot);
 
     Texture* const texturePointer = texture.get();
     textures_.emplace(filePath, std::move(texture));
@@ -78,8 +87,19 @@ Model* ResourceManager::AddModel(
         return nullptr;
     }
 
+    std::vector<const Texture*> materialTextures;
+    for (const ModelMaterialData& material : modelData.materials)
+    {
+        materialTextures.push_back(GetMaterialTexture(material));
+    }
+
     auto model = std::make_unique<Model>();
-    if (!model->Initialize(device_, *commandContext_, id, modelData))
+    if (!model->Initialize(
+            device_,
+            *commandContext_,
+            id,
+            modelData,
+            materialTextures))
     {
         std::fprintf(stderr, "Model을 만들지 못했습니다: %s\n", id.c_str());
         return nullptr;
@@ -117,6 +137,43 @@ Model* ResourceManager::FindModel(const std::string& id)
 {
     const auto cachedModel = models_.find(id);
     return cachedModel == models_.end() ? nullptr : cachedModel->second.get();
+}
+
+const TextureHeap& ResourceManager::GetTextureHeap() const
+{
+    return textureHeap_;
+}
+
+bool ResourceManager::CreateWhiteTexture()
+{
+    const std::vector<std::uint8_t> whitePixel(4, 255);
+    UINT slot = 0;
+    if (!whiteTexture_.CreateFromPixels(
+            device_,
+            *commandContext_,
+            whitePixel,
+            1,
+            1) ||
+        !textureHeap_.Add(device_, whiteTexture_, slot))
+    {
+        return false;
+    }
+
+    whiteTexture_.SetDescriptorSlot(slot);
+    return true;
+}
+
+const Texture* ResourceManager::GetMaterialTexture(
+    const ModelMaterialData& material)
+{
+    if (material.baseColorTexturePath.empty())
+    {
+        return &whiteTexture_;
+    }
+
+    const Texture* const texture =
+        LoadTexture(material.baseColorTexturePath.wstring());
+    return texture != nullptr ? texture : &whiteTexture_;
 }
 
 void ResourceManager::Clear()

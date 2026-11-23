@@ -172,6 +172,7 @@
     <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="TextureHeap.cpp" />
     <ClCompile Include="PrimitiveGeometry.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
@@ -206,6 +207,7 @@
     <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="TextureHeap.h" />
     <ClInclude Include="PrimitiveGeometry.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelData.h" />

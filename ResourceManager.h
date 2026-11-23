@@ -3,6 +3,7 @@
 #include "Model.h"
 #include "ModelData.h"
 #include "Texture.h"
+#include "TextureHeap.h"
 
 #include <d3d12.h>
 
@@ -38,6 +39,9 @@ public:
 
     // 이미 등록하거나 읽은 모델이 없으면 nullptr을 반환합니다.
     Model* FindModel(const std::string& id);
+    // 모든 Texture의 SRV가 들어 있는 Heap입니다.
+    const TextureHeap& GetTextureHeap() const;
+
     void Clear();
 
 private:
@@ -45,6 +49,14 @@ private:
     ID3D12Device* device_ = nullptr;
     D3D12CommandContext* commandContext_ = nullptr;
 
+    static constexpr UINT TextureHeapCapacity = 256;
+
+    bool CreateWhiteTexture();
+    // Texture가 없거나 읽지 못한 재질은 흰색 Texture를 써서 정점 색만 보이게 합니다.
+    const Texture* GetMaterialTexture(const ModelMaterialData& material);
+
+    TextureHeap textureHeap_;
+    Texture whiteTexture_;
     std::unordered_map<std::wstring, std::unique_ptr<Texture>> textures_;
     std::unordered_map<std::string, std::unique_ptr<Model>> models_;
 };
