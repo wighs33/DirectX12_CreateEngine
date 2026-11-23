@@ -1,6 +1,7 @@
 #include "ResourceManager.h"
 
 #include "D3D12CommandContext.h"
+#include "ImageLoader.h"
 #include "ModelLoader.h"
 #include "OutlineNormalBaker.h"
 #include "PrimitiveGeometry.h"
@@ -166,14 +167,16 @@ std::size_t ResourceManager::GetMaterialCount() const
 
 bool ResourceManager::CreateWhiteTexture()
 {
-    const std::vector<std::uint8_t> whitePixel(4, 255);
+    ImageData whiteImage;
+    whiteImage.width = 1;
+    whiteImage.height = 1;
+    whiteImage.pixels.assign(ImageData::BytesPerPixel, 255);
+
     UINT slot = 0;
-    if (!whiteTexture_.CreateFromPixels(
+    if (!whiteTexture_.CreateFromImage(
             device_,
             *commandContext_,
-            whitePixel,
-            1,
-            1) ||
+            whiteImage) ||
         !textureHeap_.Add(device_, whiteTexture_, slot))
     {
         return false;

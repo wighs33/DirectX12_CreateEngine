@@ -40,10 +40,10 @@ public:
         const std::uint32_t* indices,
         UINT indexCount);
 
-    const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const;
-    const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const;
-    UINT GetVertexCount() const;
-    UINT GetIndexCount() const;
+    // 정점과 인덱스를 연결하고 그리기 명령을 기록합니다.
+    void Draw(ID3D12GraphicsCommandList* commandList) const;
+
+    UINT GetTriangleCount() const;
     const AABB& GetLocalBounds() const;
 
 private:
@@ -63,7 +63,6 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer_;
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
     D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
-    UINT vertexCount_ = 0;
     UINT indexCount_ = 0;
     AABB localBounds_{};
 };

@@ -1,15 +1,13 @@
 #include "ModelLoader.h"
 
-#include "json.hpp"
+#include "GltfFile.h"
+#include "ModelData.h"
 
 #include <DirectXMath.h>
 
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <exception>
-#include <fstream>
-#include <iterator>
 #include <limits>
 #include <stdexcept>
 #include <utility>
@@ -17,123 +15,18 @@
 namespace
 {
     using Json = nlohmann::json;
-    using Bytes = std::vector<std::uint8_t>;
 
-    // glTF 2.0 명세의 accessor.componentType 값입니다.
-    constexpr int ComponentUnsignedByte = 5121;
-    constexpr int ComponentUnsignedShort = 5123;
-    constexpr int ComponentUnsignedInt = 5125;
-    constexpr int ComponentFloat = 5126;
+    // glTF 2.0 명세의 primitive.mode 값입니다.
     constexpr int PrimitiveModeTriangles = 4;
 
-    // accessor가 가리키는 값의 시작 위치와 간격입니다.
-    struct AccessorView
-    {
-        const std::uint8_t* data = nullptr;
-        std::size_t count = 0;
-        std::size_t stride = 0;
-        int componentType = 0;
-        std::size_t componentCount = 0;
-        bool isNormalized = false;
-    };
-
-    std::size_t GetComponentSize(int componentType)
-    {
-        switch (componentType)
-        {
-        case ComponentUnsignedByte:
-            return 1;
-        case ComponentUnsignedShort:
-            return 2;
-        case ComponentUnsignedInt:
-        case ComponentFloat:
-            return 4;
-        }
-
-        throw std::runtime_error("지원하지 않는 componentType입니다");
-    }
-
-    std::size_t GetComponentCount(const std::string& typeName)
-    {
-        if (typeName == "SCALAR")
-            return 1;
-        if (typeName == "VEC2")
-            return 2;
-        if (typeName == "VEC3")
-            return 3;
-        if (typeName == "VEC4")
-            return 4;
-
-        throw std::runtime_error("지원하지 않는 accessor type입니다: " + typeName);
-    }
-
-    // uri에 들어 있는 %20 같은 표기를 원래 글자로 되돌립니다.
-    std::string DecodeUri(const std::string& uri)
-    {
-        std::string result;
-        for (std::size_t index = 0; index < uri.size(); ++index)
-        {
-            if (uri[index] == '%' && index + 2 < uri.size())
-            {
-                result.push_back(static_cast<char>(
-                    std::stoi(uri.substr(index + 1, 2), nullptr, 16)));
-                index += 2;
-            }
-            else
-            {
-                result.push_back(uri[index]);
-            }
-        }
-
-        return result;
-    }
-
-    std::filesystem::path ResolveUri(
-        const std::filesystem::path& directory,
-        const std::string& uri)
-    {
-        if (uri.rfind("data:", 0) == 0)
-        {
-            throw std::runtime_error(
-                "파일 안에 넣은 데이터(data:)는 지원하지 않습니다. 파일을 나눠 내보내세요");
-        }
-
-        return directory / std::filesystem::u8path(DecodeUri(uri));
-    }
-
-    Bytes ReadBinaryFile(const std::filesystem::path& filePath)
-    {
-        std::ifstream input(filePath, std::ios::binary);
-        if (!input.is_open())
-        {
-            throw std::runtime_error(
-                "파일을 열 수 없습니다: " + filePath.u8string());
-        }
-
-        return Bytes(
-            std::istreambuf_iterator<char>(input),
-            std::istreambuf_iterator<char>());
-    }
-
+    // GltfFile에서 꺼낸 값을 이 엔진의 정점과 재질로 바꿉니다.
     class GltfReader final
     {
     public:
         explicit GltfReader(const std::filesystem::path& filePath)
-            : directory_(filePath.parent_path())
+            : file_(filePath),
+              document_(file_.GetDocument())
         {
-            std::ifstream input(filePath);
-            if (!input.is_open())
-            {
-                throw std::runtime_error("파일을 열 수 없습니다");
-            }
-
-            document_ = Json::parse(input);
-            for (const Json& buffer : document_.value("buffers", Json::array()))
-            {
-                buffers_.push_back(ReadBinaryFile(ResolveUri(
-                    directory_,
-                    buffer.at("uri").get<std::string>())));
-            }
         }
 
         ModelData Read()
@@ -204,7 +97,7 @@ namespace
                 .at("source")
                 .get<std::size_t>();
             const Json& image = document_.at("images").at(imageIndex);
-            return ResolveUri(directory_, image.at("uri").get<std::string>());
+            return file_.ResolveUri(image.at("uri").get<std::string>());
         }
 
         static DirectX::XMMATRIX GetLocalMatrix(const Json& node)
@@ -278,114 +171,13 @@ namespace
             }
         }
 
-        AccessorView GetAccessor(std::size_t accessorIndex) const
-        {
-            const Json& accessor = document_.at("accessors").at(accessorIndex);
-            if (accessor.find("sparse") != accessor.end() ||
-                accessor.find("bufferView") == accessor.end())
-            {
-                throw std::runtime_error("sparse accessor는 지원하지 않습니다");
-            }
-
-            const Json& bufferView = document_.at("bufferViews")
-                .at(accessor.at("bufferView").get<std::size_t>());
-            const Bytes& buffer =
-                buffers_.at(bufferView.at("buffer").get<std::size_t>());
-
-            AccessorView view;
-            view.count = accessor.at("count").get<std::size_t>();
-            view.componentType = accessor.at("componentType").get<int>();
-            view.componentCount =
-                GetComponentCount(accessor.at("type").get<std::string>());
-            view.isNormalized = accessor.value("normalized", false);
-
-            const std::size_t elementSize =
-                GetComponentSize(view.componentType) * view.componentCount;
-            view.stride = bufferView.value("byteStride", elementSize);
-
-            // 파일이 잘못되어도 Buffer 밖을 읽지 않도록 마지막 값의 끝까지 확인합니다.
-            const std::uint64_t offset =
-                bufferView.value("byteOffset", static_cast<std::uint64_t>(0)) +
-                accessor.value("byteOffset", static_cast<std::uint64_t>(0));
-            const std::uint64_t end = view.count == 0
-                ? offset
-                : offset +
-                    static_cast<std::uint64_t>(view.count - 1) * view.stride +
-                    elementSize;
-            if (end > buffer.size())
-            {
-                throw std::runtime_error("accessor가 buffer 범위를 벗어났습니다");
-            }
-
-            view.data = buffer.data() + static_cast<std::size_t>(offset);
-            return view;
-        }
-
-        static float ReadFloat(
-            const AccessorView& view,
-            std::size_t elementIndex,
-            std::size_t componentIndex)
-        {
-            const std::uint8_t* const source = view.data +
-                elementIndex * view.stride +
-                componentIndex * GetComponentSize(view.componentType);
-            switch (view.componentType)
-            {
-            case ComponentFloat:
-            {
-                float value = 0.0f;
-                std::memcpy(&value, source, sizeof(value));
-                return value;
-            }
-            case ComponentUnsignedByte:
-                return static_cast<float>(*source) /
-                    (view.isNormalized ? 255.0f : 1.0f);
-            case ComponentUnsignedShort:
-            {
-                std::uint16_t value = 0;
-                std::memcpy(&value, source, sizeof(value));
-                return static_cast<float>(value) /
-                    (view.isNormalized ? 65535.0f : 1.0f);
-            }
-            }
-
-            throw std::runtime_error("지원하지 않는 정점 값 형식입니다");
-        }
-
-        static std::uint32_t ReadIndex(
-            const AccessorView& view,
-            std::size_t elementIndex)
-        {
-            const std::uint8_t* const source =
-                view.data + elementIndex * view.stride;
-            switch (view.componentType)
-            {
-            case ComponentUnsignedByte:
-                return *source;
-            case ComponentUnsignedShort:
-            {
-                std::uint16_t value = 0;
-                std::memcpy(&value, source, sizeof(value));
-                return value;
-            }
-            case ComponentUnsignedInt:
-            {
-                std::uint32_t value = 0;
-                std::memcpy(&value, source, sizeof(value));
-                return value;
-            }
-            }
-
-            throw std::runtime_error("지원하지 않는 인덱스 형식입니다");
-        }
-
         // 이름에 해당하는 정점 값이 있으면 true를 반환하며 개수와 성분 수를 확인합니다.
         bool TryGetAttribute(
             const Json& attributes,
             const char* name,
             std::size_t vertexCount,
             std::size_t minimumComponentCount,
-            AccessorView& view) const
+            GltfAccessor& view) const
         {
             const auto attribute = attributes.find(name);
             if (attribute == attributes.end())
@@ -393,7 +185,7 @@ namespace
                 return false;
             }
 
-            view = GetAccessor(attribute->get<std::size_t>());
+            view = file_.GetAccessor(attribute->get<std::size_t>());
             if (view.count != vertexCount ||
                 view.componentCount < minimumComponentCount)
             {
@@ -439,17 +231,17 @@ namespace
             }
 
             const Json& attributes = primitive.at("attributes");
-            const AccessorView positions =
-                GetAccessor(attributes.at("POSITION").get<std::size_t>());
+            const GltfAccessor positions =
+                file_.GetAccessor(attributes.at("POSITION").get<std::size_t>());
             if (positions.componentCount != 3 ||
                 positions.count > (std::numeric_limits<std::uint32_t>::max)())
             {
                 throw std::runtime_error("POSITION 형식이 올바르지 않습니다");
             }
 
-            AccessorView normals;
-            AccessorView uvs;
-            AccessorView colors;
+            GltfAccessor normals;
+            GltfAccessor uvs;
+            GltfAccessor colors;
             const bool hasNormals = TryGetAttribute(
                 attributes, "NORMAL", positions.count, 3, normals);
             const bool hasUvs = TryGetAttribute(
@@ -474,9 +266,9 @@ namespace
                     &vertex.position,
                     DirectX::XMVector3TransformCoord(
                         DirectX::XMVectorSet(
-                            ReadFloat(positions, index, 0),
-                            ReadFloat(positions, index, 1),
-                            ReadFloat(positions, index, 2),
+                            GltfFile::ReadFloat(positions, index, 0),
+                            GltfFile::ReadFloat(positions, index, 1),
+                            GltfFile::ReadFloat(positions, index, 2),
                             1.0f),
                         worldMatrix));
                 // 오른손 좌표계의 Z를 뒤집어 이 엔진의 왼손 좌표계로 옮깁니다.
@@ -489,9 +281,9 @@ namespace
                         DirectX::XMVector3Normalize(
                             DirectX::XMVector3TransformNormal(
                                 DirectX::XMVectorSet(
-                                    ReadFloat(normals, index, 0),
-                                    ReadFloat(normals, index, 1),
-                                    ReadFloat(normals, index, 2),
+                                    GltfFile::ReadFloat(normals, index, 0),
+                                    GltfFile::ReadFloat(normals, index, 1),
+                                    GltfFile::ReadFloat(normals, index, 2),
                                     0.0f),
                                 normalMatrix)));
                     vertex.normal.z = -vertex.normal.z;
@@ -503,20 +295,20 @@ namespace
 
                 vertex.uv = hasUvs
                     ? DirectX::XMFLOAT2(
-                        ReadFloat(uvs, index, 0),
-                        ReadFloat(uvs, index, 1))
+                        GltfFile::ReadFloat(uvs, index, 0),
+                        GltfFile::ReadFloat(uvs, index, 1))
                     : DirectX::XMFLOAT2(0.0f, 0.0f);
 
                 // 재질의 기본 색은 정점 색에 미리 곱해 Shader가 하나의 색만 다루게 합니다.
                 vertex.color = baseColor;
                 if (hasColors)
                 {
-                    vertex.color.x *= ReadFloat(colors, index, 0);
-                    vertex.color.y *= ReadFloat(colors, index, 1);
-                    vertex.color.z *= ReadFloat(colors, index, 2);
+                    vertex.color.x *= GltfFile::ReadFloat(colors, index, 0);
+                    vertex.color.y *= GltfFile::ReadFloat(colors, index, 1);
+                    vertex.color.z *= GltfFile::ReadFloat(colors, index, 2);
                     if (colors.componentCount == 4)
                     {
-                        vertex.color.w *= ReadFloat(colors, index, 3);
+                        vertex.color.w *= GltfFile::ReadFloat(colors, index, 3);
                     }
                 }
             }
@@ -557,12 +349,12 @@ namespace
             }
             else
             {
-                const AccessorView view =
-                    GetAccessor(indices->get<std::size_t>());
+                const GltfAccessor view =
+                    file_.GetAccessor(indices->get<std::size_t>());
                 part.indices.resize(view.count);
                 for (std::size_t index = 0; index < view.count; ++index)
                 {
-                    part.indices[index] = ReadIndex(view, index);
+                    part.indices[index] = GltfFile::ReadIndex(view, index);
                     if (part.indices[index] >= part.vertices.size())
                     {
                         throw std::runtime_error("인덱스가 정점 범위를 벗어났습니다");
@@ -613,9 +405,8 @@ namespace
         static constexpr std::size_t InvalidIndex =
             (std::numeric_limits<std::size_t>::max)();
 
-        std::filesystem::path directory_;
-        Json document_;
-        std::vector<Bytes> buffers_;
+        GltfFile file_;
+        const Json& document_;
         ModelData model_;
         std::vector<DirectX::XMFLOAT4> baseColors_;
         std::size_t defaultMaterialIndex_ = InvalidIndex;

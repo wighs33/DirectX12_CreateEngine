@@ -3,13 +3,12 @@
 #include <d3d12.h>
 #include <wrl.h>
 
-#include <cstdint>
 #include <string>
-#include <vector>
 
 class D3D12CommandContext;
+struct ImageData;
 
-// 이미지 파일을 RGBA8 Pixel로 디코딩하고 GPU Texture Resource로 업로드합니다.
+// RGBA8 이미지를 GPU Texture Resource로 업로드합니다.
 class Texture final
 {
 public:
@@ -24,13 +23,11 @@ public:
         D3D12CommandContext& commandContext,
         const std::wstring& filePath);
 
-    // RGBA8 Pixel로 바로 Texture를 만듭니다.
-    bool CreateFromPixels(
+    // 이미 풀어 둔 이미지로 Texture를 만듭니다.
+    bool CreateFromImage(
         ID3D12Device* device,
         D3D12CommandContext& commandContext,
-        const std::vector<std::uint8_t>& pixels,
-        UINT width,
-        UINT height);
+        const ImageData& image);
 
     // Shader Visible Heap에서 이 Texture의 SRV가 있는 칸입니다.
     void SetDescriptorSlot(UINT slot);

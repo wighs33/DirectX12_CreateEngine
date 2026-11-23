@@ -1,12 +1,12 @@
 #pragma once
 
 #include "EngineGuide.h"
+#include "GuideNavigation.h"
+#include "GuideTheme.h"
 
 #include <filesystem>
 #include <string>
 #include <vector>
-
-struct ImFont;
 
 // Editor 기능 옆의 물음표와, 누르면 열리는 엔진 도감 창을 ImGui로 그립니다.
 class EngineGuideWindow final
@@ -34,12 +34,7 @@ public:
     void Draw();
 
 private:
-    void LoadFont();
     void DrawHelpButtonOnCurrentLine(const char* id);
-
-    // 그리는 도중에 화면이 바뀌지 않도록 이동은 다음 Draw에서 처리합니다.
-    void RequestNavigation(const std::string& id);
-    void ApplyNavigation();
 
     void DrawNavigationBar();
     void DrawHome();
@@ -48,25 +43,13 @@ private:
     void DrawFeatureButtons(const std::vector<const GuideFeature*>& features);
     void DrawCardGrid(const std::vector<std::string>& cardIds);
     void DrawCardButton(const GuideCard& card, float width, float height);
-    static void DrawPicture(
-        const GuideCard& card,
-        const GuidePoint& position,
-        float width);
 
     EngineGuide guide_;
+    GuideTheme theme_;
+    GuideNavigation navigation_;
     bool isLoaded_ = false;
-
-    // 소유권은 ImGui Font Atlas에 있으며 글꼴이 없으면 기본 글꼴로 그립니다.
-    ImFont* font_ = nullptr;
 
     bool isOpen_ = false;
     bool isFocusRequested_ = false;
     bool isScrollResetRequested_ = false;
-
-    // 빈 문자열은 전체 카드가 보이는 첫 화면입니다.
-    std::string currentId_;
-    std::vector<std::string> history_;
-    std::string requestedId_;
-    bool hasNavigationRequest_ = false;
-    bool isBackRequested_ = false;
 };

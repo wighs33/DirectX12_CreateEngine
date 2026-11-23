@@ -1,229 +1,55 @@
 #include "D3D12Pipeline.h"
 
 #include "D3D12Config.h"
+#include "D3D12RootSignature.h"
+#include "ShaderCompiler.h"
 
 #include <climits>
 #include <cstdio>
 
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "d3dcompiler.lib")
-
 using Microsoft::WRL::ComPtr;
 
-bool D3D12Pipeline::Initialize(ID3D12Device* device)
-{
-    if (device == nullptr)
-    {
-        std::fprintf(stderr, "D3D12Pipeline::Initialize에 유효하지 않은 디바이스 포인터가 전달되었습니다.\n");
-        return false;
-    }
-
-    // 그래픽 파이프라인 준비 흐름 : Root Signature -> Shader -> Graphics PSO
-    if (!CreateRootSignature(device))
-        return false;
-    if (!CreateShaders())
-        return false;
-    if (!CreatePipelineStates(device))
-        return false;
-
-    return true;
-}
-
-ID3D12RootSignature* D3D12Pipeline::GetRootSignature() const
-{
-    return rootSignature_.Get();
-}
-
-ID3D12PipelineState* D3D12Pipeline::GetToonPipelineState() const
-{
-    return toonPipelineState_.Get();
-}
-
-ID3D12PipelineState* D3D12Pipeline::GetOutlinePipelineState() const
-{
-    return outlinePipelineState_.Get();
-}
-
-bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
-{
-    // Pixel Shader의 register(t0)와 연결할 SRV Descriptor Range 하나를 정의합니다.
-    D3D12_DESCRIPTOR_RANGE srvRange{};
-    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors = 1;
-    srvRange.BaseShaderRegister = 0;
-    srvRange.RegisterSpace = 0;
-    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    D3D12_ROOT_PARAMETER rootParameters[4]{};
-
-    // 첫 번째 Parameter는 Vertex Shader의 register(b0)와 연결할 Object별 Root CBV입니다.
-    rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rootParameters[0].Descriptor.ShaderRegister = 0;
-    rootParameters[0].Descriptor.RegisterSpace = 0;
-    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-
-    // 두 번째 Parameter는 Shader Visible Heap의 Texture SRV를 가리키는 Descriptor Table입니다.
-    rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
-    rootParameters[1].DescriptorTable.pDescriptorRanges = &srvRange;
-    rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-    // 세 번째 Parameter는 모든 Object가 공유하는 register(b1) Frame CBV입니다.
-    // 외곽선의 Vertex Shader도 화면 비율과 행렬을 읽으므로 모든 Shader에 보입니다.
-    rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rootParameters[2].Descriptor.ShaderRegister = 1;
-    rootParameters[2].Descriptor.RegisterSpace = 0;
-    rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-    // 네 번째 Parameter는 조각의 재질마다 바뀌는 register(b2) Material CBV입니다.
-    // 외곽선의 두께는 Vertex Shader가 읽으므로 모든 Shader에 보입니다.
-    rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rootParameters[3].Descriptor.ShaderRegister = 2;
-    rootParameters[3].Descriptor.RegisterSpace = 0;
-    rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-    // 이번 단계에서는 변하지 않는 단일 Sampler를 Root Signature에 직접 포함합니다.
-    D3D12_STATIC_SAMPLER_DESC staticSampler{};
-    staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.MipLODBias = 0.0f;
-    staticSampler.MaxAnisotropy = 1;
-    staticSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    staticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    staticSampler.MinLOD = 0.0f;
-    staticSampler.MaxLOD = D3D12_FLOAT32_MAX;
-    staticSampler.ShaderRegister = 0;
-    staticSampler.RegisterSpace = 0;
-    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-    // [10단계] WVP Root CBV와 Texture SRV, Static Sampler를 사용하는 Root Signature를 정의합니다.
-    // Root Signature : Shader가 외부 Resource에 접근할 때 사용할 Resource Binding 구조와 규칙을 정의하는 객체
-    D3D12_ROOT_SIGNATURE_DESC description{};
-    description.NumParameters = _countof(rootParameters);
-    description.pParameters = rootParameters;
-    description.NumStaticSamplers = 1;
-    description.pStaticSamplers = &staticSampler;
-    description.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    // Description을 Device가 읽을 수 있는 바이너리 Blob으로 직렬화합니다.
-    // Shader Blob : CPU 메모리에 저장된 컴파일 결과, 이후 Pipeline State Object를 생성할 때 Shader Bytecode를 전달하는 데 사용
-    ComPtr<ID3DBlob> serializedRootSignature;
-    ComPtr<ID3DBlob> errorBlob;
-    const HRESULT serializationResult = D3D12SerializeRootSignature(
-        &description,
-        D3D_ROOT_SIGNATURE_VERSION_1,
-        &serializedRootSignature,
-        &errorBlob);
-
-    if (FAILED(serializationResult))
-    {
-        std::fprintf(
-            stderr,
-            "D3D12SerializeRootSignature 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(serializationResult));
-
-        if (errorBlob != nullptr)
-        {
-            std::fwrite(
-                errorBlob->GetBufferPointer(),
-                1,
-                errorBlob->GetBufferSize(),
-                stderr);
-            std::fputc('\n', stderr);
-        }
-
-        return false;
-    }
-
-    // 직렬화된 정의를 현재 Device에서 사용할 실제 Root Signature 객체로 생성합니다.
-    const HRESULT creationResult = device->CreateRootSignature(
-        0,
-        serializedRootSignature->GetBufferPointer(),
-        serializedRootSignature->GetBufferSize(),
-        IID_PPV_ARGS(&rootSignature_));
-
-    if (FAILED(creationResult))
-    {
-        std::fprintf(
-            stderr,
-            "ID3D12Device::CreateRootSignature 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(creationResult));
-        return false;
-    }
-
-    return true;
-}
-
-bool D3D12Pipeline::CreateShaders()
+bool D3D12Pipeline::Initialize(
+    ID3D12Device* device,
+    const D3D12RootSignature& rootSignature,
+    const PipelineSettings& settings)
 {
     // [11단계] 같은 HLSL 파일에서 Vertex Shader와 Pixel Shader를 각각 컴파일합니다.
     // Vertex Shader : Input Assembler가 전달한 Vertex 하나를 처리
     // Pixel Shader : Rasterizer가 생성한 Pixel 후보를 처리하고 RenderTarget에 기록할 최종 색상을 반환
     constexpr wchar_t shaderFilePath[] = L"Shader.hlsl";
+    ComPtr<ID3DBlob> vertexShader;
+    ComPtr<ID3DBlob> pixelShader;
 
-    return CompileShader(shaderFilePath, "VSMain", "vs_5_1", toonVertexShader_) &&
-        CompileShader(shaderFilePath, "PSMain", "ps_5_1", toonPixelShader_) &&
-        CompileShader(shaderFilePath, "VSOutline", "vs_5_1", outlineVertexShader_) &&
-        CompileShader(shaderFilePath, "PSOutline", "ps_5_1", outlinePixelShader_);
+    return ShaderCompiler::Compile(
+            shaderFilePath,
+            settings.vertexShader,
+            "vs_5_1",
+            vertexShader) &&
+        ShaderCompiler::Compile(
+            shaderFilePath,
+            settings.pixelShader,
+            "ps_5_1",
+            pixelShader) &&
+        CreatePipelineState(
+            device,
+            rootSignature,
+            settings,
+            vertexShader.Get(),
+            pixelShader.Get());
 }
 
-bool D3D12Pipeline::CompileShader(
-    const wchar_t* filePath,
-    const char* entryPoint,
-    const char* target,
-    ComPtr<ID3DBlob>& shaderBlob)
+ID3D12PipelineState* D3D12Pipeline::Get() const
 {
-    UINT compileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-
-#ifdef _DEBUG
-    // Debug 빌드에서는 Shader 디버깅 정보를 포함하고 최적화를 생략합니다.
-    compileFlags |= D3DCOMPILE_DEBUG;
-    compileFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-    compileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
-#endif
-
-    // HLSL 파일에서 지정한 Entry Point를 찾아 특정 Shader Model 대상으로 컴파일합니다.
-    ComPtr<ID3DBlob> errorBlob;
-    const HRESULT result = D3DCompileFromFile(
-        filePath,
-        nullptr,
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,
-        entryPoint,
-        target,
-        compileFlags,
-        0,
-        &shaderBlob,
-        &errorBlob);
-
-    if (FAILED(result))
-    {
-        std::fprintf(
-            stderr,
-            "D3DCompileFromFile 호출에 실패했습니다. 진입점: %s, 대상: %s, HRESULT: 0x%08X\n",
-            entryPoint,
-            target,
-            static_cast<unsigned int>(result));
-
-        if (errorBlob != nullptr)
-        {
-            std::fwrite(
-                errorBlob->GetBufferPointer(),
-                1,
-                errorBlob->GetBufferSize(),
-                stderr);
-            std::fputc('\n', stderr);
-        }
-
-        return false;
-    }
-
-    return true;
+    return pipelineState_.Get();
 }
 
-bool D3D12Pipeline::CreatePipelineStates(ID3D12Device* device)
+bool D3D12Pipeline::CreatePipelineState(
+    ID3D12Device* device,
+    const D3D12RootSignature& rootSignature,
+    const PipelineSettings& settings,
+    ID3DBlob* vertexShader,
+    ID3DBlob* pixelShader)
 {
     // [12단계] HLSL VertexInput의 POSITION, COLOR, TEXCOORD, NORMAL에 대응하는 Input Layout을 정의합니다.
     // Input Layout : Vertex Buffer의 바이트 데이터를 Vertex Shader 입력으로 해석하는 규칙
@@ -277,11 +103,11 @@ bool D3D12Pipeline::CreatePipelineStates(ID3D12Device* device)
         }
     };
 
-    // 기본 Rasterizer는 채워진 Triangle을 그리고 뒷면을 제거합니다.
+    // Rasterizer는 채워진 Triangle을 그리고 패스가 정한 면을 제거합니다.
     // Rasterizer : Vertex Shader가 출력한 Primitive를 Pixel 후보로 변환
     D3D12_RASTERIZER_DESC rasterizerDescription{};
     rasterizerDescription.FillMode = D3D12_FILL_MODE_SOLID;
-    rasterizerDescription.CullMode = D3D12_CULL_MODE_BACK;
+    rasterizerDescription.CullMode = settings.cullMode;
     rasterizerDescription.FrontCounterClockwise = FALSE;
     rasterizerDescription.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
     rasterizerDescription.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
@@ -333,11 +159,11 @@ bool D3D12Pipeline::CreatePipelineStates(ID3D12Device* device)
     // Root Signature, Shader와 고정 그래픽 파이프라인 설정을 하나의 PSO로 묶습니다.
     // Graphics Pipeline State Object : GPU의 그래픽 파이프라인 동작에 필요한 설정을 묶은 객체
     D3D12_GRAPHICS_PIPELINE_STATE_DESC description{};
-    description.pRootSignature = rootSignature_.Get();
-    description.VS.pShaderBytecode = toonVertexShader_->GetBufferPointer();
-    description.VS.BytecodeLength = toonVertexShader_->GetBufferSize();
-    description.PS.pShaderBytecode = toonPixelShader_->GetBufferPointer();
-    description.PS.BytecodeLength = toonPixelShader_->GetBufferSize();
+    description.pRootSignature = rootSignature.Get();
+    description.VS.pShaderBytecode = vertexShader->GetBufferPointer();
+    description.VS.BytecodeLength = vertexShader->GetBufferSize();
+    description.PS.pShaderBytecode = pixelShader->GetBufferPointer();
+    description.PS.BytecodeLength = pixelShader->GetBufferSize();
     // Blend State : Pixel Shader의 출력 색상을 RenderTarget에 이미 저장된 색상과 어떻게 합칠지 결정
     description.BlendState = blendDescription;
     description.SampleMask = UINT_MAX;
@@ -350,35 +176,15 @@ bool D3D12Pipeline::CreatePipelineStates(ID3D12Device* device)
     description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     description.NumRenderTargets = 1;
     description.RTVFormats[0] = D3D12Config::SceneTargetFormat;
-    description.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    description.DSVFormat = D3D12Config::DepthFormat;
     description.SampleDesc.Count = 1;
     description.SampleDesc.Quality = 0;
     description.NodeMask = 0;
     description.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
-    if (!CreatePipelineState(device, description, toonPipelineState_))
-    {
-        return false;
-    }
-
-    // 외곽선은 앞면을 제거하고 남은 뒷면을 부풀려 그립니다. 나머지 설정은 같습니다.
-    description.VS.pShaderBytecode = outlineVertexShader_->GetBufferPointer();
-    description.VS.BytecodeLength = outlineVertexShader_->GetBufferSize();
-    description.PS.pShaderBytecode = outlinePixelShader_->GetBufferPointer();
-    description.PS.BytecodeLength = outlinePixelShader_->GetBufferSize();
-    description.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
-    return CreatePipelineState(device, description, outlinePipelineState_);
-}
-
-bool D3D12Pipeline::CreatePipelineState(
-    ID3D12Device* device,
-    const D3D12_GRAPHICS_PIPELINE_STATE_DESC& description,
-    ComPtr<ID3D12PipelineState>& pipelineState)
-{
     const HRESULT result = device->CreateGraphicsPipelineState(
         &description,
-        IID_PPV_ARGS(&pipelineState));
-
+        IID_PPV_ARGS(&pipelineState_));
     if (FAILED(result))
     {
         std::fprintf(

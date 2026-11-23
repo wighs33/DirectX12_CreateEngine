@@ -8,7 +8,7 @@ cbuffer TransformBuffer : register(b0)
     float4x4 worldInverseTranspose;
 };
 
-// 한 Frame 동안 모든 물체가 함께 쓰는 값입니다. SceneRenderer의 FrameConstants와 배치가 같습니다.
+// 한 Frame 동안 모든 물체가 함께 쓰는 값입니다. SceneConstants의 FrameConstants와 배치가 같습니다.
 cbuffer FrameBuffer : register(b1)
 {
     float4 lightDirection;

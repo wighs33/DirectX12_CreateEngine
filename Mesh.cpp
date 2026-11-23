@@ -30,7 +30,6 @@ bool Mesh::Initialize(
     indexBuffer_.Reset();
     vertexBufferView_ = {};
     indexBufferView_ = {};
-    vertexCount_ = 0;
     indexCount_ = 0;
     localBounds_ = {};
 
@@ -51,29 +50,25 @@ bool Mesh::Initialize(
         return false;
     }
 
-    vertexCount_ = vertexCount;
     indexCount_ = indexCount;
     return true;
 }
 
-const D3D12_VERTEX_BUFFER_VIEW& Mesh::GetVertexBufferView() const
+void Mesh::Draw(ID3D12GraphicsCommandList* commandList) const
 {
-    return vertexBufferView_;
+    // [15단계] 현재 조각의 Vertex Buffer View를 Input Slot 0에 연결합니다.
+    commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
+
+    // [16단계] 같은 조각의 Index Buffer View를 연결합니다.
+    commandList->IASetIndexBuffer(&indexBufferView_);
+
+    // [17단계] 모델의 조각 하나당 한 번씩 Indexed Draw 명령을 기록합니다.
+    commandList->DrawIndexedInstanced(indexCount_, 1, 0, 0, 0);
 }
 
-const D3D12_INDEX_BUFFER_VIEW& Mesh::GetIndexBufferView() const
+UINT Mesh::GetTriangleCount() const
 {
-    return indexBufferView_;
-}
-
-UINT Mesh::GetVertexCount() const
-{
-    return vertexCount_;
-}
-
-UINT Mesh::GetIndexCount() const
-{
-    return indexCount_;
+    return indexCount_ / 3;
 }
 
 const AABB& Mesh::GetLocalBounds() const

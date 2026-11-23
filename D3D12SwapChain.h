@@ -8,7 +8,7 @@
 
 #include <array>
 
-// HWND에 연결된 SwapChain, BackBuffer/RTV와 같은 크기의 Depth Buffer/DSV를 함께 관리합니다.
+// HWND에 연결된 SwapChain과 BackBuffer, 그것을 가리키는 RTV를 함께 관리합니다.
 class D3D12SwapChain final
 {
 public:
@@ -34,7 +34,6 @@ public:
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTV(UINT frameIndex) const;
     // 같은 BackBuffer를 색 변환 없이 쓰는 ImGui용 RTV입니다.
     D3D12_CPU_DESCRIPTOR_HANDLE GetEditorRTV(UINT frameIndex) const;
-    D3D12_CPU_DESCRIPTOR_HANDLE GetDSV() const;
     const D3D12_VIEWPORT& GetViewport() const;
     const D3D12_RECT& GetScissorRect() const;
     bool Present();
@@ -47,7 +46,6 @@ private:
         UINT width,
         UINT height);
     bool CreateRenderTargets(ID3D12Device* device);
-    bool CreateDepthBuffer(ID3D12Device* device, UINT width, UINT height);
 
     Microsoft::WRL::ComPtr<IDXGISwapChain3> swapChain_;
     UINT currentBackBufferIndex_ = 0;
@@ -57,10 +55,6 @@ private:
     UINT rtvDescriptorSize_ = 0;
     std::array<D3D12_CPU_DESCRIPTOR_HANDLE, FrameCount> rtvHandles_{};
     std::array<D3D12_CPU_DESCRIPTOR_HANDLE, FrameCount> editorRtvHandles_{};
-
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_;
-    Microsoft::WRL::ComPtr<ID3D12Resource> depthBuffer_;
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_{};
 
     D3D12_VIEWPORT viewport_{};
     D3D12_RECT scissorRect_{};

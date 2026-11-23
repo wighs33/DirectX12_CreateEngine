@@ -27,7 +27,9 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     {
         return false;
     }
-    if (!pipeline_.Initialize(device))
+    if (!depthBuffer_.Initialize(device, width, height))
+        return false;
+    if (!sceneRenderer_.Initialize(device))
         return false;
     if (!resourceManager_.Initialize(device, commandContext_))
         return false;
@@ -90,7 +92,6 @@ bool D3D12Context::RenderFrame()
     sceneRenderer_.Render(
         commandList,
         frameIndex,
-        pipeline_,
         scene_,
         camera_,
         resourceManager_,
@@ -139,7 +140,7 @@ void D3D12Context::BindAndClearRenderTarget(
     UINT frameIndex)
 {
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapChain_.GetRTV(frameIndex);
-    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = swapChain_.GetDSV();
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = depthBuffer_.GetDSV();
 
     // [6단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
     const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
@@ -164,14 +165,7 @@ void D3D12Context::BindAndClearRenderTarget(
     // [9단계] 물체를 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-    // [10단계] 이전 Frame의 깊이가 남지 않도록 Depth Buffer 전체를 가장 먼 값 1.0으로 지웁니다.
-    commandList->ClearDepthStencilView(
-        dsvHandle,
-        D3D12_CLEAR_FLAG_DEPTH,
-        1.0f,
-        0,
-        0,
-        nullptr);
+    depthBuffer_.Clear(commandList);
 }
 
 void D3D12Context::RenderEditor(
@@ -181,7 +175,7 @@ void D3D12Context::RenderEditor(
     // ImGui의 색은 이미 sRGB 값이므로 변환하지 않는 RTV로 바꿔 그립니다.
     const D3D12_CPU_DESCRIPTOR_HANDLE editorRtvHandle =
         swapChain_.GetEditorRTV(frameIndex);
-    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = swapChain_.GetDSV();
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = depthBuffer_.GetDSV();
     commandList->OMSetRenderTargets(1, &editorRtvHandle, FALSE, &dsvHandle);
     imguiLayer_.Render(commandList);
 }

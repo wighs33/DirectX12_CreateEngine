@@ -3,8 +3,8 @@
 #include "Camera.h"
 #include "D3D12CommandContext.h"
 #include "D3D12DeviceResources.h"
-#include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
+#include "DepthBuffer.h"
 #include "ImGuiLayer.h"
 #include "RenderStatistics.h"
 #include "ResourceManager.h"
@@ -52,7 +52,7 @@ private:
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;
-    D3D12Pipeline pipeline_;
+    DepthBuffer depthBuffer_;
 
     // ResourceManager는 공유 Texture와 Model의 수명, 그리고 Texture를 연결할 SRV Heap을 소유합니다.
     // Scene보다 먼저 생성하고 나중에 파괴하여 GameObject의 비소유 Model 포인터를 안전하게 유지합니다.

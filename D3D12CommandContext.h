@@ -1,6 +1,7 @@
 #pragma once
 
 #include "D3D12Config.h"
+#include "D3D12Fence.h"
 
 #include <Windows.h>
 #include <d3d12.h>
@@ -8,7 +9,7 @@
 
 #include <array>
 
-// DirectX 12의 GPU 명령 기록, 제출, 완료 확인에 필요한 객체를 함께 관리합니다.
+// GPU에 시킬 명령을 기록하고 제출하며 Frame마다 끝났는지 확인합니다.
 class D3D12CommandContext final
 {
 public:
@@ -44,16 +45,12 @@ public:
 private:
     bool CreateCommandQueue(ID3D12Device* device);
     bool CreateCommandObjects(ID3D12Device* device);
-    bool CreateSynchronizationObjects(ID3D12Device* device);
-    bool SignalFence(UINT64 fenceValue);
-    bool WaitForFenceValue(UINT64 fenceValue);
 
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue_;
     std::array<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>, FrameCount> commandAllocators_;
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList_;
 
-    Microsoft::WRL::ComPtr<ID3D12Fence> fence_;
+    D3D12Fence fence_;
+    // Frame마다 마지막으로 제출한 작업의 번호입니다.
     std::array<UINT64, FrameCount> frameFenceValues_{};
-    UINT64 nextFenceValue_ = 1;
-    HANDLE fenceEvent_ = nullptr;
 };
