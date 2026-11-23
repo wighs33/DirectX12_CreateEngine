@@ -35,9 +35,9 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     {
         return false;
     }
-    if (!sceneRenderer_.Initialize(device))
-        return false;
     if (!resourceManager_.Initialize(device, commandContext_))
+        return false;
+    if (!sceneRenderer_.Initialize(device, resourceManager_.GetTextureHeap()))
         return false;
     if (!imguiLayer_.Initialize(device, commandContext_, window))
         return false;
@@ -91,15 +91,29 @@ bool D3D12Context::RenderFrame()
         D3D12_RESOURCE_STATE_PRESENT,
         D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    // [6~10단계] 그릴 영역과 대상을 정하고 이전 Frame의 색과 깊이를 지웁니다.
-    BindAndClearRenderTarget(commandList, frameIndex);
-
-    // [11~17단계] 장면의 물체와 외곽선을 그립니다.
-    sceneRenderer_.Render(
+    // [6~7단계] 그릴 물체를 고르고 모든 패스가 함께 쓰는 것을 연결합니다.
+    sceneRenderer_.BeginFrame(
         commandList,
         frameIndex,
         scene_,
         camera_,
+        resourceManager_,
+        statistics_);
+
+    // 화면을 그리기 전에 8~17단계를 그림자 맵에 먼저 한 번 실행합니다.
+    sceneRenderer_.RenderShadow(
+        commandList,
+        frameIndex,
+        resourceManager_,
+        statistics_);
+
+    // [8~12단계] 그릴 영역과 대상을 정하고 이전 Frame의 색과 깊이를 지웁니다.
+    BindAndClearRenderTarget(commandList, frameIndex);
+
+    // [13~17단계] 장면의 물체와 외곽선을 그립니다.
+    sceneRenderer_.RenderScene(
+        commandList,
+        frameIndex,
         resourceManager_,
         statistics_);
 
@@ -148,15 +162,15 @@ void D3D12Context::BindAndClearRenderTarget(
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapChain_.GetRTV(frameIndex);
     const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = depthBuffer_.GetDSV();
 
-    // [6단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
+    // [8단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
     const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
     commandList->RSSetViewports(1, &viewport);
 
-    // [7단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
+    // [9단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
     const D3D12_RECT& scissorRect = swapChain_.GetScissorRect();
     commandList->RSSetScissorRects(1, &scissorRect);
 
-    // [8단계] Color 출력용 RTV와 깊이 비교/기록용 DSV를 Output Merger에 함께 연결합니다.
+    // [10단계] Color 출력용 RTV와 깊이 비교/기록용 DSV를 Output Merger에 함께 연결합니다.
     commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
     // sRGB RTV에 저장되면 화면에서 (0.1, 0.2, 0.4)로 보이는 선형 색입니다.
@@ -168,7 +182,7 @@ void D3D12Context::BindAndClearRenderTarget(
         1.0f
     };
 
-    // [9단계] 물체를 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
+    // [11단계] 물체를 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
     depthBuffer_.Clear(commandList);

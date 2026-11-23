@@ -4,13 +4,19 @@
 #include "GameObject.h"
 #include "Model.h"
 #include "RenderPassContext.h"
+#include "RenderStatistics.h"
 #include "ResourceManager.h"
 #include "Scene.h"
 #include "TextureHeap.h"
 
-bool SceneRenderer::Initialize(ID3D12Device* device)
+#include <algorithm>
+#include <iterator>
+
+bool SceneRenderer::Initialize(ID3D12Device* device, TextureHeap& textureHeap)
 {
     return rootSignature_.Initialize(device) &&
+        shadowMap_.Initialize(device, textureHeap) &&
+        shadowPass_.Initialize(device, rootSignature_) &&
         toonPass_.Initialize(device, rootSignature_) &&
         outlinePass_.Initialize(device, rootSignature_);
 }
@@ -28,7 +34,7 @@ bool SceneRenderer::Prepare(
         resourceManager.GetMaterialCount());
 }
 
-void SceneRenderer::Render(
+void SceneRenderer::BeginFrame(
     ID3D12GraphicsCommandList* commandList,
     UINT frameIndex,
     const Scene& scene,
@@ -40,10 +46,37 @@ void SceneRenderer::Render(
         camera.GetViewMatrix(),
         camera.GetProjectionMatrix());
 
-    culler_.Collect(scene, viewProjectionMatrix, statistics);
+    shadowCamera_.Update(scene, camera);
+    CollectObjects(scene, viewProjectionMatrix, statistics);
     WriteConstants(frameIndex, scene, camera, viewProjectionMatrix);
     BindCommonState(commandList, frameIndex, resourceManager);
+}
 
+void SceneRenderer::RenderShadow(
+    ID3D12GraphicsCommandList* commandList,
+    UINT frameIndex,
+    const ResourceManager& resourceManager,
+    RenderStatistics& statistics) const
+{
+    // 화면 밖의 물체도 그림자를 드리우므로 빛의 시야에 들어온 물체를 그립니다.
+    const RenderPassContext context
+    {
+        commandList,
+        frameIndex,
+        shadowCuller_.GetVisibleObjects(),
+        constants_,
+        resourceManager.GetTextureHeap(),
+        statistics
+    };
+    shadowPass_.Draw(context, shadowMap_);
+}
+
+void SceneRenderer::RenderScene(
+    ID3D12GraphicsCommandList* commandList,
+    UINT frameIndex,
+    const ResourceManager& resourceManager,
+    RenderStatistics& statistics) const
+{
     const RenderPassContext context
     {
         commandList,
@@ -58,6 +91,34 @@ void SceneRenderer::Render(
     outlinePass_.Draw(context);
 }
 
+void SceneRenderer::CollectObjects(
+    const Scene& scene,
+    const DirectX::XMMATRIX& viewProjectionMatrix,
+    RenderStatistics& statistics)
+{
+    culler_.Collect(scene, viewProjectionMatrix);
+    shadowCuller_.Collect(scene, shadowCamera_.GetViewProjectionMatrix());
+
+    const std::vector<VisibleObject>& visibleObjects = culler_.GetVisibleObjects();
+    const std::vector<VisibleObject>& shadowObjects = shadowCuller_.GetVisibleObjects();
+    statistics.SetVisibility(
+        visibleObjects.size(),
+        culler_.GetCulledObjectCount());
+
+    // 두 목록 모두 Scene의 순서대로이므로 번호를 견주어 합칩니다.
+    drawnObjects_.clear();
+    std::set_union(
+        visibleObjects.begin(),
+        visibleObjects.end(),
+        shadowObjects.begin(),
+        shadowObjects.end(),
+        std::back_inserter(drawnObjects_),
+        [](const VisibleObject& left, const VisibleObject& right)
+        {
+            return left.objectIndex < right.objectIndex;
+        });
+}
+
 void SceneRenderer::WriteConstants(
     UINT frameIndex,
     const Scene& scene,
@@ -68,15 +129,21 @@ void SceneRenderer::WriteConstants(
         frameIndex,
         scene.GetLighting(),
         camera,
+        shadowCamera_,
         viewProjectionMatrix);
 
-    for (const VisibleObject& object : culler_.GetVisibleObjects())
+    for (const VisibleObject& object : drawnObjects_)
     {
         constants_.WriteObject(
             frameIndex,
             object.objectIndex,
             object.gameObject->GetTransform().GetWorldMatrix(),
             viewProjectionMatrix);
+    }
+
+    // 그림자 패스는 재질을 쓰지 않으므로 재질은 화면에 보이는 물체만 씁니다.
+    for (const VisibleObject& object : culler_.GetVisibleObjects())
+    {
         for (const Material& material :
              object.gameObject->GetModel()->GetMaterials())
         {
@@ -90,7 +157,7 @@ void SceneRenderer::BindCommonState(
     UINT frameIndex,
     const ResourceManager& resourceManager) const
 {
-    // [11단계] b0~b2 Constant Buffer와 t0 Texture를 사용할 Root Signature를 연결합니다.
+    // [6단계] b0~b2 Constant Buffer와 t0 Texture를 사용할 Root Signature를 연결합니다.
     commandList->SetGraphicsRootSignature(rootSignature_.Get());
 
     // 모든 Texture의 SRV가 들어 있는 Heap을 연결하고 어느 칸을 쓸지는 조각마다 정합니다.
@@ -101,6 +168,6 @@ void SceneRenderer::BindCommonState(
     commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
     constants_.BindFrame(commandList, frameIndex);
 
-    // [12단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
+    // [7단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }

@@ -1,0 +1,52 @@
+#include "ShadowPass.h"
+
+#include "GameObject.h"
+#include "Model.h"
+#include "RenderPassContext.h"
+#include "RenderStatistics.h"
+#include "SceneConstants.h"
+#include "ShadowMap.h"
+
+#include <memory>
+
+bool ShadowPass::Initialize(
+    ID3D12Device* device,
+    const D3D12RootSignature& rootSignature)
+{
+    // 색을 쓰지 않으므로 Pixel Shader가 없고 깊이만 남습니다.
+    PipelineSettings settings;
+    settings.vertexShader = "VSShadow";
+    settings.pixelShader = nullptr;
+    settings.cullMode = D3D12_CULL_MODE_BACK;
+    return pipeline_.Initialize(device, rootSignature, settings);
+}
+
+void ShadowPass::Draw(
+    const RenderPassContext& context,
+    const ShadowMap& shadowMap) const
+{
+    ID3D12GraphicsCommandList* const commandList = context.commandList;
+
+    // [8~12단계] 화면 대신 그림자 맵을 그릴 대상으로 연결하고 지웁니다.
+    shadowMap.BeginWrite(commandList);
+
+    // [13~17단계] 깊이만 쓰는 PSO로 빛에 보이는 조각을 모두 그립니다. 재질과 Texture는 필요 없습니다.
+    commandList->SetPipelineState(pipeline_.Get());
+
+    for (const VisibleObject& object : context.visibleObjects)
+    {
+        context.constants.BindObject(
+            commandList,
+            context.frameIndex,
+            object.objectIndex);
+
+        const Model& model = *object.gameObject->GetModel();
+        for (const std::unique_ptr<ModelPart>& part : model.GetParts())
+        {
+            part->mesh.Draw(commandList);
+            context.statistics.AddDraw(part->mesh.GetTriangleCount());
+        }
+    }
+
+    shadowMap.EndWrite(commandList);
+}

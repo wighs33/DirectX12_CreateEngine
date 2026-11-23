@@ -99,7 +99,7 @@ bool DepthBuffer::Initialize(
 
 void DepthBuffer::Clear(ID3D12GraphicsCommandList* commandList) const
 {
-    // [10단계] 이전 Frame의 깊이가 남지 않도록 Depth Buffer 전체를 가장 먼 값 1.0으로 지웁니다.
+    // [12단계] 이전 Frame의 깊이가 남지 않도록 Depth Buffer 전체를 가장 먼 값 1.0으로 지웁니다.
     commandList->ClearDepthStencilView(
         dsvHandle_,
         D3D12_CLEAR_FLAG_DEPTH,

@@ -21,22 +21,30 @@ bool D3D12Pipeline::Initialize(
     ComPtr<ID3DBlob> vertexShader;
     ComPtr<ID3DBlob> pixelShader;
 
-    return ShaderCompiler::Compile(
+    if (!ShaderCompiler::Compile(
             shaderFilePath,
             settings.vertexShader,
             "vs_5_1",
-            vertexShader) &&
-        ShaderCompiler::Compile(
+            vertexShader))
+    {
+        return false;
+    }
+    if (settings.pixelShader != nullptr &&
+        !ShaderCompiler::Compile(
             shaderFilePath,
             settings.pixelShader,
             "ps_5_1",
-            pixelShader) &&
-        CreatePipelineState(
-            device,
-            rootSignature,
-            settings,
-            vertexShader.Get(),
-            pixelShader.Get());
+            pixelShader))
+    {
+        return false;
+    }
+
+    return CreatePipelineState(
+        device,
+        rootSignature,
+        settings,
+        vertexShader.Get(),
+        pixelShader.Get());
 }
 
 ID3D12PipelineState* D3D12Pipeline::Get() const
@@ -162,8 +170,13 @@ bool D3D12Pipeline::CreatePipelineState(
     description.pRootSignature = rootSignature.Get();
     description.VS.pShaderBytecode = vertexShader->GetBufferPointer();
     description.VS.BytecodeLength = vertexShader->GetBufferSize();
-    description.PS.pShaderBytecode = pixelShader->GetBufferPointer();
-    description.PS.BytecodeLength = pixelShader->GetBufferSize();
+    if (pixelShader != nullptr)
+    {
+        description.PS.pShaderBytecode = pixelShader->GetBufferPointer();
+        description.PS.BytecodeLength = pixelShader->GetBufferSize();
+        description.NumRenderTargets = 1;
+        description.RTVFormats[0] = D3D12Config::SceneTargetFormat;
+    }
     // Blend State : Pixel Shader의 출력 색상을 RenderTarget에 이미 저장된 색상과 어떻게 합칠지 결정
     description.BlendState = blendDescription;
     description.SampleMask = UINT_MAX;
@@ -174,8 +187,6 @@ bool D3D12Pipeline::CreatePipelineState(
     description.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
     // PSO가 Triangle 계열 Primitive를 처리
     description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    description.NumRenderTargets = 1;
-    description.RTVFormats[0] = D3D12Config::SceneTargetFormat;
     description.DSVFormat = D3D12Config::DepthFormat;
     description.SampleDesc.Count = 1;
     description.SampleDesc.Quality = 0;

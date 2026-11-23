@@ -11,6 +11,7 @@
 
 class Camera;
 class D3D12CommandContext;
+class ShadowCamera;
 
 // 물체, 재질, Frame의 값을 Shader와 같은 배치로 바꿔 상수 버퍼에 쓰고 연결합니다.
 class SceneConstants final
@@ -32,6 +33,7 @@ public:
         UINT frameIndex,
         const SceneLighting& lighting,
         const Camera& camera,
+        const ShadowCamera& shadowCamera,
         const DirectX::XMMATRIX& viewProjectionMatrix);
     void WriteObject(
         UINT frameIndex,
@@ -70,6 +72,10 @@ private:
         // 화면의 세로 / 가로 비율입니다.
         float screenHeightOverWidth;
         DirectX::XMFLOAT4X4 viewProjection;
+        DirectX::XMFLOAT4X4 lightViewProjection;
+        // 그림자 맵 한 칸이 장면에서 차지하는 길이입니다.
+        float shadowTexelSize;
+        DirectX::XMFLOAT3 padding;
     };
 
     // Object와 재질마다 한 칸, 빛과 카메라는 Frame마다 한 칸을 사용합니다.

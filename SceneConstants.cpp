@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "D3D12CommandContext.h"
 #include "D3D12RootSignature.h"
+#include "ShadowCamera.h"
 
 bool SceneConstants::EnsureCapacity(
     ID3D12Device* device,
@@ -19,6 +20,7 @@ void SceneConstants::WriteFrame(
     UINT frameIndex,
     const SceneLighting& lighting,
     const Camera& camera,
+    const ShadowCamera& shadowCamera,
     const DirectX::XMMATRIX& viewProjectionMatrix)
 {
     FrameConstants constants{};
@@ -28,6 +30,10 @@ void SceneConstants::WriteFrame(
     DirectX::XMStoreFloat4x4(
         &constants.viewProjection,
         DirectX::XMMatrixTranspose(viewProjectionMatrix));
+    DirectX::XMStoreFloat4x4(
+        &constants.lightViewProjection,
+        DirectX::XMMatrixTranspose(shadowCamera.GetViewProjectionMatrix()));
+    constants.shadowTexelSize = shadowCamera.GetTexelSize();
     frameConstants_.Write(frameIndex, 0, &constants);
 }
 

@@ -17,6 +17,9 @@ cbuffer FrameBuffer : register(b1)
     float3 cameraPosition;
     float screenHeightOverWidth;
     float4x4 viewProjection;
+    float4x4 lightViewProjection;
+    float shadowTexelSize;
+    float3 framePadding;
 };
 
 // C++ Root Signature의 네 번째 Parameter가 가리키는 재질별 그림체 값입니다. Material.h의 MaterialConstants와 배치가 같습니다.
@@ -131,4 +134,11 @@ float4 VSOutline(VertexInput input) : SV_POSITION
 float4 PSOutline() : SV_TARGET
 {
     return float4(outlineColor, 1.0f);
+}
+
+// 그림자용 Vertex Shader : 정점을 카메라 대신 빛의 시점으로 옮깁니다. Pixel Shader 없이 깊이만 남습니다.
+float4 VSShadow(VertexInput input) : SV_POSITION
+{
+    const float4 worldPosition = mul(float4(input.position, 1.0f), world);
+    return mul(worldPosition, lightViewProjection);
 }

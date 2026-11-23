@@ -155,6 +155,11 @@ Model* ResourceManager::FindModel(const std::string& id)
     return cachedModel == models_.end() ? nullptr : cachedModel->second.get();
 }
 
+TextureHeap& ResourceManager::GetTextureHeap()
+{
+    return textureHeap_;
+}
+
 const TextureHeap& ResourceManager::GetTextureHeap() const
 {
     return textureHeap_;

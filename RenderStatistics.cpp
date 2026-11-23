@@ -12,14 +12,12 @@ void RenderStatistics::BeginFrame(std::size_t sceneObjectCount)
     triangleCount_ = 0;
 }
 
-void RenderStatistics::AddCulledObject()
+void RenderStatistics::SetVisibility(
+    std::size_t renderedCount,
+    std::size_t culledCount)
 {
-    ++culledObjectCount_;
-}
-
-void RenderStatistics::AddRenderedObject()
-{
-    ++renderedObjectCount_;
+    renderedObjectCount_ = static_cast<std::uint32_t>(renderedCount);
+    culledObjectCount_ = static_cast<std::uint32_t>(culledCount);
 }
 
 void RenderStatistics::AddDraw(std::uint32_t triangleCount)

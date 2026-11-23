@@ -44,6 +44,7 @@ public:
     Model* FindModel(const std::string& id);
 
     // 모든 Texture의 SRV가 들어 있는 Heap입니다.
+    TextureHeap& GetTextureHeap();
     const TextureHeap& GetTextureHeap() const;
 
     // 지금까지 만든 재질의 수이며 재질 상수 버퍼에 필요한 칸 수입니다.

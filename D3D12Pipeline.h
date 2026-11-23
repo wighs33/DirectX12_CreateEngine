@@ -11,6 +11,7 @@ struct PipelineSettings
 {
     // Shader.hlsl에서 실행할 함수의 이름입니다.
     const char* vertexShader = nullptr;
+    // 비워 두면 색을 쓰지 않고 깊이만 씁니다.
     const char* pixelShader = nullptr;
     // 그리지 않고 지울 면입니다.
     D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK;
