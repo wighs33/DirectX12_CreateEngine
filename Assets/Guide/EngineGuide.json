@@ -4,6 +4,7 @@
         { "name": "시작과 지휘", "color": "flame", "cards": ["app-loop","timer","input","d3d12-context"] },
         { "name": "GPU 준비", "color": "violet", "cards": ["device-resources","command-context","swapchain","pipeline"] },
         { "name": "그리는 재료", "color": "teal", "cards": ["shader","mesh","texture","resource-manager"] },
+        { "name": "모델", "color": "violet", "cards": ["model-loader","model","texture-heap","gpu-buffer"] },
         { "name": "장면", "color": "rose", "cards": ["scene","game-object","transform","scene-serializer"] },
         { "name": "보는 눈과 판정", "color": "slate", "cards": ["camera","frustum","ray","aabb"] },
         { "name": "엔진 설명", "color": "flame", "cards": ["engine-guide","engine-guide-window"] }
@@ -95,7 +96,7 @@
             "file": "D3D12Context.cpp",
             "role": "다른 클래스를 연결하고, 한 프레임의 순서를 지휘합니다.",
             "without": "장치, 명령, 화면, 장면이 따로 놀아 무엇을 언제 불러야 할지 정할 곳이 없습니다.",
-            "limit": "렌더링과 편집 UI, 입력 해석, 도형 만들기가 한 파일에 모여 있습니다. 기능을 더 넣기 전에 나누면 읽기 쉬워집니다.",
+            "limit": "렌더링과 편집 UI, 입력 해석이 한 파일에 모여 있습니다. 기능을 더 넣기 전에 나누면 읽기 쉬워집니다.",
             "unreal": "FSceneRenderer(그리기)와 에디터 코드가 나눠 맡는 일을 한 클래스가 하고 있습니다.",
             "functions": [
                 { "name": "Initialize", "description": "장치부터 ImGui까지 순서대로 만듭니다." },
@@ -215,7 +216,7 @@
             "unreal": "FD3D12Viewport입니다.",
             "functions": [
                 { "name": "CreateSwapChain", "description": "창에 연결된 백버퍼 2장을 만듭니다." },
-                { "name": "CreateRenderTargets", "description": "백버퍼마다 색을 쓸 수 있게 RTV를 만듭니다." },
+                { "name": "CreateRenderTargets", "description": "백버퍼마다 장면용 sRGB RTV와 ImGui용 RTV를 만듭니다." },
                 { "name": "CreateDepthBuffer", "description": "앞뒤를 비교할 깊이 버퍼와 DSV를 만듭니다." },
                 { "name": "Present", "description": "다 그린 그림을 화면에 내보냅니다." }
             ],
@@ -336,15 +337,15 @@
             "file": "Mesh.cpp",
             "role": "모양을 이루는 꼭짓점과 연결 순서를 GPU 버퍼에 담습니다.",
             "without": "그릴 모양이 없습니다.",
-            "limit": "파일에서 모델을 읽는 기능이 없고 인덱스가 16비트입니다. 버퍼도 Upload 힙에 있어, 바뀌지 않는 모델은 Default 힙으로 옮기는 편이 빠릅니다.",
+            "limit": "움직이지 않는 모양만 다룹니다. 뼈로 움직이는 데 필요한 정점 값은 아직 없습니다.",
             "unreal": "UStaticMesh와 FStaticMeshRenderData입니다.",
             "functions": [
                 { "name": "Initialize", "description": "정점과 인덱스를 받아 버퍼를 만듭니다." },
-                { "name": "CreateVertexBuffer", "description": "위치, 색, UV, 법선을 버퍼에 복사합니다." },
-                { "name": "CreateIndexBuffer", "description": "꼭짓점 번호 순서를 버퍼에 복사합니다." },
+                { "name": "CreateVertexBuffer", "description": "위치, 색, UV, 법선을 GPU 전용 버퍼에 올립니다." },
+                { "name": "CreateIndexBuffer", "description": "꼭짓점 번호 순서를 32비트로 올립니다." },
                 { "name": "CalculateLocalBounds", "description": "모양을 감싸는 상자를 구합니다." }
             ],
-            "links": ["game-object", "aabb", "pipeline", "device-resources"],
+            "links": ["model", "aabb", "pipeline", "gpu-buffer"],
             "picture": [
                 { "shape": "line", "points": [[30,42],[114,42],[114,126],[30,126]], "closed": true },
                 { "shape": "line", "points": [[30,42],[114,126]] },
@@ -389,11 +390,12 @@
             "limit": "한 장 올릴 때마다 GPU가 끝나기를 기다립니다. 텍스처가 많아지면 한꺼번에 올리도록 바꿔야 합니다.",
             "unreal": "UTexture2D입니다.",
             "functions": [
-                { "name": "LoadFromFile", "description": "이미지를 RGBA8로 풀고 Upload 힙을 거쳐 Default 힙에 복사합니다." },
-                { "name": "CopyTextureRegion 호출", "description": "GPU에게 복사를 시킵니다." },
-                { "name": "배리어", "description": "복사 대상에서 셰이더가 읽는 상태로 바꿉니다." }
+                { "name": "LoadFromFile", "description": "이미지 파일을 RGBA8 픽셀로 풉니다." },
+                { "name": "CreateFromPixels", "description": "픽셀을 Upload 힙을 거쳐 Default 힙에 복사합니다." },
+                { "name": "배리어", "description": "복사 대상에서 셰이더가 읽는 상태로 바꿉니다." },
+                { "name": "sRGB 형식", "description": "읽을 때 GPU가 선형 색으로 바꾸게 합니다." }
             ],
-            "links": ["resource-manager", "command-context", "shader", "device-resources"],
+            "links": ["resource-manager", "texture-heap", "command-context", "shader"],
             "picture": [
                 { "shape": "rect", "x": 8, "y": 66, "w": 56, "h": 50, "fill": "box" },
                 { "shape": "text", "x": 36, "y": 91, "size": 14, "text": "PNG" },
@@ -420,16 +422,17 @@
             "id": "resource-manager",
             "name": "ResourceManager",
             "file": "ResourceManager.cpp",
-            "role": "같은 텍스처를 두 번 읽지 않도록 보관합니다.",
+            "role": "같은 텍스처와 모델을 두 번 읽지 않도록 보관합니다.",
             "without": "물체 100개가 같은 그림을 쓰면 같은 파일을 100번 읽고 메모리도 100배 씁니다.",
-            "limit": "텍스처만 보관합니다. 모델과 재질은 아직 없습니다.",
+            "limit": "재질은 텍스처 하나만 연결합니다. 그늘색 같은 재질 값은 아직 없습니다.",
             "unreal": "UAssetManager와 FStreamableManager가 하는 일의 작은 버전입니다.",
             "functions": [
                 { "name": "LoadTexture", "description": "경로로 찾아보고, 없을 때만 새로 읽습니다." },
-                { "name": "GetTexture", "description": "이미 읽은 텍스처만 찾아 줍니다." },
-                { "name": "Clear", "description": "보관한 텍스처를 모두 비웁니다." }
+                { "name": "LoadModel", "description": "glTF 파일을 한 번만 읽어 모델로 만듭니다." },
+                { "name": "AddModel", "description": "코드로 만든 도형을 이름으로 등록합니다." },
+                { "name": "FindModel", "description": "이름이나 경로로 이미 있는 모델을 찾습니다." }
             ],
-            "links": ["texture", "d3d12-context"],
+            "links": ["texture", "model", "texture-heap", "d3d12-context"],
             "picture": [
                 { "shape": "rect", "x": 8, "y": 28, "w": 88, "h": 38, "fill": "box" },
                 { "shape": "text", "x": 52, "y": 47, "size": 14, "text": "Test.png" },
@@ -445,6 +448,148 @@
                 { "shape": "text", "x": 288, "y": 60, "size": 14, "text": "새로 만듦" },
                 { "shape": "text", "x": 288, "y": 119, "size": 14, "text": "2번째" },
                 { "shape": "text", "x": 288, "y": 136, "size": 14, "text": "그대로 씀" }
+            ]
+        },
+        {
+            "id": "model-loader",
+            "name": "ModelLoader",
+            "file": "ModelLoader.cpp",
+            "role": "glTF 파일을 이 엔진의 정점과 재질로 바꿔 읽습니다.",
+            "without": "Blender에서 만든 캐릭터를 쓸 수 없고 코드로 만든 도형만 그립니다.",
+            "limit": "뼈, 애니메이션, 표정은 아직 읽지 않습니다. 파일을 하나로 묶은 .glb도 읽지 않습니다.",
+            "unreal": "애셋을 가져오는 Interchange 임포터가 하는 일입니다.",
+            "functions": [
+                { "name": "LoadGltf", "description": "파일을 읽고 실패하면 이유를 알려 줍니다." },
+                { "name": "ReadNode", "description": "노드의 자리를 계산해 조각을 모읍니다." },
+                { "name": "ReadPrimitive", "description": "오른손 좌표의 Z를 뒤집고 정점을 채웁니다." },
+                { "name": "GetAccessor", "description": "값의 위치를 찾고 파일 범위를 벗어나지 않는지 봅니다." }
+            ],
+            "links": ["model", "resource-manager", "mesh", "texture"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 22, "w": 92, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 56, "y": 42, "size": 14, "text": ".gltf" },
+                { "shape": "rect", "x": 10, "y": 70, "w": 92, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 56, "y": 90, "size": 14, "text": ".bin" },
+                { "shape": "rect", "x": 10, "y": 118, "w": 92, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 56, "y": 138, "size": 14, "text": ".png" },
+                { "shape": "line", "points": [[102,42],[132,76]], "arrow": "end" },
+                { "shape": "line", "points": [[102,90],[132,90]], "arrow": "end" },
+                { "shape": "line", "points": [[102,138],[132,104]], "arrow": "end" },
+                { "shape": "rect", "x": 134, "y": 60, "w": 78, "h": 60, "fill": "highlight" },
+                { "shape": "text", "x": 173, "y": 81.5, "size": 14, "text": "Z 뒤집기" },
+                { "shape": "text", "x": 173, "y": 98.5, "size": 14, "text": "순서 바꿈" },
+                { "shape": "line", "points": [[212,90],[240,90]], "arrow": "end" },
+                { "shape": "rect", "x": 242, "y": 44, "w": 88, "h": 92, "fill": "box" },
+                { "shape": "text", "x": 286, "y": 73, "size": 14, "text": "조각들" },
+                { "shape": "text", "x": 286, "y": 90, "size": 14, "text": "정점" },
+                { "shape": "text", "x": 286, "y": 107, "size": 14, "text": "재질" }
+            ]
+        },
+        {
+            "id": "model",
+            "name": "Model",
+            "file": "Model.cpp",
+            "role": "여러 조각을 하나의 캐릭터로 묶어 둡니다.",
+            "without": "몸, 머리카락, 옷을 따로 놓고 따로 움직여야 합니다.",
+            "limit": "조각을 켜고 끄거나 갈아입힐 수 없습니다.",
+            "unreal": "USkeletalMesh의 섹션과 머티리얼 슬롯에 해당합니다.",
+            "functions": [
+                { "name": "Initialize", "description": "조각마다 버퍼를 만들고 텍스처를 연결합니다." },
+                { "name": "GetParts", "description": "그릴 조각 목록을 줍니다." },
+                { "name": "GetLocalBounds", "description": "모든 조각을 감싸는 상자를 줍니다." },
+                { "name": "CreateCubeGeometry", "description": "파일 없이 큐브의 모양을 만듭니다(PrimitiveGeometry)." }
+            ],
+            "links": ["mesh", "texture", "model-loader", "game-object"],
+            "picture": [
+                { "shape": "rect", "x": 14, "y": 60, "w": 92, "h": 60, "fill": "highlight" },
+                { "shape": "text", "x": 60, "y": 90, "size": 14, "text": "Luna" },
+                { "shape": "line", "points": [[106,78],[150,34]], "arrow": "end" },
+                { "shape": "line", "points": [[106,86],[150,72]], "arrow": "end" },
+                { "shape": "line", "points": [[106,94],[150,108]], "arrow": "end" },
+                { "shape": "line", "points": [[106,102],[150,146]], "arrow": "end" },
+                { "shape": "rect", "x": 152, "y": 16, "w": 84, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 194, "y": 32, "size": 14, "text": "몸" },
+                { "shape": "rect", "x": 152, "y": 54, "w": 84, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 194, "y": 70, "size": 14, "text": "머리카락" },
+                { "shape": "rect", "x": 152, "y": 92, "w": 84, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 194, "y": 108, "size": 14, "text": "조끼" },
+                { "shape": "rect", "x": 152, "y": 130, "w": 84, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 194, "y": 146, "size": 14, "text": "장식" },
+                { "shape": "line", "points": [[236,32],[260,32]], "arrow": "end" },
+                { "shape": "line", "points": [[236,70],[260,70]], "arrow": "end" },
+                { "shape": "line", "points": [[236,108],[260,108]], "arrow": "end" },
+                { "shape": "line", "points": [[236,146],[260,146]], "arrow": "end" },
+                { "shape": "rect", "x": 262, "y": 16, "w": 68, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 296, "y": 32, "size": 14, "text": "그림" },
+                { "shape": "rect", "x": 262, "y": 54, "w": 68, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 296, "y": 70, "size": 14, "text": "그림" },
+                { "shape": "rect", "x": 262, "y": 92, "w": 68, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 296, "y": 108, "size": 14, "text": "그림" },
+                { "shape": "rect", "x": 262, "y": 130, "w": 68, "h": 32, "fill": "none", "dashed": true },
+                { "shape": "text", "x": 296, "y": 146, "size": 14, "text": "흰색" }
+            ]
+        },
+        {
+            "id": "texture-heap",
+            "name": "TextureHeap",
+            "file": "TextureHeap.cpp",
+            "role": "여러 텍스처의 SRV를 칸칸이 담아 둡니다.",
+            "without": "텍스처를 하나만 연결할 수 있어 모든 물체가 같은 그림을 씁니다.",
+            "limit": "칸을 되돌려 받지 않습니다. 텍스처를 계속 바꾸면 256칸이 차게 됩니다.",
+            "unreal": "디스크립터를 관리하는 FD3D12DescriptorHeap입니다.",
+            "functions": [
+                { "name": "Initialize", "description": "셰이더가 볼 수 있는 힙을 만듭니다." },
+                { "name": "Add", "description": "빈 칸에 SRV를 만들고 번호를 줍니다." },
+                { "name": "GetGpuHandle", "description": "그릴 때 가리킬 칸의 주소를 줍니다." }
+            ],
+            "links": ["texture", "resource-manager", "pipeline", "shader"],
+            "picture": [
+                { "shape": "rect", "x": 16, "y": 24, "w": 60, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 46, "y": 41, "size": 14, "text": "흰색" },
+                { "shape": "rect", "x": 76, "y": 24, "w": 60, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 106, "y": 41, "size": 14, "text": "몸" },
+                { "shape": "rect", "x": 136, "y": 24, "w": 60, "h": 34, "fill": "highlight" },
+                { "shape": "text", "x": 166, "y": 41, "size": 14, "text": "머리" },
+                { "shape": "rect", "x": 196, "y": 24, "w": 60, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 226, "y": 41, "size": 14, "text": "조끼" },
+                { "shape": "rect", "x": 256, "y": 24, "w": 60, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 286, "y": 41, "size": 14, "text": "…" },
+                { "shape": "text", "x": 46, "y": 72, "size": 13, "text": "0칸" },
+                { "shape": "text", "x": 106, "y": 72, "size": 13, "text": "1칸" },
+                { "shape": "text", "x": 166, "y": 72, "size": 13, "text": "2칸" },
+                { "shape": "text", "x": 226, "y": 72, "size": 13, "text": "3칸" },
+                { "shape": "rect", "x": 96, "y": 118, "w": 140, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 166, "y": 138, "size": 14, "text": "테이블 (t0)" },
+                { "shape": "line", "points": [[166,118],[166,84]], "arrow": "end" }
+            ]
+        },
+        {
+            "id": "gpu-buffer",
+            "name": "CreateDefaultBuffer",
+            "file": "GpuBuffer.cpp",
+            "role": "정점과 인덱스를 GPU만 읽는 메모리로 옮깁니다.",
+            "without": "GPU가 그릴 때마다 느린 Upload 메모리를 읽습니다.",
+            "limit": "하나 옮길 때마다 GPU가 끝나기를 기다립니다. 모델이 많아지면 한꺼번에 옮기도록 바꿔야 합니다.",
+            "unreal": "정적 메시의 버퍼를 만드는 RHICreateBuffer와 초기 데이터 업로드입니다.",
+            "functions": [
+                { "name": "CreateDefaultBuffer", "description": "Upload 힙에 쓰고 Default 힙으로 복사합니다." },
+                { "name": "CopyBufferRegion 호출", "description": "GPU에게 복사를 시킵니다." },
+                { "name": "배리어", "description": "정점이나 인덱스로 읽는 상태로 바꿉니다." }
+            ],
+            "links": ["mesh", "command-context", "device-resources", "texture"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 64, "w": 84, "h": 52, "fill": "box" },
+                { "shape": "text", "x": 52, "y": 90, "size": 14, "text": "CPU 배열" },
+                { "shape": "line", "points": [[94,90],[122,90]], "arrow": "end" },
+                { "shape": "rect", "x": 124, "y": 64, "w": 84, "h": 52, "fill": "box" },
+                { "shape": "text", "x": 166, "y": 90, "size": 14, "text": "Upload 힙" },
+                { "shape": "line", "points": [[208,90],[236,90]], "arrow": "end" },
+                { "shape": "rect", "x": 238, "y": 64, "w": 92, "h": 52, "fill": "highlight" },
+                { "shape": "text", "x": 284, "y": 90, "size": 14, "text": "Default 힙" },
+                { "shape": "text", "x": 108, "y": 50, "size": 13, "text": "쓰기" },
+                { "shape": "text", "x": 222, "y": 50, "size": 13, "text": "복사" },
+                { "shape": "text", "x": 284, "y": 134, "size": 13, "text": "GPU 전용" },
+                { "shape": "text", "x": 166, "y": 134, "size": 13, "text": "끝나면 버림" }
             ]
         },
         {
@@ -482,16 +627,16 @@
             "id": "game-object",
             "name": "GameObject",
             "file": "GameObject.cpp",
-            "role": "이름과 위치를 가지고 Mesh를 빌려 쓰는 물체 하나입니다.",
-            "without": "같은 모양을 여러 곳에 놓으려면 Mesh를 그때마다 다시 만들어야 합니다.",
-            "limit": "재질이 없어 모든 물체가 같은 텍스처와 셰이더로 그려집니다.",
+            "role": "이름과 위치를 가지고 모델을 빌려 쓰는 물체 하나입니다.",
+            "without": "같은 모양을 여러 곳에 놓으려면 모델을 그때마다 다시 만들어야 합니다.",
+            "limit": "모델의 재질을 물체마다 다르게 바꿀 수 없습니다.",
             "unreal": "AActor에 UStaticMeshComponent가 붙은 모습입니다.",
             "functions": [
                 { "name": "GetTransform", "description": "위치, 회전, 크기를 꺼냅니다." },
                 { "name": "GetWorldBounds", "description": "지금 자리에서 물체를 감싸는 상자를 구합니다." },
-                { "name": "SetMesh", "description": "빌려 쓸 모양을 바꿉니다." }
+                { "name": "SetModel", "description": "빌려 쓸 모델을 바꿉니다." }
             ],
-            "links": ["scene", "transform", "mesh", "aabb"],
+            "links": ["scene", "transform", "model", "aabb"],
             "picture": [
                 { "shape": "rect", "x": 12, "y": 14, "w": 128, "h": 68, "fill": "box" },
                 { "shape": "text", "x": 76, "y": 31, "size": 14, "text": "Cube" },
@@ -502,7 +647,7 @@
                 { "shape": "rect", "x": 24, "y": 128, "w": 104, "h": 28, "fill": "highlight" },
                 { "shape": "text", "x": 76, "y": 142, "size": 14, "text": "Transform" },
                 { "shape": "rect", "x": 228, "y": 62, "w": 98, "h": 56, "fill": "box" },
-                { "shape": "text", "x": 277, "y": 90, "size": 14, "text": "Mesh 1개" },
+                { "shape": "text", "x": 277, "y": 90, "size": 14, "text": "모델 1개" },
                 { "shape": "line", "points": [[140,48],[226,80]], "dashed": true, "arrow": "end" },
                 { "shape": "line", "points": [[140,132],[226,100]], "dashed": true, "arrow": "end" },
                 { "shape": "text", "x": 184, "y": 91, "size": 13, "text": "빌려 씀" }
@@ -540,13 +685,14 @@
             "file": "SceneSerializer.cpp",
             "role": "장면을 JSON 파일로 저장하고 다시 불러옵니다.",
             "without": "프로그램을 끄면 배치한 물체가 모두 사라집니다.",
-            "limit": "저장 파일이 Scenes/Scene.json 하나이고, 모양은 Cube와 Sphere만 알고 있습니다.",
+            "limit": "저장 파일이 Scenes/Scene.json 하나입니다.",
             "unreal": "레벨을 .umap으로 저장하는 부분입니다.",
             "functions": [
-                { "name": "SaveScene", "description": "이름, 모양, 위치를 JSON으로 적습니다." },
-                { "name": "LoadScene", "description": "파일을 끝까지 검사한 뒤에만 지금 장면과 바꿉니다." }
+                { "name": "SaveScene", "description": "이름, 모델, 위치를 JSON으로 적습니다." },
+                { "name": "LoadScene", "description": "파일을 끝까지 검사한 뒤에만 지금 장면과 바꿉니다." },
+                { "name": "ResolveModel", "description": "적힌 이름의 모델을 찾고, 없으면 glTF 경로로 읽습니다." }
             ],
-            "links": ["scene", "game-object", "transform", "mesh"],
+            "links": ["scene", "game-object", "transform", "model"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 58, "w": 96, "h": 64, "fill": "highlight" },
                 { "shape": "text", "x": 58, "y": 81.5, "size": 14, "text": "Scene" },
@@ -558,7 +704,7 @@
                 { "shape": "rect", "x": 168, "y": 16, "w": 164, "h": 148, "fill": "box" },
                 { "shape": "text", "x": 180, "y": 39, "size": 13, "text": "{ \"objects\": [{", "align": "left" },
                 { "shape": "text", "x": 180, "y": 65, "size": 13, "text": "  \"name\"", "align": "left" },
-                { "shape": "text", "x": 180, "y": 91, "size": 13, "text": "  \"primitive\"", "align": "left" },
+                { "shape": "text", "x": 180, "y": 91, "size": 13, "text": "  \"model\"", "align": "left" },
                 { "shape": "text", "x": 180, "y": 117, "size": 13, "text": "  \"transform\"", "align": "left" },
                 { "shape": "text", "x": 180, "y": 143, "size": 13, "text": "}] }", "align": "left" }
             ]
@@ -747,9 +893,23 @@
             "howTo": "Create 패널의 Cube, Sphere 버튼을 누릅니다.",
             "steps": [
                 { "card": "d3d12-context", "function": "DrawEditorUI", "description": "버튼이 눌렸는지 확인합니다." },
-                { "card": "game-object", "function": "GameObject", "description": "이미 만들어 둔 Mesh를 빌려 새 물체를 만듭니다." },
+                { "card": "resource-manager", "function": "FindModel", "description": "미리 등록한 도형 모델을 찾습니다." },
+                { "card": "game-object", "function": "GameObject", "description": "모델을 빌려 쓰는 새 물체를 만듭니다." },
                 { "card": "d3d12-context", "function": "CreateUniqueObjectName", "description": "겹치지 않는 이름을 정합니다." },
                 { "card": "scene", "function": "AddGameObject", "description": "목록에 넣고 바로 선택합니다." }
+            ]
+        },
+        {
+            "id": "feature-model",
+            "name": "모델 불러오기",
+            "howTo": "Create 패널에서 모델을 고르고 Add 버튼을 누릅니다.",
+            "steps": [
+                { "card": "d3d12-context", "function": "DrawModelPicker", "description": "Assets/Models의 glTF 파일을 목록으로 보여 줍니다." },
+                { "card": "resource-manager", "function": "LoadModel", "description": "이미 읽은 모델이면 그대로 돌려줍니다." },
+                { "card": "model-loader", "function": "LoadGltf", "description": "처음이면 파일을 읽어 조각과 재질로 바꿉니다." },
+                { "card": "gpu-buffer", "function": "CreateDefaultBuffer", "description": "조각의 정점과 인덱스를 GPU 메모리로 옮깁니다." },
+                { "card": "texture-heap", "function": "Add", "description": "재질의 그림마다 SRV 칸을 만듭니다." },
+                { "card": "scene", "function": "AddGameObject", "description": "물체를 만들어 장면에 넣습니다." }
             ]
         },
         {

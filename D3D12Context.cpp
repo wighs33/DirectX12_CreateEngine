@@ -592,6 +592,7 @@ void D3D12Context::DrawEditorUI()
         AddSceneObject(resourceManager_.FindModel("Sphere"), "Sphere");
     }
     DrawModelPicker();
+    engineGuideWindow_.DrawHelpButtonAtRight("feature-model");
 
     ImGui::Separator();
     if (ImGui::Button("Save Scene", ImVec2(84.0f, 0.0f)))
