@@ -1,7 +1,6 @@
 #include "SceneLighting.h"
 
-LightingConstants SceneLighting::CreateConstants(
-    const DirectX::XMFLOAT3& cameraPosition) const
+LightingConstants SceneLighting::CreateConstants() const
 {
     // lightColor.w는 빛의 강도입니다.
     return LightingConstants
@@ -12,11 +11,6 @@ LightingConstants SceneLighting::CreateConstants(
             ambientColor_.x,
             ambientColor_.y,
             ambientColor_.z,
-            0.0f),
-        DirectX::XMFLOAT4(
-            cameraPosition.x,
-            cameraPosition.y,
-            cameraPosition.z,
-            1.0f)
+            0.0f)
     };
 }

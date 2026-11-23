@@ -17,6 +17,7 @@ public:
     void Rotate(float yawDelta, float pitchDelta);
 
     const DirectX::XMFLOAT3& GetPosition() const;
+    float GetAspectRatio() const;
     DirectX::XMMATRIX GetViewMatrix() const;
     DirectX::XMMATRIX GetProjectionMatrix() const;
 

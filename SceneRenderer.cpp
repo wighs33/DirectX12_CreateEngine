@@ -20,7 +20,7 @@ namespace
     // Root Signature에서 정한 Parameter 순서입니다.
     constexpr UINT ObjectRootParameter = 0;
     constexpr UINT TextureRootParameter = 1;
-    constexpr UINT LightingRootParameter = 2;
+    constexpr UINT FrameRootParameter = 2;
     constexpr UINT MaterialRootParameter = 3;
 }
 
@@ -38,7 +38,7 @@ bool SceneRenderer::Prepare(
             device,
             commandContext,
             resourceManager.GetMaterialCount()) &&
-        lightingConstants_.EnsureCapacity(device, commandContext, 1);
+        frameConstants_.EnsureCapacity(device, commandContext, 1);
 }
 
 void SceneRenderer::Render(
@@ -50,21 +50,71 @@ void SceneRenderer::Render(
     const ResourceManager& resourceManager,
     RenderStatistics& statistics)
 {
+    const DirectX::XMMATRIX viewProjectionMatrix = DirectX::XMMatrixMultiply(
+        camera.GetViewMatrix(),
+        camera.GetProjectionMatrix());
+
     BindFrame(
         commandList,
         frameIndex,
         pipeline,
         scene.GetLighting(),
         camera,
+        viewProjectionMatrix,
         resourceManager);
+    CollectVisibleObjects(frameIndex, scene, viewProjectionMatrix, statistics);
 
+    // 물체를 먼저 그려 두면 안쪽에 가려진 외곽선은 깊이 비교에서 지워집니다.
+    DrawToonPass(commandList, frameIndex, pipeline, resourceManager, statistics);
+    DrawOutlinePass(commandList, frameIndex, pipeline, statistics);
+}
+
+void SceneRenderer::BindFrame(
+    ID3D12GraphicsCommandList* commandList,
+    UINT frameIndex,
+    const D3D12Pipeline& pipeline,
+    const SceneLighting& lighting,
+    const Camera& camera,
+    const DirectX::XMMATRIX& viewProjectionMatrix,
+    const ResourceManager& resourceManager)
+{
+    // [11단계] b0~b2 Constant Buffer와 t0 Texture를 사용할 Root Signature를 연결합니다.
+    commandList->SetGraphicsRootSignature(pipeline.GetRootSignature());
+
+    // 모든 Texture의 SRV가 들어 있는 Heap을 연결하고 어느 칸을 쓸지는 조각마다 정합니다.
+    ID3D12DescriptorHeap* const descriptorHeaps[] =
+    {
+        resourceManager.GetTextureHeap().GetHeap()
+    };
+    commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+    FrameConstants constants{};
+    constants.lighting = lighting.CreateConstants();
+    constants.cameraPosition = camera.GetPosition();
+    constants.screenHeightOverWidth = 1.0f / camera.GetAspectRatio();
+    DirectX::XMStoreFloat4x4(
+        &constants.viewProjection,
+        DirectX::XMMatrixTranspose(viewProjectionMatrix));
+    frameConstants_.Write(frameIndex, 0, &constants);
+    commandList->SetGraphicsRootConstantBufferView(
+        FrameRootParameter,
+        frameConstants_.GetGpuAddress(frameIndex, 0));
+
+    // [12단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+void SceneRenderer::CollectVisibleObjects(
+    UINT frameIndex,
+    const Scene& scene,
+    const DirectX::XMMATRIX& viewProjectionMatrix,
+    RenderStatistics& statistics)
+{
     // GPU 업로드용 Transpose Matrix가 아닌 CPU 원본 ViewProjection으로 Frame당 한 번 갱신합니다.
-    const DirectX::XMMATRIX viewProjectionMatrix = DirectX::XMMatrixMultiply(
-        camera.GetViewMatrix(),
-        camera.GetProjectionMatrix());
     frustum_.Update(viewProjectionMatrix);
+    visibleObjects_.clear();
 
-    // Render는 Object를 직접 소유하지 않고 Scene이 제공하는 목록을 순회합니다.
+    // Object를 직접 소유하지 않고 Scene이 제공하는 목록을 순회합니다.
     const std::vector<GameObject>& gameObjects = scene.GetGameObjects();
     for (std::size_t objectIndex = 0; objectIndex < gameObjects.size(); ++objectIndex)
     {
@@ -81,60 +131,80 @@ void SceneRenderer::Render(
             continue;
         }
 
-        BindObject(
-            commandList,
+        WriteObjectConstants(
             frameIndex,
             objectIndex,
             gameObject.GetTransform().GetWorldMatrix(),
             viewProjectionMatrix);
+        visibleObjects_.push_back({ objectIndex, model });
         statistics.AddRenderedObject();
+    }
+}
 
-        for (const std::unique_ptr<ModelPart>& part : model->GetParts())
+void SceneRenderer::DrawToonPass(
+    ID3D12GraphicsCommandList* commandList,
+    UINT frameIndex,
+    const D3D12Pipeline& pipeline,
+    const ResourceManager& resourceManager,
+    RenderStatistics& statistics)
+{
+    // [13단계] 두 단 명암을 그리는 Graphics Pipeline State를 연결합니다.
+    commandList->SetPipelineState(pipeline.GetToonPipelineState());
+
+    for (const VisibleObject& object : visibleObjects_)
+    {
+        BindObject(commandList, frameIndex, object.objectIndex);
+        for (const std::unique_ptr<ModelPart>& part : object.model->GetParts())
         {
-            BindMaterial(
-                commandList,
+            const Material& material =
+                object.model->GetMaterials()[part->materialIndex];
+
+            // 외곽선도 같은 칸을 읽으므로 재질의 값은 여기서 한 번만 씁니다.
+            const MaterialConstants constants = material.CreateConstants();
+            materialConstants_.Write(
                 frameIndex,
-                model->GetMaterials()[part->materialIndex],
-                resourceManager);
+                material.GetConstantSlot(),
+                &constants);
+            BindMaterial(commandList, frameIndex, material);
+
+            // t0 Table이 재질의 Texture 칸을 가리키게 합니다.
+            commandList->SetGraphicsRootDescriptorTable(
+                TextureRootParameter,
+                resourceManager.GetTextureHeap().GetGpuHandle(
+                    material.GetTexture().GetDescriptorSlot()));
             DrawPart(commandList, *part, statistics);
         }
     }
 }
 
-void SceneRenderer::BindFrame(
+void SceneRenderer::DrawOutlinePass(
     ID3D12GraphicsCommandList* commandList,
     UINT frameIndex,
     const D3D12Pipeline& pipeline,
-    const SceneLighting& lighting,
-    const Camera& camera,
-    const ResourceManager& resourceManager)
+    RenderStatistics& statistics)
 {
-    // [11단계] 이번 Draw에 사용할 Graphics Pipeline State를 연결합니다.
-    commandList->SetPipelineState(pipeline.GetPipelineState());
+    // [13~17단계] 외곽선 PSO로 바꿔 같은 조각을 한 번 더 그립니다.
+    commandList->SetPipelineState(pipeline.GetOutlinePipelineState());
 
-    // [12단계] b0~b2 Constant Buffer와 t0 Texture를 사용할 Root Signature를 연결합니다.
-    commandList->SetGraphicsRootSignature(pipeline.GetRootSignature());
-
-    // 모든 Texture의 SRV가 들어 있는 Heap을 연결하고 어느 칸을 쓸지는 조각마다 정합니다.
-    ID3D12DescriptorHeap* const descriptorHeaps[] =
+    for (const VisibleObject& object : visibleObjects_)
     {
-        resourceManager.GetTextureHeap().GetHeap()
-    };
-    commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+        BindObject(commandList, frameIndex, object.objectIndex);
+        for (const std::unique_ptr<ModelPart>& part : object.model->GetParts())
+        {
+            const Material& material =
+                object.model->GetMaterials()[part->materialIndex];
+            if (!material.HasOutline())
+            {
+                continue;
+            }
 
-    const LightingConstants constants =
-        lighting.CreateConstants(camera.GetPosition());
-    lightingConstants_.Write(frameIndex, 0, &constants);
-    commandList->SetGraphicsRootConstantBufferView(
-        LightingRootParameter,
-        lightingConstants_.GetGpuAddress(frameIndex, 0));
-
-    // [13단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            BindMaterial(commandList, frameIndex, material);
+            DrawPart(commandList, *part, statistics);
+        }
+    }
 }
 
-void SceneRenderer::BindObject(
-    ID3D12GraphicsCommandList* commandList,
+void SceneRenderer::WriteObjectConstants(
     UINT frameIndex,
     std::size_t objectIndex,
     const DirectX::XMMATRIX& worldMatrix,
@@ -158,7 +228,13 @@ void SceneRenderer::BindObject(
         &constants.worldInverseTranspose,
         DirectX::XMMatrixTranspose(worldInverseTransposeMatrix));
     objectConstants_.Write(frameIndex, objectIndex, &constants);
+}
 
+void SceneRenderer::BindObject(
+    ID3D12GraphicsCommandList* commandList,
+    UINT frameIndex,
+    std::size_t objectIndex) const
+{
     // [14단계] 같은 b0 Root CBV에 현재 Object 전용 Constant Buffer 주소를 연결합니다.
     commandList->SetGraphicsRootConstantBufferView(
         ObjectRootParameter,
@@ -168,22 +244,14 @@ void SceneRenderer::BindObject(
 void SceneRenderer::BindMaterial(
     ID3D12GraphicsCommandList* commandList,
     UINT frameIndex,
-    const Material& material,
-    const ResourceManager& resourceManager)
+    const Material& material) const
 {
-    // t0 Table이 재질의 Texture 칸을 가리키게 합니다.
-    commandList->SetGraphicsRootDescriptorTable(
-        TextureRootParameter,
-        resourceManager.GetTextureHeap().GetGpuHandle(
-            material.GetTexture().GetDescriptorSlot()));
-
     // b2에 재질의 그림체 값을 연결합니다.
-    const std::size_t slot = material.GetConstantSlot();
-    const MaterialConstants constants = material.CreateConstants();
-    materialConstants_.Write(frameIndex, slot, &constants);
     commandList->SetGraphicsRootConstantBufferView(
         MaterialRootParameter,
-        materialConstants_.GetGpuAddress(frameIndex, slot));
+        materialConstants_.GetGpuAddress(
+            frameIndex,
+            material.GetConstantSlot()));
 }
 
 void SceneRenderer::DrawPart(

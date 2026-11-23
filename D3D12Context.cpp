@@ -86,7 +86,7 @@ bool D3D12Context::RenderFrame()
     // [6~10단계] 그릴 영역과 대상을 정하고 이전 Frame의 색과 깊이를 지웁니다.
     BindAndClearRenderTarget(commandList, frameIndex);
 
-    // [11~17단계] 장면의 물체를 그립니다.
+    // [11~17단계] 장면의 물체와 외곽선을 그립니다.
     sceneRenderer_.Render(
         commandList,
         frameIndex,

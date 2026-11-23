@@ -8,12 +8,15 @@ cbuffer TransformBuffer : register(b0)
     float4x4 worldInverseTranspose;
 };
 
-cbuffer LightingBuffer : register(b1)
+// 한 Frame 동안 모든 물체가 함께 쓰는 값입니다. SceneRenderer의 FrameConstants와 배치가 같습니다.
+cbuffer FrameBuffer : register(b1)
 {
     float4 lightDirection;
     float4 lightColor;
     float4 ambientColor;
-    float4 cameraPosition;
+    float3 cameraPosition;
+    float screenHeightOverWidth;
+    float4x4 viewProjection;
 };
 
 // C++ Root Signature의 네 번째 Parameter가 가리키는 재질별 그림체 값입니다. Material.h의 MaterialConstants와 배치가 같습니다.
@@ -93,11 +96,39 @@ float4 PSMain(VertexOutput input) : SV_TARGET
 
     // 시선과 거의 직각인 가장자리 중 빛을 받는 쪽에만 밝은 테두리를 더합니다.
     const float3 surfaceToCamera = normalize(
-        cameraPosition.xyz - input.worldPosition);
+        cameraPosition - input.worldPosition);
     const float rim = step(
         1.0f - rimWidth,
         1.0f - saturate(dot(normal, surfaceToCamera))) * lit;
     color += rimColor * (rimStrength * rim);
 
     return float4(color, baseColor.a);
+}
+
+// 외곽선용 Vertex Shader : 정점을 화면에서 바깥쪽으로 정해진 픽셀만큼 밀어냅니다.
+// 앞면은 PSO의 컬링으로 지우므로 부풀어 나온 뒷면만 테두리로 남습니다.
+float4 VSOutline(VertexInput input) : SV_POSITION
+{
+    float4 position = mul(float4(input.position, 1.0f), worldViewProjection);
+
+    // 밀어낼 방향을 화면 방향으로 바꿉니다. 투영 행렬이 줄여 둔 가로를 되돌려 픽셀 기준의 방향을 얻습니다.
+    const float3 worldNormal = mul(
+        float4(input.outlineNormal, 0.0f),
+        worldInverseTranspose).xyz;
+    float2 direction = mul(float4(worldNormal, 0.0f), viewProjection).xy;
+    direction.x /= screenHeightOverWidth;
+    direction = normalize(direction + float2(1.0e-5f, 0.0f));
+
+    // 높이가 1080인 화면을 기준으로 한 픽셀 두께라서 해상도가 달라도 그림체가 같습니다.
+    // 화면 좌표는 -1~1이므로 1픽셀은 2 / 1080이고, 나중에 w로 나눠지므로 미리 곱해 거리와 상관없게 합니다.
+    float2 offset = direction * (outlineWidth * 2.0f / 1080.0f);
+    offset.x *= screenHeightOverWidth;
+    position.xy += offset * position.w;
+    return position;
+}
+
+// 외곽선용 Pixel Shader : 빛과 상관없이 재질에 정한 색 하나로 칠합니다.
+float4 PSOutline() : SV_TARGET
+{
+    return float4(outlineColor, 1.0f);
 }

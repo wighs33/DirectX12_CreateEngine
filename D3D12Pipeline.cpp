@@ -23,7 +23,7 @@ bool D3D12Pipeline::Initialize(ID3D12Device* device)
         return false;
     if (!CreateShaders())
         return false;
-    if (!CreatePipelineState(device))
+    if (!CreatePipelineStates(device))
         return false;
 
     return true;
@@ -34,9 +34,14 @@ ID3D12RootSignature* D3D12Pipeline::GetRootSignature() const
     return rootSignature_.Get();
 }
 
-ID3D12PipelineState* D3D12Pipeline::GetPipelineState() const
+ID3D12PipelineState* D3D12Pipeline::GetToonPipelineState() const
 {
-    return pipelineState_.Get();
+    return toonPipelineState_.Get();
+}
+
+ID3D12PipelineState* D3D12Pipeline::GetOutlinePipelineState() const
+{
+    return outlinePipelineState_.Get();
 }
 
 bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
@@ -63,17 +68,19 @@ bool D3D12Pipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[1].DescriptorTable.pDescriptorRanges = &srvRange;
     rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-    // 세 번째 Parameter는 모든 Object가 공유하는 Pixel Shader register(b1) Lighting CBV입니다.
+    // 세 번째 Parameter는 모든 Object가 공유하는 register(b1) Frame CBV입니다.
+    // 외곽선의 Vertex Shader도 화면 비율과 행렬을 읽으므로 모든 Shader에 보입니다.
     rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[2].Descriptor.ShaderRegister = 1;
     rootParameters[2].Descriptor.RegisterSpace = 0;
-    rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-    // 네 번째 Parameter는 조각의 재질마다 바뀌는 Pixel Shader register(b2) Material CBV입니다.
+    // 네 번째 Parameter는 조각의 재질마다 바뀌는 register(b2) Material CBV입니다.
+    // 외곽선의 두께는 Vertex Shader가 읽으므로 모든 Shader에 보입니다.
     rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[3].Descriptor.ShaderRegister = 2;
     rootParameters[3].Descriptor.RegisterSpace = 0;
-    rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
     // 이번 단계에서는 변하지 않는 단일 Sampler를 Root Signature에 직접 포함합니다.
     D3D12_STATIC_SAMPLER_DESC staticSampler{};
@@ -156,17 +163,10 @@ bool D3D12Pipeline::CreateShaders()
     // Pixel Shader : Rasterizer가 생성한 Pixel 후보를 처리하고 RenderTarget에 기록할 최종 색상을 반환
     constexpr wchar_t shaderFilePath[] = L"Shader.hlsl";
 
-    if (!CompileShader(shaderFilePath, "VSMain", "vs_5_1", vertexShader_))
-    {
-        return false;
-    }
-
-    if (!CompileShader(shaderFilePath, "PSMain", "ps_5_1", pixelShader_))
-    {
-        return false;
-    }
-
-    return true;
+    return CompileShader(shaderFilePath, "VSMain", "vs_5_1", toonVertexShader_) &&
+        CompileShader(shaderFilePath, "PSMain", "ps_5_1", toonPixelShader_) &&
+        CompileShader(shaderFilePath, "VSOutline", "vs_5_1", outlineVertexShader_) &&
+        CompileShader(shaderFilePath, "PSOutline", "ps_5_1", outlinePixelShader_);
 }
 
 bool D3D12Pipeline::CompileShader(
@@ -223,7 +223,7 @@ bool D3D12Pipeline::CompileShader(
     return true;
 }
 
-bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
+bool D3D12Pipeline::CreatePipelineStates(ID3D12Device* device)
 {
     // [12단계] HLSL VertexInput의 POSITION, COLOR, TEXCOORD, NORMAL에 대응하는 Input Layout을 정의합니다.
     // Input Layout : Vertex Buffer의 바이트 데이터를 Vertex Shader 입력으로 해석하는 규칙
@@ -334,10 +334,10 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
     // Graphics Pipeline State Object : GPU의 그래픽 파이프라인 동작에 필요한 설정을 묶은 객체
     D3D12_GRAPHICS_PIPELINE_STATE_DESC description{};
     description.pRootSignature = rootSignature_.Get();
-    description.VS.pShaderBytecode = vertexShader_->GetBufferPointer();
-    description.VS.BytecodeLength = vertexShader_->GetBufferSize();
-    description.PS.pShaderBytecode = pixelShader_->GetBufferPointer();
-    description.PS.BytecodeLength = pixelShader_->GetBufferSize();
+    description.VS.pShaderBytecode = toonVertexShader_->GetBufferPointer();
+    description.VS.BytecodeLength = toonVertexShader_->GetBufferSize();
+    description.PS.pShaderBytecode = toonPixelShader_->GetBufferPointer();
+    description.PS.BytecodeLength = toonPixelShader_->GetBufferSize();
     // Blend State : Pixel Shader의 출력 색상을 RenderTarget에 이미 저장된 색상과 어떻게 합칠지 결정
     description.BlendState = blendDescription;
     description.SampleMask = UINT_MAX;
@@ -356,9 +356,28 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
     description.NodeMask = 0;
     description.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
+    if (!CreatePipelineState(device, description, toonPipelineState_))
+    {
+        return false;
+    }
+
+    // 외곽선은 앞면을 제거하고 남은 뒷면을 부풀려 그립니다. 나머지 설정은 같습니다.
+    description.VS.pShaderBytecode = outlineVertexShader_->GetBufferPointer();
+    description.VS.BytecodeLength = outlineVertexShader_->GetBufferSize();
+    description.PS.pShaderBytecode = outlinePixelShader_->GetBufferPointer();
+    description.PS.BytecodeLength = outlinePixelShader_->GetBufferSize();
+    description.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+    return CreatePipelineState(device, description, outlinePipelineState_);
+}
+
+bool D3D12Pipeline::CreatePipelineState(
+    ID3D12Device* device,
+    const D3D12_GRAPHICS_PIPELINE_STATE_DESC& description,
+    ComPtr<ID3D12PipelineState>& pipelineState)
+{
     const HRESULT result = device->CreateGraphicsPipelineState(
         &description,
-        IID_PPV_ARGS(&pipelineState_));
+        IID_PPV_ARGS(&pipelineState));
 
     if (FAILED(result))
     {

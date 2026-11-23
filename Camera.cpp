@@ -80,6 +80,11 @@ const DirectX::XMFLOAT3& Camera::GetPosition() const
     return position_;
 }
 
+float Camera::GetAspectRatio() const
+{
+    return aspectRatio_;
+}
+
 DirectX::XMMATRIX Camera::GetViewMatrix() const
 {
     // Position에서 Target을 바라보고 Up을 위쪽 기준으로 삼는 Left-Handed View Matrix를 만듭니다.

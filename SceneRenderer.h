@@ -9,11 +9,12 @@
 #include <d3d12.h>
 
 #include <cstddef>
+#include <vector>
 
 class Camera;
 class D3D12CommandContext;
 class D3D12Pipeline;
-class GameObject;
+class Model;
 class RenderStatistics;
 class ResourceManager;
 class Scene;
@@ -56,33 +57,76 @@ private:
         DirectX::XMFLOAT4X4 worldInverseTranspose;
     };
 
+    // Shader의 b1과 같은 배치로 보낼 값입니다.
+    struct FrameConstants
+    {
+        LightingConstants lighting;
+        DirectX::XMFLOAT3 cameraPosition;
+        // 화면의 세로 / 가로 비율입니다.
+        float screenHeightOverWidth;
+        DirectX::XMFLOAT4X4 viewProjection;
+    };
+
+    // 이번 Frame에 카메라에 보이는 물체입니다.
+    struct VisibleObject
+    {
+        std::size_t objectIndex;
+        const Model* model;
+    };
+
     void BindFrame(
         ID3D12GraphicsCommandList* commandList,
         UINT frameIndex,
         const D3D12Pipeline& pipeline,
         const SceneLighting& lighting,
         const Camera& camera,
+        const DirectX::XMMATRIX& viewProjectionMatrix,
         const ResourceManager& resourceManager);
-    void BindObject(
+
+    // 보이는 물체를 고르고 그 물체의 행렬을 상수 버퍼에 씁니다.
+    void CollectVisibleObjects(
+        UINT frameIndex,
+        const Scene& scene,
+        const DirectX::XMMATRIX& viewProjectionMatrix,
+        RenderStatistics& statistics);
+
+    // 물체를 두 단 명암으로 그립니다.
+    void DrawToonPass(
         ID3D12GraphicsCommandList* commandList,
+        UINT frameIndex,
+        const D3D12Pipeline& pipeline,
+        const ResourceManager& resourceManager,
+        RenderStatistics& statistics);
+    // 같은 물체의 뒷면을 부풀려 한 번 더 그립니다.
+    void DrawOutlinePass(
+        ID3D12GraphicsCommandList* commandList,
+        UINT frameIndex,
+        const D3D12Pipeline& pipeline,
+        RenderStatistics& statistics);
+
+    void WriteObjectConstants(
         UINT frameIndex,
         std::size_t objectIndex,
         const DirectX::XMMATRIX& worldMatrix,
         const DirectX::XMMATRIX& viewProjectionMatrix);
+    void BindObject(
+        ID3D12GraphicsCommandList* commandList,
+        UINT frameIndex,
+        std::size_t objectIndex) const;
     void BindMaterial(
         ID3D12GraphicsCommandList* commandList,
         UINT frameIndex,
-        const Material& material,
-        const ResourceManager& resourceManager);
+        const Material& material) const;
     static void DrawPart(
         ID3D12GraphicsCommandList* commandList,
         const ModelPart& part,
         RenderStatistics& statistics);
 
     Frustum frustum_;
+    std::vector<VisibleObject> visibleObjects_;
 
-    // Object와 재질마다 한 칸, 조명은 Frame마다 한 칸을 사용합니다.
+    // Object와 재질마다 한 칸, 빛과 카메라는 Frame마다 한 칸을 사용합니다.
     FrameConstantBuffer objectConstants_{ static_cast<UINT>(sizeof(ObjectConstants)) };
     FrameConstantBuffer materialConstants_{ static_cast<UINT>(sizeof(MaterialConstants)) };
-    FrameConstantBuffer lightingConstants_{ static_cast<UINT>(sizeof(LightingConstants)) };
+    FrameConstantBuffer frameConstants_{ static_cast<UINT>(sizeof(FrameConstants)) };
 };
