@@ -1,13 +1,9 @@
 #include "D3D12Context.h"
 #include "PrimitiveGeometry.h"
 
-#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cwchar>
-#include <cstring>
-#include <limits>
-#include <utility>
 
 D3D12Context::~D3D12Context()
 {
@@ -43,7 +39,7 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     if (!CreatePrimitiveModels())
         return false;
 
-    if (!CreateLightingConstantBuffer())
+    if (!lightingConstants_.EnsureCapacity(device, commandContext_, 1))
         return false;
     if (!imguiLayer_.Initialize(device, commandContext_, window))
         return false;
@@ -65,7 +61,10 @@ void D3D12Context::Update(float deltaTime)
 bool D3D12Context::RenderFrame()
 {
     const std::size_t sceneObjectCount = scene_.GetGameObjectCount();
-    if (!EnsureConstantBufferCapacity(sceneObjectCount))
+    if (!objectConstants_.EnsureCapacity(
+            deviceResources_.GetDevice(),
+            commandContext_,
+            sceneObjectCount))
     {
         return false;
     }
@@ -125,9 +124,10 @@ bool D3D12Context::RenderFrame()
         textureHeap.GetHeap()
     };
     commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+    UpdateLightingConstantBuffer(frameIndex);
     commandList->SetGraphicsRootConstantBufferView(
         2,
-        lightingConstantBuffer_->GetGPUVirtualAddress());
+        lightingConstants_.GetGpuAddress(frameIndex, 0));
 
     // [8단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
     const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
@@ -190,16 +190,10 @@ bool D3D12Context::RenderFrame()
             worldMatrix,
             viewProjectionMatrix);
 
-        const UINT64 constantBufferSlot =
-            static_cast<UINT64>(frameIndex) * objectConstantBufferCapacity_ +
-            objectIndex;
-        const UINT64 constantBufferOffset =
-            constantBufferSlot * AlignedConstantBufferSize;
-
         // [14단계] 같은 b0 Root CBV에 현재 Object 전용 Constant Buffer 주소를 연결합니다.
         commandList->SetGraphicsRootConstantBufferView(
             0,
-            constantBuffer_->GetGPUVirtualAddress() + constantBufferOffset);
+            objectConstants_.GetGpuAddress(frameIndex, objectIndex));
 
         ++renderingStats_.renderedObjectCount;
         for (const std::unique_ptr<ModelPart>& part : model->GetParts())
@@ -301,170 +295,8 @@ bool D3D12Context::CreatePrimitiveModels()
         resourceManager_.AddModel("Sphere", CreateSphereGeometry()) != nullptr;
 }
 
-bool D3D12Context::EnsureConstantBufferCapacity(
-    std::size_t requiredCapacity)
+void D3D12Context::UpdateLightingConstantBuffer(UINT frameIndex)
 {
-    if (requiredCapacity <= objectConstantBufferCapacity_)
-    {
-        return true;
-    }
-
-    const UINT64 bytesPerObjectCapacity =
-        static_cast<UINT64>(AlignedConstantBufferSize) *
-        D3D12Config::FrameCount;
-    const std::size_t maximumCapacity = static_cast<std::size_t>(
-        (std::numeric_limits<UINT64>::max)() / bytesPerObjectCapacity);
-    if (requiredCapacity > maximumCapacity)
-    {
-        std::fprintf(stderr, "Object Constant Buffer Capacity가 너무 큽니다.\n");
-        return false;
-    }
-
-    std::size_t newCapacity = (std::max)(
-        objectConstantBufferCapacity_,
-        static_cast<std::size_t>(1));
-    while (newCapacity < requiredCapacity)
-    {
-        if (newCapacity > maximumCapacity / 2)
-        {
-            newCapacity = requiredCapacity;
-            break;
-        }
-
-        newCapacity *= 2;
-    }
-
-    return RecreateConstantBuffer(newCapacity);
-}
-
-bool D3D12Context::RecreateConstantBuffer(std::size_t newCapacity)
-{
-    if (newCapacity == 0)
-    {
-        return false;
-    }
-
-    // 기존 Resource를 교체하기 전에 Queue에 제출된 모든 참조가 끝났는지 Fence로 확인합니다.
-    if (constantBuffer_ != nullptr && !commandContext_.WaitForGPU())
-    {
-        return false;
-    }
-
-    // CPU가 Matrix를 직접 쓰고 GPU가 읽을 수 있도록 Upload Heap을 사용합니다.
-    D3D12_HEAP_PROPERTIES heapProperties{};
-    heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProperties.CreationNodeMask = 1;
-    heapProperties.VisibleNodeMask = 1;
-
-    D3D12_RESOURCE_DESC resourceDescription{};
-    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resourceDescription.Alignment = 0;
-    // Frame별 stride를 Capacity로 고정하여 실행 중 Object Count가 바뀌어도 영역이 겹치지 않습니다.
-    resourceDescription.Width =
-        static_cast<UINT64>(AlignedConstantBufferSize) *
-        D3D12Config::FrameCount *
-        newCapacity;
-    resourceDescription.Height = 1;
-    resourceDescription.DepthOrArraySize = 1;
-    resourceDescription.MipLevels = 1;
-    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
-    resourceDescription.SampleDesc.Count = 1;
-    resourceDescription.SampleDesc.Quality = 0;
-    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    Microsoft::WRL::ComPtr<ID3D12Resource> newConstantBuffer;
-    const HRESULT resourceResult = deviceResources_.GetDevice()->CreateCommittedResource(
-        &heapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &resourceDescription,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&newConstantBuffer));
-
-    if (FAILED(resourceResult))
-    {
-        std::fprintf(
-            stderr,
-            "상수 버퍼용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(resourceResult));
-        return false;
-    }
-
-    // 한 번 얻은 CPU 주소를 계속 보관하는 Persistent Mapping 방식으로 사용합니다.
-    void* newMappedData = nullptr;
-    const D3D12_RANGE readRange{ 0, 0 };
-    const HRESULT mapResult = newConstantBuffer->Map(
-        0,
-        &readRange,
-        &newMappedData);
-
-    if (FAILED(mapResult))
-    {
-        std::fprintf(
-            stderr,
-            "상수 버퍼의 ID3D12Resource::Map 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(mapResult));
-        return false;
-    }
-
-    std::memset(
-        newMappedData,
-        0,
-        static_cast<SIZE_T>(resourceDescription.Width));
-
-    if (constantBuffer_ != nullptr && constantBufferMappedData_ != nullptr)
-    {
-        constantBuffer_->Unmap(0, nullptr);
-    }
-
-    constantBuffer_ = std::move(newConstantBuffer);
-    constantBufferMappedData_ = newMappedData;
-    objectConstantBufferCapacity_ = newCapacity;
-
-    return true;
-}
-
-bool D3D12Context::CreateLightingConstantBuffer()
-{
-    D3D12_HEAP_PROPERTIES heapProperties{};
-    heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProperties.CreationNodeMask = 1;
-    heapProperties.VisibleNodeMask = 1;
-
-    D3D12_RESOURCE_DESC resourceDescription{};
-    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resourceDescription.Alignment = 0;
-    resourceDescription.Width = AlignedLightingConstantBufferSize;
-    resourceDescription.Height = 1;
-    resourceDescription.DepthOrArraySize = 1;
-    resourceDescription.MipLevels = 1;
-    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
-    resourceDescription.SampleDesc.Count = 1;
-    resourceDescription.SampleDesc.Quality = 0;
-    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    const HRESULT resourceResult = deviceResources_.GetDevice()->CreateCommittedResource(
-        &heapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &resourceDescription,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&lightingConstantBuffer_));
-    if (FAILED(resourceResult))
-    {
-        std::fprintf(
-            stderr,
-            "Lighting Constant Buffer 생성에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(resourceResult));
-        return false;
-    }
-
     // Direction은 빛이 진행하는 방향이며, lightColor.w는 Diffuse 강도입니다.
     const LightingConstantBufferData lightingData
     {
@@ -472,25 +304,7 @@ bool D3D12Context::CreateLightingConstantBuffer()
         DirectX::XMFLOAT4(1.0f, 0.95f, 0.85f, 0.85f),
         DirectX::XMFLOAT4(0.18f, 0.20f, 0.24f, 0.0f)
     };
-
-    void* mappedData = nullptr;
-    const D3D12_RANGE readRange{ 0, 0 };
-    const HRESULT mapResult = lightingConstantBuffer_->Map(0, &readRange, &mappedData);
-    if (FAILED(mapResult))
-    {
-        std::fprintf(
-            stderr,
-            "Lighting Constant Buffer Map에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(mapResult));
-        return false;
-    }
-
-    std::memset(mappedData, 0, AlignedLightingConstantBufferSize);
-    std::memcpy(mappedData, &lightingData, sizeof(lightingData));
-    const D3D12_RANGE writtenRange{ 0, sizeof(lightingData) };
-    lightingConstantBuffer_->Unmap(0, &writtenRange);
-
-    return true;
+    lightingConstants_.Write(frameIndex, 0, &lightingData);
 }
 
 void D3D12Context::UpdateObjectConstantBuffer(
@@ -514,16 +328,5 @@ void D3D12Context::UpdateObjectConstantBuffer(
         &constantBufferData.worldInverseTranspose,
         DirectX::XMMatrixTranspose(worldInverseTransposeMatrix));
 
-    const std::size_t constantBufferSlot =
-        static_cast<std::size_t>(frameIndex) *
-        objectConstantBufferCapacity_ +
-        objectIndex;
-    unsigned char* const objectData =
-        static_cast<unsigned char*>(constantBufferMappedData_) +
-        static_cast<SIZE_T>(constantBufferSlot) * AlignedConstantBufferSize;
-    std::memset(objectData, 0, AlignedConstantBufferSize);
-    std::memcpy(
-        objectData,
-        &constantBufferData,
-        sizeof(constantBufferData));
+    objectConstants_.Write(frameIndex, objectIndex, &constantBufferData);
 }

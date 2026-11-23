@@ -172,6 +172,7 @@
     <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="FrameConstantBuffer.cpp" />
     <ClCompile Include="SceneEditor.cpp" />
     <ClCompile Include="ImGuiLayer.cpp" />
     <ClCompile Include="TextureHeap.cpp" />
@@ -209,6 +210,7 @@
     <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="FrameConstantBuffer.h" />
     <ClInclude Include="SceneEditor.h" />
     <ClInclude Include="ImGuiLayer.h" />
     <ClInclude Include="TextureHeap.h" />

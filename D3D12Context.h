@@ -6,6 +6,7 @@
 #include "D3D12DeviceResources.h"
 #include "D3D12Pipeline.h"
 #include "D3D12SwapChain.h"
+#include "FrameConstantBuffer.h"
 #include "Frustum.h"
 #include "ImGuiLayer.h"
 #include "Model.h"
@@ -64,19 +65,8 @@ private:
         DirectX::XMFLOAT4 ambientColor;
     };
 
-    static constexpr UINT ConstantBufferAlignment =
-        D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-    static constexpr UINT AlignedConstantBufferSize =
-        (static_cast<UINT>(sizeof(ConstantBufferData)) + ConstantBufferAlignment - 1) &
-        ~(ConstantBufferAlignment - 1);
-    static constexpr UINT AlignedLightingConstantBufferSize =
-        (static_cast<UINT>(sizeof(LightingConstantBufferData)) + ConstantBufferAlignment - 1) &
-        ~(ConstantBufferAlignment - 1);
-
     bool CreatePrimitiveModels();
-    bool EnsureConstantBufferCapacity(std::size_t requiredCapacity);
-    bool RecreateConstantBuffer(std::size_t newCapacity);
-    bool CreateLightingConstantBuffer();
+    void UpdateLightingConstantBuffer(UINT frameIndex);
     void UpdateObjectConstantBuffer(
         UINT frameIndex,
         std::size_t objectIndex,
@@ -102,11 +92,9 @@ private:
     ImGuiLayer imguiLayer_;
     SceneEditor sceneEditor_;
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
-    Microsoft::WRL::ComPtr<ID3D12Resource> lightingConstantBuffer_;
-    // Upload Heap을 한 번 Map한 뒤 Frame별 WVP Matrix를 갱신할 때 계속 사용할 CPU 주소입니다.
-    void* constantBufferMappedData_ = nullptr;
-    std::size_t objectConstantBufferCapacity_ = 0;
+    // Object마다 한 칸, 조명은 Frame마다 한 칸을 사용합니다.
+    FrameConstantBuffer objectConstants_{ static_cast<UINT>(sizeof(ConstantBufferData)) };
+    FrameConstantBuffer lightingConstants_{ static_cast<UINT>(sizeof(LightingConstantBufferData)) };
     RenderingStats renderingStats_;
     float statisticsElapsedTime_ = 0.0f;
     std::uint32_t statisticsFrameCount_ = 0;
