@@ -16,7 +16,7 @@ cbuffer LightingBuffer : register(b1)
     float4 cameraPosition;
 };
 
-// C++ Root Signature의 네 번째 Parameter가 가리키는 재질별 그림체 값입니다. MaterialConstants와 배치가 같습니다.
+// C++ Root Signature의 네 번째 Parameter가 가리키는 재질별 그림체 값입니다. Material.h의 MaterialConstants와 배치가 같습니다.
 cbuffer MaterialBuffer : register(b2)
 {
     float3 shadeColor;

@@ -1,6 +1,7 @@
 #include "FrameConstantBuffer.h"
 
 #include "D3D12CommandContext.h"
+#include "GpuBuffer.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -94,45 +95,14 @@ bool FrameConstantBuffer::Recreate(
         return false;
     }
 
-    // CPU가 값을 직접 쓰고 GPU가 읽을 수 있도록 Upload Heap을 사용합니다.
-    D3D12_HEAP_PROPERTIES heapProperties{};
-    heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProperties.CreationNodeMask = 1;
-    heapProperties.VisibleNodeMask = 1;
-
-    D3D12_RESOURCE_DESC resourceDescription{};
-    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resourceDescription.Alignment = 0;
     // Frame별 구역의 크기를 Capacity로 고정하여 실행 중 칸 수가 바뀌어도 영역이 겹치지 않습니다.
-    resourceDescription.Width =
+    const UINT64 bufferSize =
         static_cast<UINT64>(alignedSize_) *
         D3D12Config::FrameCount *
         newCapacity;
-    resourceDescription.Height = 1;
-    resourceDescription.DepthOrArraySize = 1;
-    resourceDescription.MipLevels = 1;
-    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
-    resourceDescription.SampleDesc.Count = 1;
-    resourceDescription.SampleDesc.Quality = 0;
-    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
-
     ComPtr<ID3D12Resource> newBuffer;
-    const HRESULT resourceResult = device->CreateCommittedResource(
-        &heapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &resourceDescription,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&newBuffer));
-    if (FAILED(resourceResult))
+    if (!GpuBuffer::CreateUpload(device, bufferSize, newBuffer))
     {
-        std::fprintf(
-            stderr,
-            "상수 버퍼용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(resourceResult));
         return false;
     }
 
@@ -149,10 +119,7 @@ bool FrameConstantBuffer::Recreate(
         return false;
     }
 
-    std::memset(
-        newMappedData,
-        0,
-        static_cast<SIZE_T>(resourceDescription.Width));
+    std::memset(newMappedData, 0, static_cast<SIZE_T>(bufferSize));
 
     if (buffer_ != nullptr && mappedData_ != nullptr)
     {

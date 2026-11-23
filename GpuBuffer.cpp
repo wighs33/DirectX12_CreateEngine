@@ -8,56 +8,20 @@
 
 using Microsoft::WRL::ComPtr;
 
-namespace
+bool GpuBuffer::CreateUpload(
+    ID3D12Device* device,
+    UINT64 size,
+    ComPtr<ID3D12Resource>& buffer)
 {
-    bool CreateBuffer(
-        ID3D12Device* device,
-        D3D12_HEAP_TYPE heapType,
-        D3D12_RESOURCE_STATES initialState,
-        UINT64 size,
-        ComPtr<ID3D12Resource>& buffer)
-    {
-        D3D12_HEAP_PROPERTIES heapProperties{};
-        heapProperties.Type = heapType;
-        heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProperties.CreationNodeMask = 1;
-        heapProperties.VisibleNodeMask = 1;
-
-        D3D12_RESOURCE_DESC resourceDescription{};
-        resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        resourceDescription.Alignment = 0;
-        resourceDescription.Width = size;
-        resourceDescription.Height = 1;
-        resourceDescription.DepthOrArraySize = 1;
-        resourceDescription.MipLevels = 1;
-        resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
-        resourceDescription.SampleDesc.Count = 1;
-        resourceDescription.SampleDesc.Quality = 0;
-        resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-        const HRESULT result = device->CreateCommittedResource(
-            &heapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &resourceDescription,
-            initialState,
-            nullptr,
-            IID_PPV_ARGS(&buffer));
-        if (FAILED(result))
-        {
-            std::fprintf(
-                stderr,
-                "Buffer용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
-                static_cast<unsigned int>(result));
-            return false;
-        }
-
-        return true;
-    }
+    return Create(
+        device,
+        D3D12_HEAP_TYPE_UPLOAD,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        size,
+        buffer);
 }
 
-bool CreateDefaultBuffer(
+bool GpuBuffer::CreateDefault(
     ID3D12Device* device,
     D3D12CommandContext& commandContext,
     const void* data,
@@ -67,18 +31,13 @@ bool CreateDefaultBuffer(
 {
     if (device == nullptr || data == nullptr || size == 0)
     {
-        std::fprintf(stderr, "CreateDefaultBuffer에 유효하지 않은 인자가 전달되었습니다.\n");
+        std::fprintf(stderr, "GpuBuffer::CreateDefault에 유효하지 않은 인자가 전달되었습니다.\n");
         return false;
     }
 
     // [1단계] CPU가 쓸 수 있는 Upload Heap Buffer에 데이터를 복사합니다.
     ComPtr<ID3D12Resource> uploadBuffer;
-    if (!CreateBuffer(
-            device,
-            D3D12_HEAP_TYPE_UPLOAD,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            size,
-            uploadBuffer))
+    if (!CreateUpload(device, size, uploadBuffer))
     {
         return false;
     }
@@ -102,7 +61,7 @@ bool CreateDefaultBuffer(
     // [2단계] GPU만 읽는 Default Heap Buffer를 만듭니다.
     // Buffer는 항상 COMMON으로 생성되고 복사 명령에서 COPY_DEST로 자동 전환됩니다.
     ComPtr<ID3D12Resource> defaultBuffer;
-    if (!CreateBuffer(
+    if (!Create(
             device,
             D3D12_HEAP_TYPE_DEFAULT,
             D3D12_RESOURCE_STATE_COMMON,
@@ -142,5 +101,51 @@ bool CreateDefaultBuffer(
     }
 
     buffer = std::move(defaultBuffer);
+    return true;
+}
+
+bool GpuBuffer::Create(
+    ID3D12Device* device,
+    D3D12_HEAP_TYPE heapType,
+    D3D12_RESOURCE_STATES initialState,
+    UINT64 size,
+    ComPtr<ID3D12Resource>& buffer)
+{
+    D3D12_HEAP_PROPERTIES heapProperties{};
+    heapProperties.Type = heapType;
+    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProperties.CreationNodeMask = 1;
+    heapProperties.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC resourceDescription{};
+    resourceDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    resourceDescription.Alignment = 0;
+    resourceDescription.Width = size;
+    resourceDescription.Height = 1;
+    resourceDescription.DepthOrArraySize = 1;
+    resourceDescription.MipLevels = 1;
+    resourceDescription.Format = DXGI_FORMAT_UNKNOWN;
+    resourceDescription.SampleDesc.Count = 1;
+    resourceDescription.SampleDesc.Quality = 0;
+    resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    resourceDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    const HRESULT result = device->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDescription,
+        initialState,
+        nullptr,
+        IID_PPV_ARGS(&buffer));
+    if (FAILED(result))
+    {
+        std::fprintf(
+            stderr,
+            "Buffer용 ID3D12Device::CreateCommittedResource 호출에 실패했습니다. HRESULT: 0x%08X\n",
+            static_cast<unsigned int>(result));
+        return false;
+    }
+
     return true;
 }

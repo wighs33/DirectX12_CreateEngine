@@ -112,7 +112,7 @@ bool Mesh::CreateVertexBuffer(
     UINT vertexCount)
 {
     const UINT vertexBufferSize = static_cast<UINT>(sizeof(Vertex) * vertexCount);
-    if (!CreateDefaultBuffer(
+    if (!GpuBuffer::CreateDefault(
             device,
             commandContext,
             vertices,
@@ -136,7 +136,7 @@ bool Mesh::CreateIndexBuffer(
     UINT indexCount)
 {
     const UINT indexBufferSize = static_cast<UINT>(sizeof(std::uint32_t) * indexCount);
-    if (!CreateDefaultBuffer(
+    if (!GpuBuffer::CreateDefault(
             device,
             commandContext,
             indices,

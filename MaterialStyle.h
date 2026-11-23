@@ -2,10 +2,6 @@
 
 #include <DirectXMath.h>
 
-#include <filesystem>
-#include <string>
-#include <unordered_map>
-
 // 재질 하나의 카툰 그림체 값입니다. 색은 화면에서 고르는 값과 같은 sRGB이고 Unity 재질의 값과 뜻이 같습니다.
 struct MaterialStyle
 {
@@ -20,33 +16,4 @@ struct MaterialStyle
     DirectX::XMFLOAT3 rimColor{ 1.0f, 1.0f, 1.0f };
     float rimStrength = 0.2f;
     float rimWidth = 0.3f;
-};
-
-// Shader의 b2와 같은 배치로 보낼 값입니다. 색은 빛 계산에 쓰는 선형 값으로 바뀌어 있습니다.
-struct MaterialConstants
-{
-    DirectX::XMFLOAT3 shadeColor{};
-    float shadeThreshold = 0.0f;
-    DirectX::XMFLOAT3 rimColor{};
-    float rimStrength = 0.0f;
-    float shadeSoftness = 0.0f;
-    float ambientWeight = 0.0f;
-    float rimWidth = 0.0f;
-    float padding = 0.0f;
-};
-
-MaterialConstants CreateMaterialConstants(const MaterialStyle& style);
-
-// 재질 이름마다 정한 그림체 값을 JSON File에서 읽어 찾아 줍니다.
-class MaterialStyleLibrary final
-{
-public:
-    // 읽지 못하면 이유를 출력하고 모든 재질이 기본 그림체를 씁니다.
-    bool Load(const std::filesystem::path& filePath);
-
-    // 정해 둔 값이 없는 재질은 기본 그림체를 돌려줍니다.
-    MaterialStyle Find(const std::string& materialName) const;
-
-private:
-    std::unordered_map<std::string, MaterialStyle> styles_;
 };

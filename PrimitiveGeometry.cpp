@@ -27,7 +27,7 @@ namespace
     }
 }
 
-ModelData CreateCubeGeometry()
+ModelData PrimitiveGeometry::CreateCube()
 {
     // World/View/Projection 변환 전의 Object Space 원점에 한 변 길이가 1인 Cube를 정의합니다.
     // 같은 위치라도 면마다 UV가 다르므로 각 면에 네 Vertex를 두어 총 24개로 구성합니다.
@@ -112,7 +112,7 @@ ModelData CreateCubeGeometry()
         std::vector<std::uint32_t>(std::begin(cubeIndices), std::end(cubeIndices)));
 }
 
-ModelData CreateSphereGeometry()
+ModelData PrimitiveGeometry::CreateSphere()
 {
     constexpr float radius = 0.5f;
     constexpr std::uint32_t stackCount = 16;

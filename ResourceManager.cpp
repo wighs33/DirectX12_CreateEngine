@@ -2,6 +2,7 @@
 
 #include "D3D12CommandContext.h"
 #include "ModelLoader.h"
+#include "PrimitiveGeometry.h"
 
 #include <cstdio>
 #include <filesystem>
@@ -25,7 +26,8 @@ bool ResourceManager::Initialize(
     styles_.Load(std::filesystem::path("Assets") / "Styles" / "PandoraStyle.json");
 
     return textureHeap_.Initialize(device, TextureHeapCapacity) &&
-        CreateWhiteTexture();
+        CreateWhiteTexture() &&
+        CreatePrimitiveModels();
 }
 
 Texture* ResourceManager::LoadTexture(const std::wstring& filePath)
@@ -91,15 +93,14 @@ Model* ResourceManager::AddModel(
         return nullptr;
     }
 
-    std::vector<ModelMaterial> materials;
+    std::vector<Material> materials;
     for (const ModelMaterialData& materialData : modelData.materials)
     {
-        ModelMaterial material;
-        material.name = materialData.name;
-        material.texture = GetMaterialTexture(materialData);
-        material.style = styles_.Find(materialData.name);
-        material.constantSlot = materialCount_ + materials.size();
-        materials.push_back(std::move(material));
+        materials.emplace_back(
+            materialData.name,
+            GetMaterialTexture(materialData),
+            styles_.Find(materialData.name),
+            materialCount_ + materials.size());
     }
     const std::size_t addedMaterialCount = materials.size();
 
@@ -179,17 +180,23 @@ bool ResourceManager::CreateWhiteTexture()
     return true;
 }
 
-const Texture* ResourceManager::GetMaterialTexture(
+bool ResourceManager::CreatePrimitiveModels()
+{
+    return AddModel("Cube", PrimitiveGeometry::CreateCube()) != nullptr &&
+        AddModel("Sphere", PrimitiveGeometry::CreateSphere()) != nullptr;
+}
+
+const Texture& ResourceManager::GetMaterialTexture(
     const ModelMaterialData& material)
 {
     if (material.baseColorTexturePath.empty())
     {
-        return &whiteTexture_;
+        return whiteTexture_;
     }
 
     const Texture* const texture =
         LoadTexture(material.baseColorTexturePath.wstring());
-    return texture != nullptr ? texture : &whiteTexture_;
+    return texture != nullptr ? *texture : whiteTexture_;
 }
 
 void ResourceManager::Clear()

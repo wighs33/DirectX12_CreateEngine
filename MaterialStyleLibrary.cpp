@@ -1,4 +1,4 @@
-#include "MaterialStyle.h"
+#include "MaterialStyleLibrary.h"
 
 #include "json.hpp"
 
@@ -74,35 +74,6 @@ namespace
         style.rimWidth = ReadFloat(styleJson, "rimWidth", style.rimWidth);
         return style;
     }
-
-    // 화면에 보이는 sRGB 값을 빛 계산에 쓰는 선형 값으로 바꿉니다.
-    float ToLinear(float value)
-    {
-        return value <= 0.04045f
-            ? value / 12.92f
-            : std::pow((value + 0.055f) / 1.055f, 2.4f);
-    }
-
-    DirectX::XMFLOAT3 ToLinear(const DirectX::XMFLOAT3& color)
-    {
-        return DirectX::XMFLOAT3(
-            ToLinear(color.x),
-            ToLinear(color.y),
-            ToLinear(color.z));
-    }
-}
-
-MaterialConstants CreateMaterialConstants(const MaterialStyle& style)
-{
-    MaterialConstants constants;
-    constants.shadeColor = ToLinear(style.shadeColor);
-    constants.shadeThreshold = style.shadeThreshold;
-    constants.shadeSoftness = style.shadeSoftness;
-    constants.ambientWeight = style.ambientWeight;
-    constants.rimColor = ToLinear(style.rimColor);
-    constants.rimStrength = style.rimStrength;
-    constants.rimWidth = style.rimWidth;
-    return constants;
 }
 
 bool MaterialStyleLibrary::Load(const std::filesystem::path& filePath)

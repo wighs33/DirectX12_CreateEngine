@@ -1,11 +1,13 @@
 #pragma once
 
 #include "GameObject.h"
+#include "SceneLighting.h"
 
 #include <cstddef>
+#include <string>
 #include <vector>
 
-// 여러 GameObject의 수명과 목록만 관리하는 최소한의 CPU 측 Scene Container입니다.
+// 여러 GameObject의 수명과 목록, 그리고 장면을 비추는 빛을 관리합니다.
 class Scene final
 {
 public:
@@ -17,6 +19,12 @@ public:
 
     std::size_t GetGameObjectCount() const;
 
+    // 이미 있는 물체와 겹치지 않는 이름을 만듭니다.
+    std::string CreateUniqueName(const std::string& baseName) const;
+
+    const SceneLighting& GetLighting() const;
+
 private:
     std::vector<GameObject> gameObjects_;
+    SceneLighting lighting_;
 };

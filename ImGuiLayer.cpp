@@ -10,6 +10,23 @@
 
 #include <cstdio>
 
+// imgui_impl_win32.h는 Windows.h 의존성을 퍼뜨리지 않기 위해 이 선언을 의도적으로 노출하지 않습니다.
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
+    HWND window,
+    UINT message,
+    WPARAM wParam,
+    LPARAM lParam);
+
+bool ImGuiLayer::HandleMessage(
+    HWND window,
+    UINT message,
+    WPARAM wParam,
+    LPARAM lParam)
+{
+    return ImGui::GetCurrentContext() != nullptr &&
+        ImGui_ImplWin32_WndProcHandler(window, message, wParam, lParam) != 0;
+}
+
 bool ImGuiLayer::Initialize(
     ID3D12Device* device,
     D3D12CommandContext& commandContext,

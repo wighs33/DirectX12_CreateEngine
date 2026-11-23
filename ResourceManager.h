@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MaterialStyle.h"
+#include "MaterialStyleLibrary.h"
 #include "Model.h"
 #include "ModelData.h"
 #include "Texture.h"
@@ -26,6 +26,7 @@ public:
     ResourceManager(const ResourceManager&) = delete;
     ResourceManager& operator=(const ResourceManager&) = delete;
 
+    // 흰색 Texture와 기본 도형까지 만들어 둡니다.
     bool Initialize(
         ID3D12Device* device,
         D3D12CommandContext& commandContext);
@@ -41,6 +42,7 @@ public:
 
     // 이미 등록하거나 읽은 모델이 없으면 nullptr을 반환합니다.
     Model* FindModel(const std::string& id);
+
     // 모든 Texture의 SRV가 들어 있는 Heap입니다.
     const TextureHeap& GetTextureHeap() const;
 
@@ -57,8 +59,9 @@ private:
     static constexpr UINT TextureHeapCapacity = 256;
 
     bool CreateWhiteTexture();
+    bool CreatePrimitiveModels();
     // Texture가 없거나 읽지 못한 재질은 흰색 Texture를 써서 정점 색만 보이게 합니다.
-    const Texture* GetMaterialTexture(const ModelMaterialData& material);
+    const Texture& GetMaterialTexture(const ModelMaterialData& material);
 
     TextureHeap textureHeap_;
     Texture whiteTexture_;

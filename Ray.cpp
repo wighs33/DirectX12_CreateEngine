@@ -4,24 +4,21 @@
 #include <cmath>
 #include <limits>
 
-bool IntersectRayAABB(
-    const Ray& ray,
-    const AABB& bounds,
-    float& intersectionDistance)
+bool Ray::Intersects(const AABB& bounds, float& intersectionDistance) const
 {
     constexpr float parallelEpsilon = 1.0e-6f;
 
     const float origins[] =
     {
-        ray.origin.x,
-        ray.origin.y,
-        ray.origin.z
+        origin.x,
+        origin.y,
+        origin.z
     };
     const float directions[] =
     {
-        ray.direction.x,
-        ray.direction.y,
-        ray.direction.z
+        direction.x,
+        direction.y,
+        direction.z
     };
     const float minimums[] =
     {

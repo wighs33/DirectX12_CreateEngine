@@ -1,7 +1,7 @@
 #pragma once
 
 #include "BoundingBox.h"
-#include "MaterialStyle.h"
+#include "Material.h"
 #include "Mesh.h"
 #include "ModelData.h"
 
@@ -13,18 +13,6 @@
 #include <vector>
 
 class D3D12CommandContext;
-class Texture;
-
-// 모델의 재질 하나입니다. 같은 모델을 쓰는 모든 물체가 함께 사용합니다.
-struct ModelMaterial
-{
-    std::string name;
-    // Texture의 수명은 ResourceManager가 관리하며 항상 유효한 Texture를 가리킵니다.
-    const Texture* texture = nullptr;
-    MaterialStyle style;
-    // 재질 상수 버퍼에서 이 재질이 쓰는 칸입니다.
-    std::size_t constantSlot = 0;
-};
 
 // 모델을 이루는 조각 하나의 GPU Geometry입니다.
 struct ModelPart
@@ -51,16 +39,16 @@ public:
         D3D12CommandContext& commandContext,
         const std::string& id,
         const ModelData& modelData,
-        std::vector<ModelMaterial> materials);
+        std::vector<Material> materials);
 
     const std::string& GetId() const;
     const std::vector<std::unique_ptr<ModelPart>>& GetParts() const;
-    const std::vector<ModelMaterial>& GetMaterials() const;
+    const std::vector<Material>& GetMaterials() const;
     const AABB& GetLocalBounds() const;
 
 private:
     std::string id_;
-    std::vector<ModelMaterial> materials_;
+    std::vector<Material> materials_;
     std::vector<std::unique_ptr<ModelPart>> parts_;
     AABB localBounds_{};
 };

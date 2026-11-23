@@ -10,7 +10,7 @@ bool Model::Initialize(
     D3D12CommandContext& commandContext,
     const std::string& id,
     const ModelData& modelData,
-    std::vector<ModelMaterial> materials)
+    std::vector<Material> materials)
 {
     std::vector<std::unique_ptr<ModelPart>> parts;
     for (const ModelPartData& partData : modelData.parts)
@@ -78,7 +78,7 @@ const std::vector<std::unique_ptr<ModelPart>>& Model::GetParts() const
     return parts_;
 }
 
-const std::vector<ModelMaterial>& Model::GetMaterials() const
+const std::vector<Material>& Model::GetMaterials() const
 {
     return materials_;
 }

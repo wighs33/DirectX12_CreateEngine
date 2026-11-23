@@ -1,5 +1,7 @@
 #include "Scene.h"
 
+#include <algorithm>
+#include <limits>
 #include <utility>
 
 std::size_t Scene::AddGameObject(GameObject gameObject)
@@ -33,4 +35,42 @@ const std::vector<GameObject>& Scene::GetGameObjects() const
 std::size_t Scene::GetGameObjectCount() const
 {
     return gameObjects_.size();
+}
+
+std::string Scene::CreateUniqueName(const std::string& baseName) const
+{
+    const auto isNameUsed = [this](const std::string& name)
+    {
+        return std::any_of(
+            gameObjects_.begin(),
+            gameObjects_.end(),
+            [&name](const GameObject& gameObject)
+            {
+                return gameObject.GetName() == name;
+            });
+    };
+
+    if (!isNameUsed(baseName))
+    {
+        return baseName;
+    }
+
+    for (std::size_t suffix = 1;
+         suffix < (std::numeric_limits<std::size_t>::max)();
+         ++suffix)
+    {
+        const std::string candidate =
+            baseName + "_" + std::to_string(suffix);
+        if (!isNameUsed(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return baseName + "_New";
+}
+
+const SceneLighting& Scene::GetLighting() const
+{
+    return lighting_;
 }

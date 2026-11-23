@@ -23,6 +23,13 @@ public:
         D3D12CommandContext& commandContext,
         HWND window);
 
+    // 창으로 들어온 메시지를 ImGui에 전달합니다. ImGui가 처리했으면 true를 반환합니다.
+    static bool HandleMessage(
+        HWND window,
+        UINT message,
+        WPARAM wParam,
+        LPARAM lParam);
+
     // GPU가 제출된 ImGui Draw를 모두 끝낸 뒤 Backend와 Context를 해제합니다.
     void Shutdown(D3D12CommandContext& commandContext);
 

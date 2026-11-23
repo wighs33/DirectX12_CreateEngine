@@ -9,9 +9,7 @@ struct Ray
 {
     DirectX::XMFLOAT3 origin{};
     DirectX::XMFLOAT3 direction{};
-};
 
-bool IntersectRayAABB(
-    const Ray& ray,
-    const AABB& bounds,
-    float& intersectionDistance);
+    // 상자에 닿으면 true를 반환하고 시작점에서 닿는 곳까지의 거리를 돌려줍니다.
+    bool Intersects(const AABB& bounds, float& intersectionDistance) const;
+};
