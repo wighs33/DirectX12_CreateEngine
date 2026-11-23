@@ -31,7 +31,7 @@ public:
         ID3D12Device* device,
         const Vertex* vertices,
         UINT vertexCount,
-        const std::uint16_t* indices,
+        const std::uint32_t* indices,
         UINT indexCount);
 
     const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const;
@@ -47,7 +47,7 @@ private:
         UINT vertexCount);
     bool CreateIndexBuffer(
         ID3D12Device* device,
-        const std::uint16_t* indices,
+        const std::uint32_t* indices,
         UINT indexCount);
     bool CalculateLocalBounds(const Vertex* vertices, UINT vertexCount);
 

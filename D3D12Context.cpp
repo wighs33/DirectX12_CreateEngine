@@ -1222,7 +1222,7 @@ bool D3D12Context::CreateCubeMesh()
 
     // 각 면의 바깥쪽이 Front Face가 되도록 Clockwise 화면 winding에 맞춰 12개 Triangle을 정의합니다.
     // 각 Index는 Vertex 자체가 아니라 Vertex Buffer 안의 몇 번째 Vertex를 사용할지 나타냅니다.
-    const std::uint16_t cubeIndices[] =
+    const std::uint32_t cubeIndices[] =
     {
         // 앞면(-Z)
         0, 1, 2,
@@ -1274,15 +1274,15 @@ bool D3D12Context::CreateSphereMesh()
         2 + ringCount * verticesPerRing;
     const std::size_t maximumVertexCount =
         static_cast<std::size_t>(
-            (std::numeric_limits<std::uint16_t>::max)()) + 1;
+            (std::numeric_limits<std::uint32_t>::max)());
     if (expectedVertexCount > maximumVertexCount)
     {
-        std::fprintf(stderr, "Sphere Vertex Count가 16bit Index 범위를 초과합니다.\n");
+        std::fprintf(stderr, "Sphere Vertex Count가 32bit Index 범위를 초과합니다.\n");
         return false;
     }
 
     std::vector<Vertex> vertices;
-    std::vector<std::uint16_t> indices;
+    std::vector<std::uint32_t> indices;
     vertices.reserve(expectedVertexCount);
     indices.reserve(
         static_cast<std::size_t>(sliceCount) * 3 * 2 +
@@ -1340,8 +1340,8 @@ bool D3D12Context::CreateSphereMesh()
         }
     }
 
-    const std::uint16_t bottomPoleIndex =
-        static_cast<std::uint16_t>(vertices.size());
+    const std::uint32_t bottomPoleIndex =
+        static_cast<std::uint32_t>(vertices.size());
     vertices.push_back(
         {
             DirectX::XMFLOAT3(0.0f, -radius, 0.0f),
@@ -1350,16 +1350,16 @@ bool D3D12Context::CreateSphereMesh()
             DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f)
         });
 
-    constexpr std::uint16_t topPoleIndex = 0;
-    constexpr std::uint16_t firstRingStart = 1;
+    constexpr std::uint32_t topPoleIndex = 0;
+    constexpr std::uint32_t firstRingStart = 1;
     for (std::uint32_t sliceIndex = 0;
          sliceIndex < sliceCount;
          ++sliceIndex)
     {
         indices.push_back(topPoleIndex);
-        indices.push_back(static_cast<std::uint16_t>(
+        indices.push_back(static_cast<std::uint32_t>(
             firstRingStart + sliceIndex));
-        indices.push_back(static_cast<std::uint16_t>(
+        indices.push_back(static_cast<std::uint32_t>(
             firstRingStart + sliceIndex + 1));
     }
 
@@ -1367,24 +1367,24 @@ bool D3D12Context::CreateSphereMesh()
          ringIndex + 1 < ringCount;
          ++ringIndex)
     {
-        const std::uint16_t currentRingStart =
-            static_cast<std::uint16_t>(
+        const std::uint32_t currentRingStart =
+            static_cast<std::uint32_t>(
                 firstRingStart + ringIndex * verticesPerRing);
-        const std::uint16_t nextRingStart =
-            static_cast<std::uint16_t>(
+        const std::uint32_t nextRingStart =
+            static_cast<std::uint32_t>(
                 currentRingStart + verticesPerRing);
 
         for (std::uint32_t sliceIndex = 0;
              sliceIndex < sliceCount;
              ++sliceIndex)
         {
-            const std::uint16_t current = static_cast<std::uint16_t>(
+            const std::uint32_t current = static_cast<std::uint32_t>(
                 currentRingStart + sliceIndex);
-            const std::uint16_t currentNext = static_cast<std::uint16_t>(
+            const std::uint32_t currentNext = static_cast<std::uint32_t>(
                 current + 1);
-            const std::uint16_t next = static_cast<std::uint16_t>(
+            const std::uint32_t next = static_cast<std::uint32_t>(
                 nextRingStart + sliceIndex);
-            const std::uint16_t nextNext = static_cast<std::uint16_t>(
+            const std::uint32_t nextNext = static_cast<std::uint32_t>(
                 next + 1);
 
             indices.push_back(current);
@@ -1397,16 +1397,16 @@ bool D3D12Context::CreateSphereMesh()
         }
     }
 
-    const std::uint16_t lastRingStart = static_cast<std::uint16_t>(
+    const std::uint32_t lastRingStart = static_cast<std::uint32_t>(
         firstRingStart + (ringCount - 1) * verticesPerRing);
     for (std::uint32_t sliceIndex = 0;
          sliceIndex < sliceCount;
          ++sliceIndex)
     {
         indices.push_back(bottomPoleIndex);
-        indices.push_back(static_cast<std::uint16_t>(
+        indices.push_back(static_cast<std::uint32_t>(
             lastRingStart + sliceIndex + 1));
-        indices.push_back(static_cast<std::uint16_t>(
+        indices.push_back(static_cast<std::uint32_t>(
             lastRingStart + sliceIndex));
     }
 
@@ -1415,7 +1415,7 @@ bool D3D12Context::CreateSphereMesh()
         std::fprintf(stderr, "Sphere Geometry 생성 결과가 비어 있습니다.\n");
         return false;
     }
-    for (const std::uint16_t index : indices)
+    for (const std::uint32_t index : indices)
     {
         if (index >= vertices.size())
         {

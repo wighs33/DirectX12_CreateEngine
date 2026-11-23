@@ -8,7 +8,7 @@ bool Mesh::Initialize(
     ID3D12Device* device,
     const Vertex* vertices,
     UINT vertexCount,
-    const std::uint16_t* indices,
+    const std::uint32_t* indices,
     UINT indexCount)
 {
     if (device == nullptr || vertices == nullptr || indices == nullptr ||
@@ -18,7 +18,7 @@ bool Mesh::Initialize(
         return false;
     }
     if (vertexCount > UINT_MAX / sizeof(Vertex) ||
-        indexCount > UINT_MAX / sizeof(std::uint16_t))
+        indexCount > UINT_MAX / sizeof(std::uint32_t))
     {
         std::fprintf(stderr, "Mesh Buffer 크기가 D3D12 Buffer View의 범위를 초과합니다.\n");
         return false;
@@ -171,10 +171,10 @@ bool Mesh::CreateVertexBuffer(
 
 bool Mesh::CreateIndexBuffer(
     ID3D12Device* device,
-    const std::uint16_t* indices,
+    const std::uint32_t* indices,
     UINT indexCount)
 {
-    const UINT indexBufferSize = static_cast<UINT>(sizeof(std::uint16_t) * indexCount);
+    const UINT indexBufferSize = static_cast<UINT>(sizeof(std::uint32_t) * indexCount);
 
     D3D12_HEAP_PROPERTIES heapProperties{};
     heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -231,6 +231,6 @@ bool Mesh::CreateIndexBuffer(
 
     indexBufferView_.BufferLocation = indexBuffer_->GetGPUVirtualAddress();
     indexBufferView_.SizeInBytes = indexBufferSize;
-    indexBufferView_.Format = DXGI_FORMAT_R16_UINT;
+    indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
     return true;
 }
