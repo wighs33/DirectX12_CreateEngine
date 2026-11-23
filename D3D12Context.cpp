@@ -1,4 +1,5 @@
 #include "D3D12Context.h"
+#include "EditorHelp.h"
 #include "Input.h"
 #include "Ray.h"
 #include "SceneSerializer.h"
@@ -463,8 +464,10 @@ void D3D12Context::DrawEditorUI()
     constexpr float leftPanelWidth = 220.0f;
     constexpr float rightPanelWidth = 280.0f;
     constexpr float createPanelHeight = 130.0f;
-    constexpr float gizmoToolbarWidth = 270.0f;
+    constexpr float gizmoToolbarWidth = 320.0f;
     constexpr float gizmoToolbarHeight = 46.0f;
+    constexpr float viewportHelpWidth = 276.0f;
+    constexpr float viewportHelpHeight = 36.0f;
     constexpr ImGuiWindowFlags panelFlags =
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoMove |
@@ -523,6 +526,7 @@ void D3D12Context::DrawEditorUI()
     {
         gizmoOperation_ = GizmoOperation::Scale;
     }
+    EditorHelp::DrawButton("feature-gizmo");
     ImGui::End();
 
     ImGui::SetNextWindowPos(
@@ -539,6 +543,7 @@ void D3D12Context::DrawEditorUI()
 
         selectedObjectIndex_ = scene_.AddGameObject(std::move(cube));
     }
+    EditorHelp::DrawButtonAtRight("feature-create");
     if (ImGui::Button("Sphere", ImVec2(120.0f, 0.0f)))
     {
         GameObject sphere(&sphereMesh_, PrimitiveType::Sphere);
@@ -548,12 +553,12 @@ void D3D12Context::DrawEditorUI()
     }
 
     ImGui::Separator();
-    if (ImGui::Button("Save Scene", ImVec2(96.0f, 0.0f)))
+    if (ImGui::Button("Save Scene", ImVec2(84.0f, 0.0f)))
     {
         SceneSerializer::SaveScene(scene_, GetSceneFilePath());
     }
     ImGui::SameLine();
-    if (ImGui::Button("Load Scene", ImVec2(96.0f, 0.0f)))
+    if (ImGui::Button("Load Scene", ImVec2(84.0f, 0.0f)))
     {
         if (SceneSerializer::LoadScene(
                 scene_,
@@ -565,6 +570,7 @@ void D3D12Context::DrawEditorUI()
             deleteObjectRequested_ = false;
         }
     }
+    EditorHelp::DrawButtonAtRight("feature-save");
     ImGui::End();
 
     ImGui::SetNextWindowPos(
@@ -576,6 +582,9 @@ void D3D12Context::DrawEditorUI()
         ImVec2(leftPanelWidth, hierarchyPanelHeight),
         ImGuiCond_Always);
     ImGui::Begin("Hierarchy", nullptr, panelFlags);
+    ImGui::TextUnformatted("Objects");
+    EditorHelp::DrawButtonAtRight("feature-hierarchy");
+    ImGui::Separator();
     if (gameObjects.empty())
     {
         ImGui::TextDisabled("No Objects");
@@ -619,6 +628,7 @@ void D3D12Context::DrawEditorUI()
         ImGui::TextUnformatted(selectedObject.GetName().c_str());
 
         ImGui::SeparatorText("Transform");
+        EditorHelp::DrawButtonAtRight("feature-inspector");
 
         const DirectX::XMFLOAT3& currentPosition = transform.GetPosition();
         float position[] =
@@ -667,11 +677,37 @@ void D3D12Context::DrawEditorUI()
 
         ImGui::Spacing();
         ImGui::Separator();
-        if (ImGui::Button("Delete Object", ImVec2(-1.0f, 0.0f)))
+        if (ImGui::Button(
+                "Delete Object",
+                ImVec2(-EditorHelp::GetReservedWidth(), 0.0f)))
         {
             deleteObjectRequested_ = true;
         }
+        EditorHelp::DrawButtonAtRight("feature-delete");
     }
+    ImGui::End();
+
+    // Viewport 조작과 창 제목의 통계는 Panel이 없으므로 화면 아래에 설명 Button만 모아 둡니다.
+    ImGui::SetNextWindowPos(
+        ImVec2(
+            workPosition.x + (workSize.x - viewportHelpWidth) * 0.5f,
+            workPosition.y + workSize.y - viewportHelpHeight - panelMargin),
+        ImGuiCond_Always);
+    ImGui::SetNextWindowSize(
+        ImVec2(viewportHelpWidth, viewportHelpHeight),
+        ImGuiCond_Always);
+    ImGui::Begin(
+        "Viewport Help",
+        nullptr,
+        panelFlags | ImGuiWindowFlags_NoTitleBar);
+    ImGui::TextUnformatted("Look (RMB)");
+    EditorHelp::DrawButton("feature-camera");
+    ImGui::SameLine();
+    ImGui::TextUnformatted("Pick (LMB)");
+    EditorHelp::DrawButton("feature-picking");
+    ImGui::SameLine();
+    ImGui::TextUnformatted("Stats");
+    EditorHelp::DrawButton("feature-stats");
     ImGui::End();
 }
 
