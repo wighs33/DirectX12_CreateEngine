@@ -16,4 +16,7 @@ struct MaterialStyle
     DirectX::XMFLOAT3 rimColor{ 1.0f, 1.0f, 1.0f };
     float rimStrength = 0.2f;
     float rimWidth = 0.3f;
+    DirectX::XMFLOAT3 outlineColor{ 0.12f, 0.10f, 0.16f };
+    // 높이가 1080인 화면을 기준으로 한 픽셀 두께이며 0이면 외곽선을 그리지 않습니다.
+    float outlineWidth = 2.5f;
 };

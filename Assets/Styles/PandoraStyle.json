@@ -8,7 +8,9 @@
             "ambientWeight": 0.2,
             "rimColor": [1, 1, 1],
             "rimStrength": 0.0,
-            "rimWidth": 0.3
+            "rimWidth": 0.3,
+            "outlineColor": [0.478, 0.29, 0.251],
+            "outlineWidth": 1.6
         },
         "Luna_Hair": {
             "shadeColor": [0.86, 0.83, 0.93],
@@ -17,7 +19,9 @@
             "ambientWeight": 0.2,
             "rimColor": [1, 1, 1],
             "rimStrength": 0.25,
-            "rimWidth": 0.3
+            "rimWidth": 0.3,
+            "outlineColor": [0.361, 0.337, 0.431],
+            "outlineWidth": 1.8
         },
         "Luna_Jacket": {
             "shadeColor": [0.84, 0.82, 0.94],
@@ -26,7 +30,9 @@
             "ambientWeight": 0.2,
             "rimColor": [1, 1, 1],
             "rimStrength": 0.15,
-            "rimWidth": 0.3
+            "rimWidth": 0.3,
+            "outlineColor": [0.18, 0.165, 0.267],
+            "outlineWidth": 1.8
         },
         "Luna_Shorts": {
             "shadeColor": [0.84, 0.82, 0.94],
@@ -35,7 +41,9 @@
             "ambientWeight": 0.2,
             "rimColor": [1, 1, 1],
             "rimStrength": 0.15,
-            "rimWidth": 0.3
+            "rimWidth": 0.3,
+            "outlineColor": [0.18, 0.165, 0.267],
+            "outlineWidth": 1.8
         },
         "Luna_Ornament": {
             "shadeColor": [0.88, 0.82, 0.86],
@@ -44,7 +52,9 @@
             "ambientWeight": 0.25,
             "rimColor": [1, 1, 1],
             "rimStrength": 0.2,
-            "rimWidth": 0.3
+            "rimWidth": 0.3,
+            "outlineColor": [0.29, 0.212, 0.125],
+            "outlineWidth": 1.2
         },
         "Luna_OrnamentAntique": {
             "shadeColor": [0.88, 0.82, 0.86],
@@ -53,7 +63,9 @@
             "ambientWeight": 0.25,
             "rimColor": [1, 1, 1],
             "rimStrength": 0.2,
-            "rimWidth": 0.3
+            "rimWidth": 0.3,
+            "outlineColor": [0.29, 0.212, 0.125],
+            "outlineWidth": 1.2
         },
         "Luna_OrnamentPearl": {
             "shadeColor": [0.88, 0.82, 0.86],
@@ -62,7 +74,9 @@
             "ambientWeight": 0.25,
             "rimColor": [1, 1, 1],
             "rimStrength": 0.2,
-            "rimWidth": 0.3
+            "rimWidth": 0.3,
+            "outlineColor": [0.29, 0.212, 0.125],
+            "outlineWidth": 1.2
         }
     }
 }

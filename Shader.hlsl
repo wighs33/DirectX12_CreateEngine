@@ -27,6 +27,8 @@ cbuffer MaterialBuffer : register(b2)
     float ambientWeight;
     float rimWidth;
     float materialPadding;
+    float3 outlineColor;
+    float outlineWidth;
 };
 
 // C++ Root Signature의 두 번째 Parameter와 Static Sampler가 각각 t0와 s0에 연결됩니다.

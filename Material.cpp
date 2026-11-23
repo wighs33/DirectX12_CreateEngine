@@ -48,6 +48,11 @@ std::size_t Material::GetConstantSlot() const
     return constantSlot_;
 }
 
+bool Material::HasOutline() const
+{
+    return style_.outlineWidth > 0.0f;
+}
+
 MaterialConstants Material::CreateConstants() const
 {
     MaterialConstants constants;
@@ -58,5 +63,7 @@ MaterialConstants Material::CreateConstants() const
     constants.rimColor = ToLinear(style_.rimColor);
     constants.rimStrength = style_.rimStrength;
     constants.rimWidth = style_.rimWidth;
+    constants.outlineColor = ToLinear(style_.outlineColor);
+    constants.outlineWidth = style_.outlineWidth;
     return constants;
 }

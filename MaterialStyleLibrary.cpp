@@ -72,6 +72,10 @@ namespace
         style.rimColor = ReadColor(styleJson, "rimColor", style.rimColor);
         style.rimStrength = ReadFloat(styleJson, "rimStrength", style.rimStrength);
         style.rimWidth = ReadFloat(styleJson, "rimWidth", style.rimWidth);
+        style.outlineColor =
+            ReadColor(styleJson, "outlineColor", style.outlineColor);
+        style.outlineWidth =
+            ReadFloat(styleJson, "outlineWidth", style.outlineWidth);
         return style;
     }
 }

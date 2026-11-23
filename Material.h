@@ -20,6 +20,8 @@ struct MaterialConstants
     float ambientWeight = 0.0f;
     float rimWidth = 0.0f;
     float padding = 0.0f;
+    DirectX::XMFLOAT3 outlineColor{};
+    float outlineWidth = 0.0f;
 };
 
 // 모델의 재질 하나입니다. 같은 모델을 쓰는 모든 물체가 함께 사용합니다.
@@ -37,6 +39,7 @@ public:
     const std::string& GetName() const;
     const Texture& GetTexture() const;
     std::size_t GetConstantSlot() const;
+    bool HasOutline() const;
 
     // 화면에서 고른 그림체 값을 Shader가 계산할 값으로 바꿉니다.
     MaterialConstants CreateConstants() const;
