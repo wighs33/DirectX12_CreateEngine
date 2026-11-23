@@ -15,6 +15,8 @@ struct PipelineSettings
     const char* pixelShader = nullptr;
     // 그리지 않고 지울 면입니다.
     D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK;
+    // 기울어진 면일수록 깊이를 더 뒤로 미는 배수입니다.
+    float slopeScaledDepthBias = 0.0f;
 };
 
 // Shader와 그래픽 파이프라인 고정 설정을 PSO 하나로 묶습니다.

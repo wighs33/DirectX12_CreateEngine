@@ -22,6 +22,10 @@ bool D3D12RootSignature::Initialize(ID3D12Device* device)
     srvRange.RegisterSpace = 0;
     srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+    // 그림자 맵은 재질의 Texture와 떨어진 칸에 있어 register(t1)에 이어지는 Table을 따로 둡니다.
+    D3D12_DESCRIPTOR_RANGE shadowRange = srvRange;
+    shadowRange.BaseShaderRegister = 1;
+
     D3D12_ROOT_PARAMETER rootParameters[static_cast<UINT>(RootParameter::Count)]{};
 
     // 첫 번째 Parameter는 Vertex Shader의 register(b0)와 연결할 Object별 Root CBV입니다.
@@ -58,8 +62,19 @@ bool D3D12RootSignature::Initialize(ID3D12Device* device)
     materialParameter.Descriptor.RegisterSpace = 0;
     materialParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-    // 이번 단계에서는 변하지 않는 단일 Sampler를 Root Signature에 직접 포함합니다.
-    D3D12_STATIC_SAMPLER_DESC staticSampler{};
+    // 다섯 번째 Parameter는 빛에서 본 깊이를 읽을 register(t1) Descriptor Table입니다.
+    D3D12_ROOT_PARAMETER& shadowParameter =
+        rootParameters[static_cast<UINT>(RootParameter::ShadowMap)];
+    shadowParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    shadowParameter.DescriptorTable.NumDescriptorRanges = 1;
+    shadowParameter.DescriptorTable.pDescriptorRanges = &shadowRange;
+    shadowParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 변하지 않는 Sampler 두 개를 Root Signature에 직접 포함합니다.
+    D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
+
+    // register(s0)은 재질의 Texture를 부드럽게 읽습니다.
+    D3D12_STATIC_SAMPLER_DESC& staticSampler = staticSamplers[0];
     staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
     staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -74,13 +89,25 @@ bool D3D12RootSignature::Initialize(ID3D12Device* device)
     staticSampler.RegisterSpace = 0;
     staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-    // [10단계] WVP Root CBV와 Texture SRV, Static Sampler를 사용하는 Root Signature를 정의합니다.
+    // register(s1)은 그림자 맵의 깊이와 견준 결과를 섞어 읽습니다.
+    // 그림자 맵 밖은 가장 먼 깊이로 보아 그림자가 지지 않습니다.
+    D3D12_STATIC_SAMPLER_DESC& shadowSampler = staticSamplers[1];
+    shadowSampler = staticSampler;
+    shadowSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+    shadowSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    shadowSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    shadowSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    shadowSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    shadowSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+    shadowSampler.ShaderRegister = 1;
+
+    // [10단계] WVP Root CBV와 Texture SRV, 그림자 맵 SRV, Static Sampler를 사용하는 Root Signature를 정의합니다.
     // Root Signature : Shader가 외부 Resource에 접근할 때 사용할 Resource Binding 구조와 규칙을 정의하는 객체
     D3D12_ROOT_SIGNATURE_DESC description{};
     description.NumParameters = _countof(rootParameters);
     description.pParameters = rootParameters;
-    description.NumStaticSamplers = 1;
-    description.pStaticSamplers = &staticSampler;
+    description.NumStaticSamplers = _countof(staticSamplers);
+    description.pStaticSamplers = staticSamplers;
     description.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     // Description을 Device가 읽을 수 있는 바이너리 Blob으로 직렬화합니다.

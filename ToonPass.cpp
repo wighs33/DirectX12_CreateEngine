@@ -6,6 +6,7 @@
 #include "RenderPassContext.h"
 #include "RenderStatistics.h"
 #include "SceneConstants.h"
+#include "ShadowMap.h"
 #include "Texture.h"
 #include "TextureHeap.h"
 
@@ -28,6 +29,12 @@ void ToonPass::Draw(const RenderPassContext& context) const
 
     // [13단계] 두 단 명암을 그리는 Graphics Pipeline State를 연결합니다.
     commandList->SetPipelineState(pipeline_.Get());
+
+    // t1 Table이 조금 전에 그린 그림자 맵을 가리키게 합니다.
+    commandList->SetGraphicsRootDescriptorTable(
+        static_cast<UINT>(RootParameter::ShadowMap),
+        context.textureHeap.GetGpuHandle(
+            context.shadowMap.GetDescriptorSlot()));
 
     for (const VisibleObject& object : context.visibleObjects)
     {

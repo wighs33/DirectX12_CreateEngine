@@ -9,6 +9,12 @@
 
 #include <memory>
 
+namespace
+{
+    // 빛과 나란한 면은 그림자 맵 한 칸 안에서도 깊이가 크게 바뀌므로 그만큼 뒤로 밉니다.
+    constexpr float SlopeScaledDepthBias = 5.0f;
+}
+
 bool ShadowPass::Initialize(
     ID3D12Device* device,
     const D3D12RootSignature& rootSignature)
@@ -18,17 +24,16 @@ bool ShadowPass::Initialize(
     settings.vertexShader = "VSShadow";
     settings.pixelShader = nullptr;
     settings.cullMode = D3D12_CULL_MODE_BACK;
+    settings.slopeScaledDepthBias = SlopeScaledDepthBias;
     return pipeline_.Initialize(device, rootSignature, settings);
 }
 
-void ShadowPass::Draw(
-    const RenderPassContext& context,
-    const ShadowMap& shadowMap) const
+void ShadowPass::Draw(const RenderPassContext& context) const
 {
     ID3D12GraphicsCommandList* const commandList = context.commandList;
 
     // [8~12단계] 화면 대신 그림자 맵을 그릴 대상으로 연결하고 지웁니다.
-    shadowMap.BeginWrite(commandList);
+    context.shadowMap.BeginWrite(commandList);
 
     // [13~17단계] 깊이만 쓰는 PSO로 빛에 보이는 조각을 모두 그립니다. 재질과 Texture는 필요 없습니다.
     commandList->SetPipelineState(pipeline_.Get());
@@ -48,5 +53,6 @@ void ShadowPass::Draw(
         }
     }
 
-    shadowMap.EndWrite(commandList);
+    // 다음 패스가 Texture로 읽을 수 있게 합니다.
+    context.shadowMap.EndWrite(commandList);
 }

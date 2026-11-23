@@ -7,7 +7,7 @@
 class D3D12RootSignature;
 struct RenderPassContext;
 
-// 보이는 물체를 두 단 명암과 림라이트로 그립니다.
+// 보이는 물체를 그림자를 받은 두 단 명암과 림라이트로 그립니다.
 class ToonPass final
 {
 public:

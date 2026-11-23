@@ -31,7 +31,9 @@ void ShadowCamera::Update(const Scene& scene, const Camera& camera)
             DirectX::XMLoadFloat3(&camera.GetPosition()),
             DirectX::XMVectorScale(camera.GetForwardVector(), MaximumRadius));
     }
-    radius = (std::max)(RadiusStep, std::ceil(radius / RadiusStep) * RadiusStep);
+    radius = (std::max)(
+        MinimumRadius,
+        std::ceil(radius / RadiusStep) * RadiusStep);
     texelSize_ = radius * 2.0f / static_cast<float>(ShadowMap::Resolution);
 
     // 빛의 방향을 앞으로 삼아 장면을 빛이 보는 축으로 돌립니다.

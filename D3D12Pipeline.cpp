@@ -119,7 +119,7 @@ bool D3D12Pipeline::CreatePipelineState(
     rasterizerDescription.FrontCounterClockwise = FALSE;
     rasterizerDescription.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
     rasterizerDescription.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-    rasterizerDescription.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+    rasterizerDescription.SlopeScaledDepthBias = settings.slopeScaledDepthBias;
     rasterizerDescription.DepthClipEnable = TRUE;
     rasterizerDescription.MultisampleEnable = FALSE;
     rasterizerDescription.AntialiasedLineEnable = FALSE;

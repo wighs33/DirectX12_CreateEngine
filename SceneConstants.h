@@ -73,9 +73,12 @@ private:
         float screenHeightOverWidth;
         DirectX::XMFLOAT4X4 viewProjection;
         DirectX::XMFLOAT4X4 lightViewProjection;
-        // 그림자 맵 한 칸이 장면에서 차지하는 길이입니다.
-        float shadowTexelSize;
-        DirectX::XMFLOAT3 padding;
+        // 그림자를 그릴 때 빛의 반대쪽과 표면 안쪽으로 밀어내는 길이입니다.
+        float shadowDepthBias;
+        float shadowNormalBias;
+        // 그림자 맵 한 칸의 UV 크기입니다.
+        float shadowTexelUv;
+        float padding;
     };
 
     // Object와 재질마다 한 칸, 빛과 카메라는 Frame마다 한 칸을 사용합니다.

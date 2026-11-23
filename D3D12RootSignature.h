@@ -14,6 +14,8 @@ enum class RootParameter : UINT
     Frame,
     // b2 : 재질마다 바뀌는 그림체 값
     Material,
+    // t1 : 빛에서 본 깊이
+    ShadowMap,
     Count
 };
 

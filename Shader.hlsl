@@ -18,8 +18,10 @@ cbuffer FrameBuffer : register(b1)
     float screenHeightOverWidth;
     float4x4 viewProjection;
     float4x4 lightViewProjection;
-    float shadowTexelSize;
-    float3 framePadding;
+    float shadowDepthBias;
+    float shadowNormalBias;
+    float shadowTexelUv;
+    float framePadding;
 };
 
 // C++ Root Signature의 네 번째 Parameter가 가리키는 재질별 그림체 값입니다. Material.h의 MaterialConstants와 배치가 같습니다.
@@ -40,6 +42,10 @@ cbuffer MaterialBuffer : register(b2)
 // C++ Root Signature의 두 번째 Parameter와 Static Sampler가 각각 t0와 s0에 연결됩니다.
 Texture2D texture0 : register(t0);
 SamplerState sampler0 : register(s0);
+
+// 빛에서 본 깊이와, 그 깊이보다 가까운지 견준 결과를 섞어 주는 Sampler입니다.
+Texture2D<float> shadowMap : register(t1);
+SamplerComparisonState shadowSampler : register(s1);
 
 // Input Assembler가 Vertex Buffer에서 읽어 Vertex Shader에 전달할 데이터입니다.
 struct VertexInput
@@ -75,6 +81,33 @@ VertexOutput VSMain(VertexInput input)
     return output;
 }
 
+// 빛이 닿으면 1, 앞의 물체에 가려지면 0을 반환합니다.
+float SampleShadow(float3 worldPosition)
+{
+    // 빛의 시점으로 옮긴 자리(-1~1)를 그림자 맵의 UV(0~1)로 바꿉니다. UV는 아래로 갈수록 커집니다.
+    const float3 lightPosition =
+        mul(float4(worldPosition, 1.0f), lightViewProjection).xyz;
+    const float2 uv = lightPosition.xy * float2(0.5f, -0.5f) + 0.5f;
+
+    // 두 칸씩 떨어진 열여섯 자리에서 견준 결과를 평균해 칸 모양의 계단을 없앱니다.
+    // Sampler가 한 자리마다 이웃한 네 칸을 섞으므로 빈틈이 생기지 않습니다.
+    float visibility = 0.0f;
+    for (int y = -3; y <= 3; y += 2)
+    {
+        for (int x = -3; x <= 3; x += 2)
+        {
+            visibility += shadowMap.SampleCmpLevelZero(
+                shadowSampler,
+                uv + float2(x, y) * shadowTexelUv,
+                saturate(lightPosition.z));
+        }
+    }
+    visibility /= 16.0f;
+
+    // 부드러워진 가장자리를 다시 좁혀 그림자도 두 단으로 끊습니다.
+    return smoothstep(0.35f, 0.65f, visibility);
+}
+
 // Shader 실행이 시작되는 함수 : Rasterizer가 만든 Pixel 후보마다 실행
 // Rasterizer가 보간한 UV로 Texture를 Sample하고 Vertex 색상을 곱한 바탕색에 2단 명암을 입혀 출력합니다.
 // Texture는 읽을 때 선형 색이 되고 출력은 RTV가 sRGB로 바꾸므로 빛 계산은 모두 선형 색으로 합니다.
@@ -87,10 +120,13 @@ float4 PSMain(VertexOutput input) : SV_TARGET
     const float3 surfaceToLight = normalize(-lightDirection.xyz);
 
     // 빛을 받는 정도를 밝은 면(1)과 그늘(0) 두 단으로 끊습니다. shadeSoftness는 경계가 번지는 폭입니다.
-    const float lit = smoothstep(
+    const float facing = smoothstep(
         shadeThreshold - shadeSoftness,
         shadeThreshold + shadeSoftness,
         dot(normal, surfaceToLight));
+
+    // 그림자가 진 곳도 그늘과 같은 단으로 두어 같은 그늘색이 되게 합니다.
+    const float lit = facing * SampleShadow(input.worldPosition);
 
     // 그늘은 어둡게 누르지 않고 재질마다 정한 색을 곱합니다.
     float3 color = baseColor.rgb * lerp(shadeColor, 1.0f, lit) *
@@ -139,6 +175,14 @@ float4 PSOutline() : SV_TARGET
 // 그림자용 Vertex Shader : 정점을 카메라 대신 빛의 시점으로 옮깁니다. Pixel Shader 없이 깊이만 남습니다.
 float4 VSShadow(VertexInput input) : SV_POSITION
 {
-    const float4 worldPosition = mul(float4(input.position, 1.0f), world);
-    return mul(worldPosition, lightViewProjection);
+    float3 worldPosition = mul(float4(input.position, 1.0f), world).xyz;
+    const float3 worldNormal = normalize(
+        mul(float4(input.normal, 0.0f), worldInverseTranspose).xyz);
+    const float3 lightTravel = normalize(lightDirection.xyz);
+
+    // 빛의 반대쪽으로 조금, 비스듬한 면일수록 표면 안쪽으로 더 밀어 자기 그림자의 얼룩을 막습니다.
+    const float slope = 1.0f - saturate(dot(worldNormal, -lightTravel));
+    worldPosition += lightTravel * shadowDepthBias;
+    worldPosition -= worldNormal * (slope * shadowNormalBias);
+    return mul(float4(worldPosition, 1.0f), lightViewProjection);
 }

@@ -66,9 +66,10 @@ void SceneRenderer::RenderShadow(
         shadowCuller_.GetVisibleObjects(),
         constants_,
         resourceManager.GetTextureHeap(),
+        shadowMap_,
         statistics
     };
-    shadowPass_.Draw(context, shadowMap_);
+    shadowPass_.Draw(context);
 }
 
 void SceneRenderer::RenderScene(
@@ -84,6 +85,7 @@ void SceneRenderer::RenderScene(
         culler_.GetVisibleObjects(),
         constants_,
         resourceManager.GetTextureHeap(),
+        shadowMap_,
         statistics
     };
     // 물체를 먼저 그려 두면 안쪽에 가려진 외곽선은 깊이 비교에서 지워집니다.
@@ -157,7 +159,7 @@ void SceneRenderer::BindCommonState(
     UINT frameIndex,
     const ResourceManager& resourceManager) const
 {
-    // [6단계] b0~b2 Constant Buffer와 t0 Texture를 사용할 Root Signature를 연결합니다.
+    // [6단계] b0~b2 Constant Buffer와 t0~t1 Texture를 사용할 Root Signature를 연결합니다.
     commandList->SetGraphicsRootSignature(rootSignature_.Get());
 
     // 모든 Texture의 SRV가 들어 있는 Heap을 연결하고 어느 칸을 쓸지는 조각마다 정합니다.
