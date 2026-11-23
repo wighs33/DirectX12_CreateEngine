@@ -90,6 +90,12 @@
     <ClCompile Include="SceneSerializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PrimitiveGeometry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="ModelLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -186,6 +192,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SceneSerializer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimitiveGeometry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ModelData.h">

@@ -1,6 +1,7 @@
 #include "ResourceManager.h"
 
 #include "D3D12CommandContext.h"
+#include "ModelLoader.h"
 
 #include <cstdio>
 #include <cwchar>
@@ -67,7 +68,59 @@ Texture* ResourceManager::GetTexture(const std::wstring& filePath)
     return cachedTexture->second.get();
 }
 
+Model* ResourceManager::AddModel(
+    const std::string& id,
+    const ModelData& modelData)
+{
+    if (device_ == nullptr || commandContext_ == nullptr)
+    {
+        std::fprintf(stderr, "Model을 만들기 전에 ResourceManager를 초기화해야 합니다.\n");
+        return nullptr;
+    }
+
+    auto model = std::make_unique<Model>();
+    if (!model->Initialize(device_, *commandContext_, id, modelData))
+    {
+        std::fprintf(stderr, "Model을 만들지 못했습니다: %s\n", id.c_str());
+        return nullptr;
+    }
+
+    Model* const modelPointer = model.get();
+    models_[id] = std::move(model);
+    return modelPointer;
+}
+
+Model* ResourceManager::LoadModel(const std::filesystem::path& filePath)
+{
+    // Scene File에 적을 수 있도록 구분자를 '/'로 통일한 경로를 모델의 이름으로 사용합니다.
+    const std::string id = filePath.generic_u8string();
+    if (Model* const cachedModel = FindModel(id))
+    {
+        return cachedModel;
+    }
+
+    ModelData modelData;
+    if (!ModelLoader::LoadGltf(filePath, modelData))
+    {
+        return nullptr;
+    }
+
+    Model* const model = AddModel(id, modelData);
+    if (model != nullptr)
+    {
+        std::printf("Model loaded: %s\n", id.c_str());
+    }
+    return model;
+}
+
+Model* ResourceManager::FindModel(const std::string& id)
+{
+    const auto cachedModel = models_.find(id);
+    return cachedModel == models_.end() ? nullptr : cachedModel->second.get();
+}
+
 void ResourceManager::Clear()
 {
+    models_.clear();
     textures_.clear();
 }

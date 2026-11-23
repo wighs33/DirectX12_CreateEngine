@@ -172,6 +172,8 @@
     <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="PrimitiveGeometry.cpp" />
+    <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="GpuBuffer.cpp" />
     <ClCompile Include="Input.cpp" />
@@ -204,6 +206,8 @@
     <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="PrimitiveGeometry.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="ModelData.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="GpuBuffer.h" />

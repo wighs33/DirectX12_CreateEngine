@@ -1,12 +1,11 @@
 #include "GameObject.h"
 
-#include "Mesh.h"
+#include "Model.h"
 
 #include <cstddef>
 
-GameObject::GameObject(Mesh* mesh, PrimitiveType primitiveType)
-    : primitiveType_(primitiveType),
-      mesh_(mesh)
+GameObject::GameObject(const Model* model)
+    : model_(model)
 {
 }
 
@@ -20,24 +19,14 @@ const std::string& GameObject::GetName() const
     return name_;
 }
 
-PrimitiveType GameObject::GetPrimitiveType() const
+void GameObject::SetModel(const Model* model)
 {
-    return primitiveType_;
+    model_ = model;
 }
 
-void GameObject::SetMesh(Mesh* mesh)
+const Model* GameObject::GetModel() const
 {
-    mesh_ = mesh;
-}
-
-Mesh* GameObject::GetMesh()
-{
-    return mesh_;
-}
-
-const Mesh* GameObject::GetMesh() const
-{
-    return mesh_;
+    return model_;
 }
 
 Transform& GameObject::GetTransform()
@@ -52,12 +41,12 @@ const Transform& GameObject::GetTransform() const
 
 AABB GameObject::GetWorldBounds() const
 {
-    if (mesh_ == nullptr)
+    if (model_ == nullptr)
     {
         return {};
     }
 
-    const AABB& localBounds = mesh_->GetLocalBounds();
+    const AABB& localBounds = model_->GetLocalBounds();
     const std::array<DirectX::XMFLOAT3, 8> localCorners = localBounds.GetCorners();
 
     const DirectX::XMMATRIX worldMatrix = transform_.GetWorldMatrix();

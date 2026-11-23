@@ -1,7 +1,8 @@
 #include "SceneSerializer.h"
 
 #include "GameObject.h"
-#include "Mesh.h"
+#include "Model.h"
+#include "ResourceManager.h"
 #include "Scene.h"
 
 #include "json.hpp"
@@ -24,7 +25,7 @@ namespace
     struct SerializedObject
     {
         std::string name;
-        PrimitiveType primitiveType = PrimitiveType::Cube;
+        std::string modelId;
         DirectX::XMFLOAT3 position{};
         DirectX::XMFLOAT3 rotationDegrees{};
         DirectX::XMFLOAT3 scale{1.0f, 1.0f, 1.0f};
@@ -54,35 +55,9 @@ namespace
         return false;
     }
 
-    const char* GetPrimitiveName(PrimitiveType primitiveType)
+    bool IsPrimitiveName(const std::string& name)
     {
-        switch (primitiveType)
-        {
-        case PrimitiveType::Cube:
-            return "Cube";
-        case PrimitiveType::Sphere:
-            return "Sphere";
-        }
-
-        return nullptr;
-    }
-
-    bool TryParsePrimitiveType(
-        const std::string& primitiveName,
-        PrimitiveType& primitiveType)
-    {
-        if (primitiveName == "Cube")
-        {
-            primitiveType = PrimitiveType::Cube;
-            return true;
-        }
-        if (primitiveName == "Sphere")
-        {
-            primitiveType = PrimitiveType::Sphere;
-            return true;
-        }
-
-        return false;
+        return name == "Cube" || name == "Sphere";
     }
 
     bool IsFiniteFloat3(const DirectX::XMFLOAT3& value)
@@ -145,9 +120,8 @@ bool SceneSerializer::SaveScene(
 
         for (const GameObject& gameObject : scene.GetGameObjects())
         {
-            const char* const primitiveName =
-                GetPrimitiveName(gameObject.GetPrimitiveType());
-            if (primitiveName == nullptr)
+            const Model* const model = gameObject.GetModel();
+            if (model == nullptr || !IsPrimitiveName(model->GetId()))
             {
                 return ReportSaveError(
                     filePath,
@@ -169,7 +143,7 @@ bool SceneSerializer::SaveScene(
 
             nlohmann::json objectJson = nlohmann::json::object();
             objectJson["name"] = gameObject.GetName();
-            objectJson["primitive"] = primitiveName;
+            objectJson["primitive"] = model->GetId();
             objectJson["transform"] =
             {
                 {
@@ -230,8 +204,7 @@ bool SceneSerializer::SaveScene(
 
 bool SceneSerializer::LoadScene(
     Scene& scene,
-    Mesh& cubeMesh,
-    Mesh& sphereMesh,
+    ResourceManager& resourceManager,
     const std::filesystem::path& filePath)
 {
     std::ifstream input(filePath);
@@ -328,9 +301,8 @@ bool SceneSerializer::LoadScene(
 
             SerializedObject serializedObject{};
             serializedObject.name = name->get<std::string>();
-            if (!TryParsePrimitiveType(
-                    primitive->get<std::string>(),
-                    serializedObject.primitiveType))
+            serializedObject.modelId = primitive->get<std::string>();
+            if (!IsPrimitiveName(serializedObject.modelId))
             {
                 return ReportLoadError(
                     filePath,
@@ -371,13 +343,16 @@ bool SceneSerializer::LoadScene(
         Scene loadedScene;
         for (const SerializedObject& serializedObject : serializedObjects)
         {
-            Mesh* const mesh =
-                serializedObject.primitiveType == PrimitiveType::Cube
-                    ? &cubeMesh
-                    : &sphereMesh;
-            GameObject gameObject(
-                mesh,
-                serializedObject.primitiveType);
+            const Model* const model =
+                resourceManager.FindModel(serializedObject.modelId);
+            if (model == nullptr)
+            {
+                return ReportLoadError(
+                    filePath,
+                    "the model is not available: " + serializedObject.modelId);
+            }
+
+            GameObject gameObject(model);
             gameObject.SetName(serializedObject.name);
 
             Transform& transform = gameObject.GetTransform();

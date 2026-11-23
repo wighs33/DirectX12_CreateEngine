@@ -1,5 +1,6 @@
 #include "D3D12Context.h"
 #include "Input.h"
+#include "PrimitiveGeometry.h"
 #include "Ray.h"
 #include "SceneSerializer.h"
 
@@ -32,6 +33,32 @@ namespace
         static const std::filesystem::path guideFilePath =
             std::filesystem::path("Assets") / "Guide" / "EngineGuide.json";
         return guideFilePath;
+    }
+
+    const std::filesystem::path& GetModelDirectory()
+    {
+        static const std::filesystem::path modelDirectory =
+            std::filesystem::path("Assets") / "Models";
+        return modelDirectory;
+    }
+
+    std::vector<std::filesystem::path> FindModelFiles()
+    {
+        std::vector<std::filesystem::path> files;
+        std::error_code directoryError;
+        for (std::filesystem::recursive_directory_iterator entry(
+                 GetModelDirectory(), directoryError), end;
+             !directoryError && entry != end;
+             entry.increment(directoryError))
+        {
+            if (entry->path().extension() == ".gltf")
+            {
+                files.push_back(entry->path());
+            }
+        }
+
+        std::sort(files.begin(), files.end());
+        return files;
     }
 }
 
@@ -68,9 +95,7 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
         return false;
     if (!CreateTexture())
         return false;
-    if (!CreateCubeMesh())
-        return false;
-    if (!CreateSphereMesh())
+    if (!CreatePrimitiveModels())
         return false;
 
     if (!CreateConstantBuffer(width, height))
@@ -284,8 +309,8 @@ bool D3D12Context::RenderFrame()
     for (std::size_t objectIndex = 0; objectIndex < gameObjects.size(); ++objectIndex)
     {
         const GameObject& gameObject = gameObjects[objectIndex];
-        const Mesh* const mesh = gameObject.GetMesh();
-        if (mesh == nullptr)
+        const Model* const model = gameObject.GetModel();
+        if (model == nullptr)
         {
             continue;
         }
@@ -316,21 +341,29 @@ bool D3D12Context::RenderFrame()
             0,
             constantBuffer_->GetGPUVirtualAddress() + constantBufferOffset);
 
-        // [15단계] 현재 GameObject가 참조하는 Mesh의 Vertex Buffer View를 Input Slot 0에 연결합니다.
-        const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView =
-            mesh->GetVertexBufferView();
-        commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-
-        // [16단계] 모든 Object가 공유하는 같은 Mesh의 Index Buffer View를 연결합니다.
-        const D3D12_INDEX_BUFFER_VIEW& indexBufferView =
-            mesh->GetIndexBufferView();
-        commandList->IASetIndexBuffer(&indexBufferView);
-
-        // [17단계] Object 하나당 한 번씩 Indexed Cube Draw 명령을 기록합니다.
-        commandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
         ++renderingStats_.renderedObjectCount;
-        ++renderingStats_.drawCallCount;
-        renderingStats_.triangleCount += mesh->GetIndexCount() / 3;
+        for (const std::unique_ptr<ModelPart>& part : model->GetParts())
+        {
+            // [15단계] 현재 조각의 Vertex Buffer View를 Input Slot 0에 연결합니다.
+            const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView =
+                part->mesh.GetVertexBufferView();
+            commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+
+            // [16단계] 같은 조각의 Index Buffer View를 연결합니다.
+            const D3D12_INDEX_BUFFER_VIEW& indexBufferView =
+                part->mesh.GetIndexBufferView();
+            commandList->IASetIndexBuffer(&indexBufferView);
+
+            // [17단계] 모델의 조각 하나당 한 번씩 Indexed Draw 명령을 기록합니다.
+            commandList->DrawIndexedInstanced(
+                part->mesh.GetIndexCount(),
+                1,
+                0,
+                0,
+                0);
+            ++renderingStats_.drawCallCount;
+            renderingStats_.triangleCount += part->mesh.GetIndexCount() / 3;
+        }
     }
 
     // Scene 렌더링이 끝난 뒤 ImGui 전용 Heap으로 전환하여 같은 BackBuffer 위에 Editor를 덧그립니다.
@@ -470,7 +503,7 @@ void D3D12Context::DrawEditorUI()
     constexpr float panelGap = 10.0f;
     constexpr float leftPanelWidth = 220.0f;
     constexpr float rightPanelWidth = 280.0f;
-    constexpr float createPanelHeight = 130.0f;
+    constexpr float createPanelHeight = 162.0f;
     constexpr float gizmoToolbarWidth = 320.0f;
     constexpr float gizmoToolbarHeight = 46.0f;
     constexpr float viewportHelpWidth = 327.0f;
@@ -545,19 +578,14 @@ void D3D12Context::DrawEditorUI()
     ImGui::Begin("Create", nullptr, panelFlags);
     if (ImGui::Button("Cube", ImVec2(120.0f, 0.0f)))
     {
-        GameObject cube(&cubeMesh_, PrimitiveType::Cube);
-        cube.SetName(CreateUniqueObjectName("Cube"));
-
-        selectedObjectIndex_ = scene_.AddGameObject(std::move(cube));
+        AddSceneObject(resourceManager_.FindModel("Cube"), "Cube");
     }
     engineGuideWindow_.DrawHelpButtonAtRight("feature-create");
     if (ImGui::Button("Sphere", ImVec2(120.0f, 0.0f)))
     {
-        GameObject sphere(&sphereMesh_, PrimitiveType::Sphere);
-        sphere.SetName(CreateUniqueObjectName("Sphere"));
-
-        selectedObjectIndex_ = scene_.AddGameObject(std::move(sphere));
+        AddSceneObject(resourceManager_.FindModel("Sphere"), "Sphere");
     }
+    DrawModelPicker();
 
     ImGui::Separator();
     if (ImGui::Button("Save Scene", ImVec2(84.0f, 0.0f)))
@@ -569,8 +597,7 @@ void D3D12Context::DrawEditorUI()
     {
         if (SceneSerializer::LoadScene(
                 scene_,
-                cubeMesh_,
-                sphereMesh_,
+                resourceManager_,
                 GetSceneFilePath()))
         {
             selectedObjectIndex_ = InvalidObjectIndex;
@@ -723,6 +750,62 @@ void D3D12Context::DrawEditorUI()
     ImGui::End();
 
     engineGuideWindow_.Draw();
+}
+
+void D3D12Context::DrawModelPicker()
+{
+    const std::string selectedName =
+        selectedModelFile_ < modelFiles_.size()
+            ? modelFiles_[selectedModelFile_].stem().u8string()
+            : std::string("No Models");
+
+    ImGui::SetNextItemWidth(120.0f);
+    if (ImGui::BeginCombo("##ModelFile", selectedName.c_str()))
+    {
+        // 목록을 열 때마다 다시 찾으므로 실행 중에 추가한 파일도 고를 수 있습니다.
+        if (ImGui::IsWindowAppearing())
+        {
+            modelFiles_ = FindModelFiles();
+        }
+        for (std::size_t index = 0; index < modelFiles_.size(); ++index)
+        {
+            ImGui::PushID(static_cast<int>(index));
+            if (ImGui::Selectable(
+                    modelFiles_[index].stem().u8string().c_str(),
+                    index == selectedModelFile_))
+            {
+                selectedModelFile_ = index;
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+    ImGui::BeginDisabled(selectedModelFile_ >= modelFiles_.size());
+    if (ImGui::Button("Add"))
+    {
+        const std::filesystem::path& file = modelFiles_[selectedModelFile_];
+        if (const Model* const model = resourceManager_.LoadModel(file))
+        {
+            AddSceneObject(model, file.stem().u8string());
+        }
+    }
+    ImGui::EndDisabled();
+}
+
+void D3D12Context::AddSceneObject(
+    const Model* model,
+    const std::string& baseName)
+{
+    if (model == nullptr)
+    {
+        return;
+    }
+
+    GameObject gameObject(model);
+    gameObject.SetName(CreateUniqueObjectName(baseName));
+    selectedObjectIndex_ = scene_.AddGameObject(std::move(gameObject));
 }
 
 std::string D3D12Context::CreateUniqueObjectName(
@@ -991,7 +1074,7 @@ void D3D12Context::PerformViewportPicking(const POINT& mousePosition)
          ++objectIndex)
     {
         const GameObject& gameObject = gameObjects[objectIndex];
-        if (gameObject.GetMesh() == nullptr)
+        if (gameObject.GetModel() == nullptr)
         {
             continue;
         }
@@ -1170,268 +1253,12 @@ bool D3D12Context::CreateTexture()
     return true;
 }
 
-bool D3D12Context::CreateCubeMesh()
+bool D3D12Context::CreatePrimitiveModels()
 {
-    // World/View/Projection 변환 전의 Object Space 원점에 한 변 길이가 1인 Cube를 정의합니다.
-    // 같은 위치라도 면마다 UV가 다르므로 각 면에 네 Vertex를 두어 총 24개로 구성합니다.
-    const DirectX::XMFLOAT4 white(1.0f, 1.0f, 1.0f, 1.0f);
-    const DirectX::XMFLOAT3 frontNormal(0.0f, 0.0f, -1.0f);
-    const DirectX::XMFLOAT3 backNormal(0.0f, 0.0f, 1.0f);
-    const DirectX::XMFLOAT3 leftNormal(-1.0f, 0.0f, 0.0f);
-    const DirectX::XMFLOAT3 rightNormal(1.0f, 0.0f, 0.0f);
-    const DirectX::XMFLOAT3 topNormal(0.0f, 1.0f, 0.0f);
-    const DirectX::XMFLOAT3 bottomNormal(0.0f, -1.0f, 0.0f);
-    const Vertex cubeVertices[] =
-    {
-        // 앞면(-Z)
-        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), frontNormal },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), frontNormal },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), frontNormal },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), frontNormal },
+    modelFiles_ = FindModelFiles();
 
-        // 뒷면(+Z)
-        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), backNormal },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), backNormal },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), backNormal },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), backNormal },
-
-        // 왼쪽 면(-X)
-        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), leftNormal },
-        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), leftNormal },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), leftNormal },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), leftNormal },
-
-        // 오른쪽 면(+X)
-        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), rightNormal },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), rightNormal },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), rightNormal },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), rightNormal },
-
-        // 윗면(+Y)
-        { DirectX::XMFLOAT3(-0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), topNormal },
-        { DirectX::XMFLOAT3(-0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), topNormal },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), topNormal },
-        { DirectX::XMFLOAT3( 0.5f,  0.5f, -0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), topNormal },
-
-        // 아랫면(-Y)
-        { DirectX::XMFLOAT3(-0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 1.0f), bottomNormal },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f, -0.5f), white, DirectX::XMFLOAT2(0.0f, 0.0f), bottomNormal },
-        { DirectX::XMFLOAT3( 0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 0.0f), bottomNormal },
-        { DirectX::XMFLOAT3(-0.5f, -0.5f,  0.5f), white, DirectX::XMFLOAT2(1.0f, 1.0f), bottomNormal }
-    };
-
-    // 각 면의 바깥쪽이 Front Face가 되도록 Clockwise 화면 winding에 맞춰 12개 Triangle을 정의합니다.
-    // 각 Index는 Vertex 자체가 아니라 Vertex Buffer 안의 몇 번째 Vertex를 사용할지 나타냅니다.
-    const std::uint32_t cubeIndices[] =
-    {
-        // 앞면(-Z)
-        0, 1, 2,
-        0, 2, 3,
-
-        // 뒷면(+Z)
-        4, 5, 6,
-        4, 6, 7,
-
-        // 왼쪽 면(-X)
-        8, 9, 10,
-        8, 10, 11,
-
-        // 오른쪽 면(+X)
-        12, 13, 14,
-        12, 14, 15,
-
-        // 윗면(+Y)
-        16, 17, 18,
-        16, 18, 19,
-
-        // 아랫면(-Y)
-        20, 21, 22,
-        20, 22, 23
-    };
-
-    const UINT vertexCount = static_cast<UINT>(sizeof(cubeVertices) / sizeof(cubeVertices[0]));
-    const UINT indexCount = static_cast<UINT>(sizeof(cubeIndices) / sizeof(cubeIndices[0]));
-
-    // Cube 데이터는 외부에서 정의하고 Mesh는 전달받은 Geometry로 GPU Buffer를 생성합니다.
-    return cubeMesh_.Initialize(
-        deviceResources_.GetDevice(),
-        commandContext_,
-        cubeVertices,
-        vertexCount,
-        cubeIndices,
-        indexCount);
-}
-
-bool D3D12Context::CreateSphereMesh()
-{
-    constexpr float radius = 0.5f;
-    constexpr std::uint32_t stackCount = 16;
-    constexpr std::uint32_t sliceCount = 32;
-    const DirectX::XMFLOAT4 white(1.0f, 1.0f, 1.0f, 1.0f);
-
-    const std::size_t ringCount = stackCount - 1;
-    const std::size_t verticesPerRing = sliceCount + 1;
-    const std::size_t expectedVertexCount =
-        2 + ringCount * verticesPerRing;
-    const std::size_t maximumVertexCount =
-        static_cast<std::size_t>(
-            (std::numeric_limits<std::uint32_t>::max)());
-    if (expectedVertexCount > maximumVertexCount)
-    {
-        std::fprintf(stderr, "Sphere Vertex Count가 32bit Index 범위를 초과합니다.\n");
-        return false;
-    }
-
-    std::vector<Vertex> vertices;
-    std::vector<std::uint32_t> indices;
-    vertices.reserve(expectedVertexCount);
-    indices.reserve(
-        static_cast<std::size_t>(sliceCount) * 3 * 2 +
-        (ringCount - 1) * sliceCount * 6);
-
-    // Pole은 하나의 Vertex로 두고 중간 Ring에만 UV Seam 중복 Vertex를 생성합니다.
-    vertices.push_back(
-        {
-            DirectX::XMFLOAT3(0.0f, radius, 0.0f),
-            white,
-            DirectX::XMFLOAT2(0.5f, 0.0f),
-            DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f)
-        });
-
-    for (std::uint32_t stackIndex = 1;
-         stackIndex < stackCount;
-         ++stackIndex)
-    {
-        const float v =
-            static_cast<float>(stackIndex) / static_cast<float>(stackCount);
-        const float latitude = DirectX::XM_PI * v;
-        const float sinLatitude = std::sin(latitude);
-        const float cosLatitude = std::cos(latitude);
-
-        for (std::uint32_t sliceIndex = 0;
-             sliceIndex <= sliceCount;
-             ++sliceIndex)
-        {
-            const float u =
-                static_cast<float>(sliceIndex) /
-                static_cast<float>(sliceCount);
-            // 마지막 Slice는 첫 Slice와 Position을 정확히 공유하되 U만 1로 유지합니다.
-            const float longitude = sliceIndex == sliceCount
-                ? 0.0f
-                : DirectX::XM_2PI * u;
-            const float sinLongitude = std::sin(longitude);
-            const float cosLongitude = std::cos(longitude);
-
-            const DirectX::XMFLOAT3 normal(
-                sinLatitude * sinLongitude,
-                cosLatitude,
-                sinLatitude * cosLongitude);
-            const DirectX::XMFLOAT3 position(
-                normal.x * radius,
-                normal.y * radius,
-                normal.z * radius);
-
-            vertices.push_back(
-                {
-                    position,
-                    white,
-                    DirectX::XMFLOAT2(u, v),
-                    normal
-                });
-        }
-    }
-
-    const std::uint32_t bottomPoleIndex =
-        static_cast<std::uint32_t>(vertices.size());
-    vertices.push_back(
-        {
-            DirectX::XMFLOAT3(0.0f, -radius, 0.0f),
-            white,
-            DirectX::XMFLOAT2(0.5f, 1.0f),
-            DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f)
-        });
-
-    constexpr std::uint32_t topPoleIndex = 0;
-    constexpr std::uint32_t firstRingStart = 1;
-    for (std::uint32_t sliceIndex = 0;
-         sliceIndex < sliceCount;
-         ++sliceIndex)
-    {
-        indices.push_back(topPoleIndex);
-        indices.push_back(static_cast<std::uint32_t>(
-            firstRingStart + sliceIndex));
-        indices.push_back(static_cast<std::uint32_t>(
-            firstRingStart + sliceIndex + 1));
-    }
-
-    for (std::uint32_t ringIndex = 0;
-         ringIndex + 1 < ringCount;
-         ++ringIndex)
-    {
-        const std::uint32_t currentRingStart =
-            static_cast<std::uint32_t>(
-                firstRingStart + ringIndex * verticesPerRing);
-        const std::uint32_t nextRingStart =
-            static_cast<std::uint32_t>(
-                currentRingStart + verticesPerRing);
-
-        for (std::uint32_t sliceIndex = 0;
-             sliceIndex < sliceCount;
-             ++sliceIndex)
-        {
-            const std::uint32_t current = static_cast<std::uint32_t>(
-                currentRingStart + sliceIndex);
-            const std::uint32_t currentNext = static_cast<std::uint32_t>(
-                current + 1);
-            const std::uint32_t next = static_cast<std::uint32_t>(
-                nextRingStart + sliceIndex);
-            const std::uint32_t nextNext = static_cast<std::uint32_t>(
-                next + 1);
-
-            indices.push_back(current);
-            indices.push_back(next);
-            indices.push_back(currentNext);
-
-            indices.push_back(currentNext);
-            indices.push_back(next);
-            indices.push_back(nextNext);
-        }
-    }
-
-    const std::uint32_t lastRingStart = static_cast<std::uint32_t>(
-        firstRingStart + (ringCount - 1) * verticesPerRing);
-    for (std::uint32_t sliceIndex = 0;
-         sliceIndex < sliceCount;
-         ++sliceIndex)
-    {
-        indices.push_back(bottomPoleIndex);
-        indices.push_back(static_cast<std::uint32_t>(
-            lastRingStart + sliceIndex + 1));
-        indices.push_back(static_cast<std::uint32_t>(
-            lastRingStart + sliceIndex));
-    }
-
-    if (vertices.empty() || indices.empty())
-    {
-        std::fprintf(stderr, "Sphere Geometry 생성 결과가 비어 있습니다.\n");
-        return false;
-    }
-    for (const std::uint32_t index : indices)
-    {
-        if (index >= vertices.size())
-        {
-            std::fprintf(stderr, "Sphere Index가 Vertex 범위를 벗어났습니다.\n");
-            return false;
-        }
-    }
-
-    return sphereMesh_.Initialize(
-        deviceResources_.GetDevice(),
-        commandContext_,
-        vertices.data(),
-        static_cast<UINT>(vertices.size()),
-        indices.data(),
-        static_cast<UINT>(indices.size()));
+    return resourceManager_.AddModel("Cube", CreateCubeGeometry()) != nullptr &&
+        resourceManager_.AddModel("Sphere", CreateSphereGeometry()) != nullptr;
 }
 
 bool D3D12Context::CreateConstantBuffer(UINT width, UINT height)

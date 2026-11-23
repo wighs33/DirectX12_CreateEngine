@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-class Mesh;
+class ResourceManager;
 class Scene;
 
 // Runtime Scene과 사람이 읽을 수 있는 JSON File 사이의 변환만 담당합니다.
@@ -16,7 +16,6 @@ public:
         const std::filesystem::path& filePath);
     static bool LoadScene(
         Scene& scene,
-        Mesh& cubeMesh,
-        Mesh& sphereMesh,
+        ResourceManager& resourceManager,
         const std::filesystem::path& filePath);
 };

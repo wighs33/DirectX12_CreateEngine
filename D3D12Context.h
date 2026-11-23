@@ -8,7 +8,7 @@
 #include "D3D12SwapChain.h"
 #include "EngineGuideWindow.h"
 #include "Frustum.h"
-#include "Mesh.h"
+#include "Model.h"
 #include "ResourceManager.h"
 #include "Scene.h"
 
@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <string>
 #include <vector>
@@ -88,8 +89,7 @@ private:
     static constexpr std::size_t InvalidObjectIndex =
         (std::numeric_limits<std::size_t>::max)();
 
-    bool CreateCubeMesh();
-    bool CreateSphereMesh();
+    bool CreatePrimitiveModels();
     bool CreateTexture();
     bool CreateConstantBuffer(UINT width, UINT height);
     bool EnsureConstantBufferCapacity(std::size_t requiredCapacity);
@@ -99,6 +99,8 @@ private:
     void ShutdownImGui();
     void BeginImGuiFrame();
     void DrawEditorUI();
+    void DrawModelPicker();
+    void AddSceneObject(const Model* model, const std::string& baseName);
     std::string CreateUniqueObjectName(const std::string& baseName) const;
     void ProcessGizmoHotkeys();
     void DrawTransformGizmo();
@@ -133,13 +135,10 @@ private:
     D3D12SwapChain swapChain_;
     D3D12Pipeline pipeline_;
 
-    // Mesh를 Scene보다 먼저 생성하고 나중에 파괴하여 GameObject의 비소유 Mesh 포인터를 안전하게 유지합니다.
-    Mesh cubeMesh_;
-    Mesh sphereMesh_;
-    Scene scene_;
-
-    // ResourceManager는 공유 Texture의 수명을 소유하고 SRV Heap은 Shader Binding을 담당합니다.
+    // ResourceManager는 공유 Texture와 Model의 수명을 소유하고 SRV Heap은 Shader Binding을 담당합니다.
+    // Scene보다 먼저 생성하고 나중에 파괴하여 GameObject의 비소유 Model 포인터를 안전하게 유지합니다.
     ResourceManager resourceManager_;
+    Scene scene_;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
 
     // Scene SRV Heap과 분리된 Editor 전용 Shader Visible Heap입니다.
@@ -149,6 +148,9 @@ private:
     bool imguiInitialized_ = false;
     // 물음표 Button과 엔진 도감 창이며 ImGui Context를 만든 뒤에 초기화합니다.
     EngineGuideWindow engineGuideWindow_;
+    // Create Panel에서 고를 수 있는 Assets/Models 안의 glTF 파일입니다.
+    std::vector<std::filesystem::path> modelFiles_;
+    std::size_t selectedModelFile_ = 0;
     // Selection은 Scene Object 자체가 아닌 Editor가 관리하며 vector 재배치에 안전한 Index를 사용합니다.
     std::size_t selectedObjectIndex_ = InvalidObjectIndex;
     bool deleteObjectRequested_ = false;
