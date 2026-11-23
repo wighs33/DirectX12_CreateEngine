@@ -63,7 +63,7 @@ VertexOutput VSMain(VertexInput input)
 }
 
 // Shader 실행이 시작되는 함수 : Rasterizer가 만든 Pixel 후보마다 실행
-// Rasterizer가 보간한 UV로 Texture를 Sample하고 Vertex 색상을 곱해 최종 색상을 출력합니다.
+// Rasterizer가 보간한 UV로 Texture를 Sample하고 Vertex 색상을 곱한 바탕색에 2단 명암을 입혀 출력합니다.
 // Texture는 읽을 때 선형 색이 되고 출력은 RTV가 sRGB로 바꾸므로 빛 계산은 모두 선형 색으로 합니다.
 float4 PSMain(VertexOutput input) : SV_TARGET
 {
@@ -72,9 +72,17 @@ float4 PSMain(VertexOutput input) : SV_TARGET
 
     const float3 normal = normalize(input.worldNormal);
     const float3 surfaceToLight = normalize(-lightDirection.xyz);
-    const float diffuseAmount = saturate(dot(normal, surfaceToLight));
-    const float3 diffuse = lightColor.rgb * lightColor.w * diffuseAmount;
-    const float3 lighting = ambientColor.rgb + diffuse;
 
-    return float4(baseColor.rgb * lighting, baseColor.a);
+    // 빛을 받는 정도를 밝은 면(1)과 그늘(0) 두 단으로 끊습니다. shadeSoftness는 경계가 번지는 폭입니다.
+    const float lit = smoothstep(
+        shadeThreshold - shadeSoftness,
+        shadeThreshold + shadeSoftness,
+        dot(normal, surfaceToLight));
+
+    // 그늘은 어둡게 누르지 않고 재질마다 정한 색을 곱합니다.
+    float3 color = baseColor.rgb * lerp(shadeColor, 1.0f, lit) *
+        lightColor.rgb * lightColor.w;
+    color += baseColor.rgb * ambientColor.rgb * ambientWeight;
+
+    return float4(color, baseColor.a);
 }
