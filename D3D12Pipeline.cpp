@@ -225,7 +225,7 @@ bool D3D12Pipeline::CompileShader(
 
 bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
 {
-    // [12단계] HLSL VertexInput의 POSITION, COLOR, TEXCOORD에 대응하는 Input Layout을 정의합니다.
+    // [12단계] HLSL VertexInput의 POSITION, COLOR, TEXCOORD, NORMAL에 대응하는 Input Layout을 정의합니다.
     // Input Layout : Vertex Buffer의 바이트 데이터를 Vertex Shader 입력으로 해석하는 규칙
     const D3D12_INPUT_ELEMENT_DESC inputElements[] =
     {
@@ -259,6 +259,16 @@ bool D3D12Pipeline::CreatePipelineState(ID3D12Device* device)
         {
             "NORMAL",
             0,
+            DXGI_FORMAT_R32G32B32_FLOAT,
+            0,
+            D3D12_APPEND_ALIGNED_ELEMENT,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            0
+        },
+        {
+            // 외곽선을 밀어낼 방향입니다.
+            "NORMAL",
+            1,
             DXGI_FORMAT_R32G32B32_FLOAT,
             0,
             D3D12_APPEND_ALIGNED_ELEMENT,

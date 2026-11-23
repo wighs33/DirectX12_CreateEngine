@@ -40,6 +40,7 @@ struct VertexInput
     float4 color : COLOR;
     float2 uv : TEXCOORD;
     float3 normal : NORMAL;
+    float3 outlineNormal : NORMAL1;
 };
 
 // Vertex Shader가 Rasterizer와 Pixel Shader로 전달할 데이터입니다.

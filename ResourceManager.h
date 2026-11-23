@@ -34,8 +34,8 @@ public:
     Texture* LoadTexture(const std::wstring& filePath);
     Texture* GetTexture(const std::wstring& filePath);
 
-    // 코드로 만든 모델을 이름으로 등록합니다.
-    Model* AddModel(const std::string& id, const ModelData& modelData);
+    // 외곽선 방향과 재질을 만들어 붙이고 모델을 이름으로 등록합니다.
+    Model* AddModel(const std::string& id, ModelData modelData);
 
     // glTF 파일을 한 번만 읽고 같은 경로를 다시 요청하면 이미 만든 모델을 돌려줍니다.
     Model* LoadModel(const std::filesystem::path& filePath);

@@ -172,6 +172,7 @@
     <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="OutlineNormalBaker.cpp" />
     <ClCompile Include="Win32Window.cpp" />
     <ClCompile Include="SceneRenderer.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -225,6 +226,7 @@
     <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="OutlineNormalBaker.h" />
     <ClInclude Include="Win32Window.h" />
     <ClInclude Include="SceneRenderer.h" />
     <ClInclude Include="MaterialStyleLibrary.h" />

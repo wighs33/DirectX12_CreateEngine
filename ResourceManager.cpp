@@ -2,6 +2,7 @@
 
 #include "D3D12CommandContext.h"
 #include "ModelLoader.h"
+#include "OutlineNormalBaker.h"
 #include "PrimitiveGeometry.h"
 
 #include <cstdio>
@@ -85,13 +86,15 @@ Texture* ResourceManager::GetTexture(const std::wstring& filePath)
 
 Model* ResourceManager::AddModel(
     const std::string& id,
-    const ModelData& modelData)
+    ModelData modelData)
 {
     if (device_ == nullptr || commandContext_ == nullptr)
     {
         std::fprintf(stderr, "Model을 만들기 전에 ResourceManager를 초기화해야 합니다.\n");
         return nullptr;
     }
+
+    OutlineNormalBaker::Bake(modelData);
 
     std::vector<Material> materials;
     for (const ModelMaterialData& materialData : modelData.materials)
@@ -137,7 +140,7 @@ Model* ResourceManager::LoadModel(const std::filesystem::path& filePath)
         return nullptr;
     }
 
-    Model* const model = AddModel(id, modelData);
+    Model* const model = AddModel(id, std::move(modelData));
     if (model != nullptr)
     {
         std::printf("Model loaded: %s\n", id.c_str());
