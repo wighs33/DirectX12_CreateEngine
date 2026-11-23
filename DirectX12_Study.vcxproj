@@ -172,6 +172,8 @@
     <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="ShadowMap.cpp" />
+    <ClCompile Include="ShadowCamera.cpp" />
     <ClCompile Include="GuideNavigation.cpp" />
     <ClCompile Include="GuidePictureRenderer.cpp" />
     <ClCompile Include="GuideTheme.cpp" />
@@ -239,6 +241,8 @@
     <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="ShadowMap.h" />
+    <ClInclude Include="ShadowCamera.h" />
     <ClInclude Include="GuideNavigation.h" />
     <ClInclude Include="GuidePictureRenderer.h" />
     <ClInclude Include="GuideTheme.h" />

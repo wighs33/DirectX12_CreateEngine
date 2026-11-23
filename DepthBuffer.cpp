@@ -4,11 +4,15 @@
 
 #include <cstdio>
 
-bool DepthBuffer::Initialize(ID3D12Device* device, UINT width, UINT height)
+bool DepthBuffer::Initialize(
+    ID3D12Device* device,
+    UINT width,
+    UINT height,
+    D3D12_RESOURCE_STATES initialState)
 {
     if (width == 0 || height == 0)
     {
-        std::fprintf(stderr, "Depth Buffer 생성에 사용할 화면 크기가 0입니다.\n");
+        std::fprintf(stderr, "Depth Buffer 생성에 사용할 크기가 0입니다.\n");
         return false;
     }
 
@@ -47,7 +51,8 @@ bool DepthBuffer::Initialize(ID3D12Device* device, UINT width, UINT height)
     resourceDescription.Height = height;
     resourceDescription.DepthOrArraySize = 1;
     resourceDescription.MipLevels = 1;
-    resourceDescription.Format = D3D12Config::DepthFormat;
+    // 깊이로 쓴 값을 Shader가 읽을 수도 있도록 크기만 32비트로 정하고 해석은 View에 맡깁니다.
+    resourceDescription.Format = DXGI_FORMAT_R32_TYPELESS;
     resourceDescription.SampleDesc.Count = 1;
     resourceDescription.SampleDesc.Quality = 0;
     resourceDescription.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -63,7 +68,7 @@ bool DepthBuffer::Initialize(ID3D12Device* device, UINT width, UINT height)
         &heapProperties,
         D3D12_HEAP_FLAG_NONE,
         &resourceDescription,
-        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        initialState,
         &clearValue,
         IID_PPV_ARGS(&resource_));
 
@@ -107,4 +112,9 @@ void DepthBuffer::Clear(ID3D12GraphicsCommandList* commandList) const
 D3D12_CPU_DESCRIPTOR_HANDLE DepthBuffer::GetDSV() const
 {
     return dsvHandle_;
+}
+
+ID3D12Resource* DepthBuffer::GetResource() const
+{
+    return resource_.Get();
 }

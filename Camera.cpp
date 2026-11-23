@@ -85,6 +85,19 @@ float Camera::GetAspectRatio() const
     return aspectRatio_;
 }
 
+DirectX::XMVECTOR Camera::GetForwardVector() const
+{
+    // Yaw 0, Pitch 0에서 기존 시선인 +Z를 바라보는 Left-Handed Forward를 만듭니다.
+    const float cosPitch = std::cos(pitch_);
+    const DirectX::XMVECTOR forward = DirectX::XMVectorSet(
+        cosPitch * std::sin(yaw_),
+        std::sin(pitch_),
+        cosPitch * std::cos(yaw_),
+        0.0f);
+
+    return DirectX::XMVector3Normalize(forward);
+}
+
 DirectX::XMMATRIX Camera::GetViewMatrix() const
 {
     // Position에서 Target을 바라보고 Up을 위쪽 기준으로 삼는 Left-Handed View Matrix를 만듭니다.
@@ -102,19 +115,6 @@ DirectX::XMMATRIX Camera::GetProjectionMatrix() const
         aspectRatio_,
         0.1f,
         100.0f);
-}
-
-DirectX::XMVECTOR Camera::GetForwardVector() const
-{
-    // Yaw 0, Pitch 0에서 기존 시선인 +Z를 바라보는 Left-Handed Forward를 만듭니다.
-    const float cosPitch = std::cos(pitch_);
-    const DirectX::XMVECTOR forward = DirectX::XMVectorSet(
-        cosPitch * std::sin(yaw_),
-        std::sin(pitch_),
-        cosPitch * std::cos(yaw_),
-        0.0f);
-
-    return DirectX::XMVector3Normalize(forward);
 }
 
 void Camera::UpdateAnglesFromTarget()

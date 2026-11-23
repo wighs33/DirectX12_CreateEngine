@@ -14,3 +14,8 @@ LightingConstants SceneLighting::CreateConstants() const
             0.0f)
     };
 }
+
+const DirectX::XMFLOAT3& SceneLighting::GetDirection() const
+{
+    return direction_;
+}

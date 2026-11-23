@@ -18,11 +18,11 @@ public:
 
     const DirectX::XMFLOAT3& GetPosition() const;
     float GetAspectRatio() const;
+    DirectX::XMVECTOR GetForwardVector() const;
     DirectX::XMMATRIX GetViewMatrix() const;
     DirectX::XMMATRIX GetProjectionMatrix() const;
 
 private:
-    DirectX::XMVECTOR GetForwardVector() const;
     void UpdateAnglesFromTarget();
     void UpdateTargetFromAngles();
 

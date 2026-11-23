@@ -43,6 +43,23 @@ bool TextureHeap::Add(
     const Texture& texture,
     UINT& slot)
 {
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDescription{};
+    srvDescription.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDescription.Format = texture.GetFormat();
+    srvDescription.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDescription.Texture2D.MostDetailedMip = 0;
+    srvDescription.Texture2D.MipLevels = texture.GetMipLevels();
+    srvDescription.Texture2D.PlaneSlice = 0;
+    srvDescription.Texture2D.ResourceMinLODClamp = 0.0f;
+    return Add(device, texture.GetResource(), srvDescription, slot);
+}
+
+bool TextureHeap::Add(
+    ID3D12Device* device,
+    ID3D12Resource* resource,
+    const D3D12_SHADER_RESOURCE_VIEW_DESC& description,
+    UINT& slot)
+{
     if (device == nullptr || heap_ == nullptr || count_ >= capacity_)
     {
         std::fprintf(
@@ -52,22 +69,10 @@ bool TextureHeap::Add(
         return false;
     }
 
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDescription{};
-    srvDescription.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDescription.Format = texture.GetFormat();
-    srvDescription.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDescription.Texture2D.MostDetailedMip = 0;
-    srvDescription.Texture2D.MipLevels = texture.GetMipLevels();
-    srvDescription.Texture2D.PlaneSlice = 0;
-    srvDescription.Texture2D.ResourceMinLODClamp = 0.0f;
-
     D3D12_CPU_DESCRIPTOR_HANDLE handle =
         heap_->GetCPUDescriptorHandleForHeapStart();
     handle.ptr += static_cast<SIZE_T>(count_) * descriptorSize_;
-    device->CreateShaderResourceView(
-        texture.GetResource(),
-        &srvDescription,
-        handle);
+    device->CreateShaderResourceView(resource, &description, handle);
 
     slot = count_;
     ++count_;

@@ -19,6 +19,11 @@ public:
 
     // 빈 칸에 SRV를 만들고 그 칸 번호를 돌려줍니다.
     bool Add(ID3D12Device* device, const Texture& texture, UINT& slot);
+    bool Add(
+        ID3D12Device* device,
+        ID3D12Resource* resource,
+        const D3D12_SHADER_RESOURCE_VIEW_DESC& description,
+        UINT& slot);
 
     ID3D12DescriptorHeap* GetHeap() const;
 

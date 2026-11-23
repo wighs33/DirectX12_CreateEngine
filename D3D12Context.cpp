@@ -27,8 +27,14 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     {
         return false;
     }
-    if (!depthBuffer_.Initialize(device, width, height))
+    if (!depthBuffer_.Initialize(
+        device,
+        width,
+        height,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE))
+    {
         return false;
+    }
     if (!sceneRenderer_.Initialize(device))
         return false;
     if (!resourceManager_.Initialize(device, commandContext_))
