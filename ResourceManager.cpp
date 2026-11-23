@@ -194,7 +194,8 @@ bool ResourceManager::CreateWhiteTexture()
 bool ResourceManager::CreatePrimitiveModels()
 {
     return AddModel("Cube", PrimitiveGeometry::CreateCube()) != nullptr &&
-        AddModel("Sphere", PrimitiveGeometry::CreateSphere()) != nullptr;
+        AddModel("Sphere", PrimitiveGeometry::CreateSphere()) != nullptr &&
+        AddModel("Plane", PrimitiveGeometry::CreatePlane()) != nullptr;
 }
 
 const Texture& ResourceManager::GetMaterialTexture(

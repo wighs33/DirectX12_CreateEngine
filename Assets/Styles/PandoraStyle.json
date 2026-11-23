@@ -1,6 +1,17 @@
 {
     "version": 1,
     "materials": {
+        "Plane": {
+            "shadeColor": [0.8, 0.72, 0.84],
+            "shadeThreshold": 0.0,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.25,
+            "rimColor": [1, 1, 1],
+            "rimStrength": 0.0,
+            "rimWidth": 0.3,
+            "outlineColor": [0, 0, 0],
+            "outlineWidth": 0.0
+        },
         "Luna_Body": {
             "shadeColor": [0.95, 0.84, 0.86],
             "shadeThreshold": -0.45,

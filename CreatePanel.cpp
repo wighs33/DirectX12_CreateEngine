@@ -72,6 +72,10 @@ void CreatePanel::Draw(
     {
         AddObject(resourceManager.FindModel("Sphere"), "Sphere", scene, selection);
     }
+    if (ImGui::Button("Plane", ImVec2(120.0f, 0.0f)))
+    {
+        AddObject(resourceManager.FindModel("Plane"), "Plane", scene, selection);
+    }
     DrawModelPicker(scene, resourceManager, selection);
     guideWindow.DrawHelpButtonAtRight("feature-model");
 

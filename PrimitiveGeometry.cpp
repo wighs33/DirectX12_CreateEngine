@@ -10,8 +10,12 @@
 
 namespace
 {
+    constexpr wchar_t TestTexturePath[] = L"Assets/Textures/Test.png";
+
+    // texturePath가 비어 있으면 정점 색만 보입니다.
     ModelData CreateSinglePartModel(
         const std::string& name,
+        const std::wstring& texturePath,
         std::vector<Vertex> vertices,
         std::vector<std::uint32_t> indices)
     {
@@ -21,7 +25,7 @@ namespace
         part.indices = std::move(indices);
 
         ModelData model;
-        model.materials.push_back({ name, L"Assets/Textures/Test.png" });
+        model.materials.push_back({ name, texturePath });
         model.parts.push_back(std::move(part));
         return model;
     }
@@ -108,6 +112,7 @@ ModelData PrimitiveGeometry::CreateCube()
 
     return CreateSinglePartModel(
         "Cube",
+        TestTexturePath,
         std::vector<Vertex>(std::begin(cubeVertices), std::end(cubeVertices)),
         std::vector<std::uint32_t>(std::begin(cubeIndices), std::end(cubeIndices)));
 }
@@ -254,6 +259,30 @@ ModelData PrimitiveGeometry::CreateSphere()
 
     return CreateSinglePartModel(
         "Sphere",
+        TestTexturePath,
+        std::move(vertices),
+        std::move(indices));
+}
+
+ModelData PrimitiveGeometry::CreatePlane()
+{
+    constexpr float halfSize = 2.0f;
+    // Pandora Arena 투기장 돌의 색을 선형으로 바꾼 값입니다.
+    const DirectX::XMFLOAT4 color(0.479f, 0.434f, 0.366f, 1.0f);
+    const DirectX::XMFLOAT3 normal(0.0f, 1.0f, 0.0f);
+
+    std::vector<Vertex> vertices
+    {
+        { DirectX::XMFLOAT3(-halfSize, 0.0f, -halfSize), color, DirectX::XMFLOAT2(0.0f, 1.0f), normal },
+        { DirectX::XMFLOAT3(-halfSize, 0.0f,  halfSize), color, DirectX::XMFLOAT2(0.0f, 0.0f), normal },
+        { DirectX::XMFLOAT3( halfSize, 0.0f,  halfSize), color, DirectX::XMFLOAT2(1.0f, 0.0f), normal },
+        { DirectX::XMFLOAT3( halfSize, 0.0f, -halfSize), color, DirectX::XMFLOAT2(1.0f, 1.0f), normal }
+    };
+    std::vector<std::uint32_t> indices{ 0, 1, 2, 0, 2, 3 };
+
+    return CreateSinglePartModel(
+        "Plane",
+        std::wstring(),
         std::move(vertices),
         std::move(indices));
 }
