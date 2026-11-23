@@ -6,7 +6,8 @@
         { "name": "한 프레임 그리기", "color": "teal", "cards": ["d3d12-context","scene-renderer","frame-constant-buffer","render-statistics"] },
         { "name": "GPU에 올리는 재료", "color": "slate", "cards": ["mesh","gpu-buffer","texture","texture-heap"] },
         { "name": "모델", "color": "violet", "cards": ["resource-manager","model-loader","model","primitive-geometry"] },
-        { "name": "카툰", "color": "rose", "cards": ["shader","material","material-style","scene-lighting"] },
+        { "name": "카툰 재질", "color": "rose", "cards": ["shader","material","material-style"] },
+        { "name": "빛과 외곽선", "color": "flame", "cards": ["scene-lighting","outline-normal-baker"] },
         { "name": "장면", "color": "slate", "cards": ["scene","game-object","transform","scene-serializer"] },
         { "name": "보는 눈과 판정", "color": "teal", "cards": ["camera","frustum","ray","aabb"] },
         { "name": "편집기 뼈대", "color": "flame", "cards": ["scene-editor","editor-selection","editor-layout","imgui-layer"] },
@@ -238,33 +239,35 @@
             "file": "D3D12Pipeline.cpp",
             "role": "셰이더와 그리기 설정을 하나로 묶어 둡니다.",
             "without": "GPU가 정점을 어떻게 읽고, 어떤 셰이더로 색을 낼지 알 수 없습니다.",
-            "limit": "PSO가 하나뿐입니다. 카툰 외곽선은 CULL_FRONT를 쓰는 두 번째 PSO가 필요합니다.",
+            "limit": "PSO가 두 개뿐입니다. 그림자처럼 깊이만 그리는 PSO는 아직 없습니다.",
             "unreal": "FGraphicsPipelineStateInitializer와 PSO 캐시입니다.",
             "functions": [
                 { "name": "CreateRootSignature", "description": "b0, t0, b1, b2를 어느 칸으로 넘길지 정합니다." },
-                { "name": "CreateShaders", "description": "Shader.hlsl의 VSMain과 PSMain을 컴파일합니다." },
-                { "name": "CreatePipelineState", "description": "입력 레이아웃, 컬링, 깊이, 형식을 PSO로 묶습니다." }
+                { "name": "CreateShaders", "description": "Shader.hlsl에서 명암과 외곽선의 셰이더 네 개를 컴파일합니다." },
+                { "name": "CreatePipelineStates", "description": "같은 설정에서 셰이더와 컬링만 바꿔 PSO 두 개를 만듭니다." },
+                { "name": "GetToonPipelineState", "description": "뒷면을 지우고 두 단 명암을 그립니다." },
+                { "name": "GetOutlinePipelineState", "description": "앞면을 지우고 부풀린 뒷면을 그립니다." }
             ],
             "links": ["device-resources", "shader", "mesh", "scene-renderer"],
             "picture": [
-                { "shape": "rect", "x": 14, "y": 10, "w": 312, "h": 160, "fill": "box" },
-                { "shape": "text", "x": 170, "y": 27, "size": 14, "text": "PSO 하나" },
-                { "shape": "rect", "x": 26, "y": 42, "w": 140, "h": 26, "fill": "highlight" },
-                { "shape": "text", "x": 96, "y": 55, "size": 14, "text": "루트 시그니처" },
-                { "shape": "rect", "x": 174, "y": 42, "w": 140, "h": 26, "fill": "highlight" },
-                { "shape": "text", "x": 244, "y": 55, "size": 14, "text": "VS · PS" },
-                { "shape": "rect", "x": 26, "y": 73, "w": 140, "h": 26, "fill": "box" },
-                { "shape": "text", "x": 96, "y": 86, "size": 14, "text": "입력 레이아웃" },
-                { "shape": "rect", "x": 174, "y": 73, "w": 140, "h": 26, "fill": "box" },
-                { "shape": "text", "x": 244, "y": 86, "size": 14, "text": "래스터라이저" },
-                { "shape": "rect", "x": 26, "y": 104, "w": 140, "h": 26, "fill": "box" },
-                { "shape": "text", "x": 96, "y": 117, "size": 14, "text": "깊이 검사" },
-                { "shape": "rect", "x": 174, "y": 104, "w": 140, "h": 26, "fill": "box" },
-                { "shape": "text", "x": 244, "y": 117, "size": 14, "text": "블렌드" },
-                { "shape": "rect", "x": 26, "y": 135, "w": 140, "h": 26, "fill": "box" },
-                { "shape": "text", "x": 96, "y": 148, "size": 14, "text": "삼각형 종류" },
-                { "shape": "rect", "x": 174, "y": 135, "w": 140, "h": 26, "fill": "box" },
-                { "shape": "text", "x": 244, "y": 148, "size": 14, "text": "출력 형식" }
+                { "shape": "rect", "x": 10, "y": 14, "w": 130, "h": 152, "fill": "box" },
+                { "shape": "text", "x": 75, "y": 31, "size": 14, "text": "같은 설정" },
+                { "shape": "rect", "x": 20, "y": 46, "w": 110, "h": 26, "fill": "box" },
+                { "shape": "text", "x": 75, "y": 59, "size": 14, "text": "루트 시그니처" },
+                { "shape": "rect", "x": 20, "y": 76, "w": 110, "h": 26, "fill": "box" },
+                { "shape": "text", "x": 75, "y": 89, "size": 14, "text": "입력 레이아웃" },
+                { "shape": "rect", "x": 20, "y": 106, "w": 110, "h": 26, "fill": "box" },
+                { "shape": "text", "x": 75, "y": 119, "size": 14, "text": "깊이 · 블렌드" },
+                { "shape": "rect", "x": 20, "y": 136, "w": 110, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 75, "y": 148, "size": 14, "text": "출력 형식" },
+                { "shape": "line", "points": [[140,60],[168,50]], "arrow": "end" },
+                { "shape": "line", "points": [[140,120],[168,130]], "arrow": "end" },
+                { "shape": "rect", "x": 170, "y": 16, "w": 160, "h": 68, "fill": "box" },
+                { "shape": "text", "x": 250, "y": 41.5, "size": 14, "text": "명암 PSO" },
+                { "shape": "text", "x": 250, "y": 58.5, "size": 14, "text": "뒷면을 지움" },
+                { "shape": "rect", "x": 170, "y": 96, "w": 160, "h": 68, "fill": "highlight" },
+                { "shape": "text", "x": 250, "y": 121.5, "size": 14, "text": "외곽선 PSO" },
+                { "shape": "text", "x": 250, "y": 138.5, "size": 14, "text": "앞면을 지움" }
             ]
         },
         {
@@ -316,25 +319,36 @@
             "file": "SceneRenderer.cpp",
             "role": "장면의 물체를 골라 그리기 명령을 적습니다.",
             "without": "물체 목록이 있어도 GPU에 무엇을 그릴지 전할 수 없습니다.",
-            "limit": "물체를 하나씩 한 번만 그립니다. 외곽선과 그림자처럼 여러 번 그리는 순서는 아직 없습니다.",
+            "limit": "같은 모델이 여러 개여도 하나씩 그립니다. 한 번에 그리는 인스턴싱은 아직 없습니다.",
             "unreal": "FDeferredShadingSceneRenderer의 베이스 패스에 해당합니다.",
             "functions": [
                 { "name": "Prepare", "description": "물체와 재질 수만큼 상수 버퍼의 칸을 확보합니다." },
-                { "name": "Render", "description": "보이는 물체만 골라 조각마다 그립니다." },
-                { "name": "BindFrame", "description": "프레임에 한 번 PSO, 텍스처 힙, 조명을 연결합니다." },
-                { "name": "BindObject", "description": "물체의 행렬을 b0에 연결합니다." },
-                { "name": "BindMaterial", "description": "조각의 텍스처와 그림체 값을 t0과 b2에 연결합니다." },
+                { "name": "Render", "description": "보이는 물체를 고르고 패스를 차례로 그립니다." },
+                { "name": "BindFrame", "description": "프레임에 한 번 루트 시그니처, 텍스처 힙, 빛을 연결합니다." },
+                { "name": "CollectVisibleObjects", "description": "카메라에 보이는 물체만 골라 행렬을 써 둡니다." },
+                { "name": "DrawToonPass", "description": "조각마다 텍스처와 그림체 값을 연결해 명암을 그립니다." },
+                { "name": "DrawOutlinePass", "description": "PSO를 바꿔 같은 조각을 외곽선으로 한 번 더 그립니다." },
                 { "name": "DrawPart", "description": "정점과 인덱스를 연결하고 그리기 명령을 적습니다." }
             ],
             "links": ["scene", "camera", "frustum", "frame-constant-buffer", "material", "scene-lighting", "pipeline", "render-statistics"],
             "picture": [
-                { "shape": "rect", "x": 10, "y": 12, "w": 320, "h": 156, "fill": "box" },
-                { "shape": "text", "x": 22, "y": 30, "size": 14, "text": "프레임 한 번: PSO, 조명", "align": "left" },
-                { "shape": "rect", "x": 34, "y": 48, "w": 284, "h": 108, "fill": "box" },
-                { "shape": "text", "x": 46, "y": 66, "size": 14, "text": "보이는 물체마다: 행렬", "align": "left" },
-                { "shape": "rect", "x": 58, "y": 84, "w": 248, "h": 60, "fill": "highlight" },
-                { "shape": "text", "x": 70, "y": 103, "size": 14, "text": "조각마다: 텍스처, 그림체", "align": "left" },
-                { "shape": "text", "x": 70, "y": 126, "size": 14, "text": "DrawIndexedInstanced", "align": "left" }
+                { "shape": "rect", "x": 10, "y": 60, "w": 92, "h": 60, "fill": "box" },
+                { "shape": "text", "x": 56, "y": 81.5, "size": 14, "text": "보이는" },
+                { "shape": "text", "x": 56, "y": 98.5, "size": 14, "text": "물체" },
+                { "shape": "line", "points": [[102,78],[130,52]], "arrow": "end" },
+                { "shape": "line", "points": [[102,102],[130,128]], "arrow": "end" },
+                { "shape": "rect", "x": 132, "y": 22, "w": 108, "h": 58, "fill": "box" },
+                { "shape": "text", "x": 186, "y": 42.5, "size": 14, "text": "① 명암" },
+                { "shape": "text", "x": 186, "y": 59.5, "size": 14, "text": "물체 → 조각" },
+                { "shape": "rect", "x": 132, "y": 100, "w": 108, "h": 58, "fill": "highlight" },
+                { "shape": "text", "x": 186, "y": 120.5, "size": 14, "text": "② 외곽선" },
+                { "shape": "text", "x": 186, "y": 137.5, "size": 14, "text": "물체 → 조각" },
+                { "shape": "line", "points": [[186,80],[186,98]], "arrow": "end" },
+                { "shape": "line", "points": [[240,51],[264,76]], "arrow": "end" },
+                { "shape": "line", "points": [[240,129],[264,104]], "arrow": "end" },
+                { "shape": "rect", "x": 266, "y": 60, "w": 66, "h": 60, "fill": "box" },
+                { "shape": "text", "x": 299, "y": 81.5, "size": 14, "text": "같은" },
+                { "shape": "text", "x": 299, "y": 98.5, "size": 14, "text": "화면" }
             ]
         },
         {
@@ -414,11 +428,11 @@
             "unreal": "UStaticMesh와 FStaticMeshRenderData입니다.",
             "functions": [
                 { "name": "Initialize", "description": "정점과 인덱스를 받아 버퍼를 만듭니다." },
-                { "name": "CreateVertexBuffer", "description": "위치, 색, UV, 법선을 GPU 전용 버퍼에 올립니다." },
+                { "name": "CreateVertexBuffer", "description": "위치, 색, UV, 법선, 외곽선 방향을 GPU 전용 버퍼에 올립니다." },
                 { "name": "CreateIndexBuffer", "description": "꼭짓점 번호 순서를 32비트로 올립니다." },
                 { "name": "CalculateLocalBounds", "description": "모양을 감싸는 상자를 구합니다." }
             ],
-            "links": ["model", "primitive-geometry", "aabb", "pipeline", "gpu-buffer"],
+            "links": ["model", "primitive-geometry", "outline-normal-baker", "aabb", "pipeline", "gpu-buffer"],
             "picture": [
                 { "shape": "line", "points": [[30,42],[114,42],[114,126],[30,126]], "closed": true },
                 { "shape": "line", "points": [[30,42],[114,126]] },
@@ -566,11 +580,11 @@
             "functions": [
                 { "name": "LoadTexture", "description": "경로로 찾아보고, 없을 때만 새로 읽습니다." },
                 { "name": "LoadModel", "description": "glTF 파일을 한 번만 읽어 모델로 만듭니다." },
-                { "name": "AddModel", "description": "재질을 만들어 붙이고 모델을 이름으로 등록합니다." },
+                { "name": "AddModel", "description": "외곽선 방향과 재질을 붙이고 모델을 이름으로 등록합니다." },
                 { "name": "CreatePrimitiveModels", "description": "큐브와 구를 시작할 때 등록합니다." },
                 { "name": "FindModel", "description": "이름이나 경로로 이미 있는 모델을 찾습니다." }
             ],
-            "links": ["texture", "texture-heap", "model", "model-loader", "primitive-geometry", "material", "material-style"],
+            "links": ["texture", "texture-heap", "model", "model-loader", "primitive-geometry", "outline-normal-baker", "material", "material-style"],
             "picture": [
                 { "shape": "rect", "x": 8, "y": 28, "w": 88, "h": 38, "fill": "box" },
                 { "shape": "text", "x": 52, "y": 47, "size": 14, "text": "Test.png" },
@@ -705,15 +719,17 @@
             "id": "shader",
             "name": "Shader.hlsl",
             "file": "Shader.hlsl",
-            "role": "GPU에서 꼭짓점 위치와 카툰 색을 계산합니다.",
+            "role": "GPU에서 꼭짓점 위치와 카툰 색, 외곽선을 계산합니다.",
             "without": "삼각형이 화면 어디에 놓이고 무슨 색인지 정할 수 없습니다.",
-            "limit": "윤곽선과 그림자는 아직 없습니다. 빛은 방향이 하나인 빛만 다룹니다.",
+            "limit": "그림자는 아직 없습니다. 빛은 방향이 하나인 빛만 다룹니다.",
             "unreal": "머티리얼 그래프가 만들어 내는 셰이더와 .usf 파일입니다.",
             "functions": [
                 { "name": "VSMain", "description": "정점을 화면 좌표로 옮기고 법선과 자리를 월드로 바꿉니다." },
                 { "name": "PSMain", "description": "밝은 면과 그늘을 두 단으로 끊고 그늘색을 곱합니다." },
+                { "name": "VSOutline", "description": "정점을 화면에서 정해진 픽셀만큼 밀어냅니다." },
+                { "name": "PSOutline", "description": "재질에 정한 외곽선 색으로 칠합니다." },
                 { "name": "TransformBuffer (b0)", "description": "물체마다 다른 행렬을 받습니다." },
-                { "name": "LightingBuffer (b1)", "description": "빛의 방향과 색, 카메라 위치를 받습니다." },
+                { "name": "FrameBuffer (b1)", "description": "빛, 카메라 위치, 화면 비율을 받습니다." },
                 { "name": "MaterialBuffer (b2)", "description": "재질마다 다른 그림체 값을 받습니다." }
             ],
             "links": ["pipeline", "mesh", "texture", "material", "scene-lighting"],
@@ -745,7 +761,8 @@
             "functions": [
                 { "name": "GetTexture", "description": "조각에 입힐 텍스처를 줍니다." },
                 { "name": "CreateConstants", "description": "화면의 색을 빛 계산에 쓰는 선형 색으로 바꿉니다." },
-                { "name": "GetConstantSlot", "description": "재질 상수 버퍼에서 쓸 칸 번호를 줍니다." }
+                { "name": "GetConstantSlot", "description": "재질 상수 버퍼에서 쓸 칸 번호를 줍니다." },
+                { "name": "HasOutline", "description": "두께가 0이면 외곽선을 건너뛰게 합니다." }
             ],
             "links": ["material-style", "texture", "model", "scene-renderer", "frame-constant-buffer"],
             "picture": [
@@ -776,7 +793,7 @@
             "functions": [
                 { "name": "Load", "description": "PandoraStyle.json을 읽습니다." },
                 { "name": "Find", "description": "재질 이름으로 값을 찾고 없으면 기본값을 줍니다." },
-                { "name": "MaterialStyle", "description": "그늘색, 경계, 림 값을 담는 묶음입니다(MaterialStyle.h)." }
+                { "name": "MaterialStyle", "description": "그늘색, 경계, 림, 외곽선 값을 담는 묶음입니다(MaterialStyle.h)." }
             ],
             "links": ["material", "resource-manager", "shader"],
             "picture": [
@@ -812,9 +829,9 @@
             "limit": "방향이 하나인 빛만 있습니다. 값이 코드에 정해져 있고 장면 파일에 저장하지 않습니다.",
             "unreal": "ADirectionalLight와 ASkyLight입니다.",
             "functions": [
-                { "name": "CreateConstants", "description": "빛과 카메라 위치를 b1에 보낼 모양으로 바꿉니다." }
+                { "name": "CreateConstants", "description": "빛의 방향과 색을 b1에 보낼 모양으로 바꿉니다." }
             ],
-            "links": ["scene", "scene-renderer", "shader", "camera"],
+            "links": ["scene", "scene-renderer", "shader", "material"],
             "picture": [
                 { "shape": "circle", "x": 46, "y": 44, "r": 22, "fill": "dot" },
                 { "shape": "text", "x": 46, "y": 84, "size": 13, "text": "빛 하나" },
@@ -827,6 +844,35 @@
                 { "shape": "line", "points": [[330,98],[244,98]], "dashed": true, "arrow": "end" },
                 { "shape": "text", "x": 290, "y": 78, "size": 13, "text": "주변광" },
                 { "shape": "text", "x": 190, "y": 164, "size": 13, "text": "그늘에도 조금 더함" }
+            ]
+        },
+        {
+            "id": "outline-normal-baker",
+            "name": "OutlineNormalBaker",
+            "file": "OutlineNormalBaker.cpp",
+            "role": "외곽선을 밀어낼 부드러운 방향을 미리 만들어 둡니다.",
+            "without": "각진 모서리에서 면마다 다른 쪽으로 밀려 외곽선이 갈라집니다.",
+            "limit": "같은 자리의 법선을 그냥 평균합니다. 면의 넓이나 각도를 따져 섞지는 않습니다.",
+            "unreal": "아웃라인 셰이더용으로 부드러운 법선을 정점 색이나 UV에 구워 두는 방법과 같습니다.",
+            "functions": [
+                { "name": "Bake", "description": "같은 자리의 법선을 더해 길이를 1로 맞추고 정점에 적습니다." }
+            ],
+            "links": ["mesh", "model", "resource-manager", "shader"],
+            "picture": [
+                { "shape": "rect", "x": 30, "y": 64, "w": 76, "h": 76, "fill": "box" },
+                { "shape": "line", "points": [[106,64],[106,24]], "arrow": "end" },
+                { "shape": "line", "points": [[106,64],[146,64]], "arrow": "end" },
+                { "shape": "circle", "x": 106, "y": 64, "r": 5, "fill": "dot" },
+                { "shape": "line", "points": [[22,52],[106,52]], "dashed": true },
+                { "shape": "line", "points": [[118,64],[118,148]], "dashed": true },
+                { "shape": "text", "x": 146, "y": 42, "size": 13, "text": "갈라짐" },
+                { "shape": "text", "x": 72, "y": 164, "size": 13, "text": "면마다 다른 법선" },
+                { "shape": "rect", "x": 194, "y": 64, "w": 76, "h": 76, "fill": "box" },
+                { "shape": "line", "points": [[270,64],[304,30]], "arrow": "end" },
+                { "shape": "circle", "x": 270, "y": 64, "r": 5, "fill": "dot" },
+                { "shape": "line", "points": [[186,52],[282,52],[282,148]], "dashed": true },
+                { "shape": "text", "x": 316, "y": 70, "size": 13, "text": "이어짐" },
+                { "shape": "text", "x": 236, "y": 164, "size": 13, "text": "평균한 방향" }
             ]
         },
         {
@@ -1444,24 +1490,25 @@
             "limit": "항목이 코드에 적혀 있어 늘리려면 코드를 고쳐야 합니다.",
             "unreal": "뷰포트 아래쪽 도구 막대와 비슷합니다.",
             "functions": [
-                { "name": "Draw", "description": "네 가지 물음표와 Guide 버튼을 그립니다." },
+                { "name": "Draw", "description": "다섯 가지 물음표와 Guide 버튼을 그립니다." },
                 { "name": "DrawItem", "description": "기능 이름 옆에 물음표를 하나 붙입니다." }
             ],
             "links": ["engine-guide-window", "editor-layout", "scene-editor"],
             "picture": [
-                { "shape": "rect", "x": 10, "y": 22, "w": 320, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 40, "y": 42, "size": 13, "text": "Look ?" },
-                { "shape": "text", "x": 98, "y": 42, "size": 13, "text": "Pick ?" },
-                { "shape": "text", "x": 160, "y": 42, "size": 13, "text": "Stats ?" },
-                { "shape": "text", "x": 224, "y": 42, "size": 13, "text": "Toon ?" },
-                { "shape": "rect", "x": 266, "y": 27, "w": 56, "h": 30, "fill": "highlight" },
-                { "shape": "text", "x": 294, "y": 42, "size": 14, "text": "Guide" },
-                { "shape": "line", "points": [[98,62],[98,108]], "arrow": "end" },
-                { "shape": "rect", "x": 26, "y": 110, "w": 144, "h": 46, "fill": "box" },
-                { "shape": "text", "x": 98, "y": 133, "size": 14, "text": "클릭해서 고르기" },
-                { "shape": "line", "points": [[294,62],[294,108]], "arrow": "end" },
-                { "shape": "rect", "x": 238, "y": 110, "w": 92, "h": 46, "fill": "box" },
-                { "shape": "text", "x": 284, "y": 133, "size": 14, "text": "도감 처음" }
+                { "shape": "rect", "x": 6, "y": 22, "w": 328, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 34, "y": 42, "size": 12, "text": "Look ?" },
+                { "shape": "text", "x": 84, "y": 42, "size": 12, "text": "Pick ?" },
+                { "shape": "text", "x": 136, "y": 42, "size": 12, "text": "Stats ?" },
+                { "shape": "text", "x": 190, "y": 42, "size": 12, "text": "Toon ?" },
+                { "shape": "text", "x": 246, "y": 42, "size": 12, "text": "Outline ?" },
+                { "shape": "rect", "x": 280, "y": 27, "w": 48, "h": 30, "fill": "highlight" },
+                { "shape": "text", "x": 304, "y": 42, "size": 14, "text": "Guide" },
+                { "shape": "line", "points": [[84,62],[84,108]], "arrow": "end" },
+                { "shape": "rect", "x": 12, "y": 110, "w": 144, "h": 46, "fill": "box" },
+                { "shape": "text", "x": 84, "y": 133, "size": 14, "text": "클릭해서 고르기" },
+                { "shape": "line", "points": [[304,62],[304,108]], "arrow": "end" },
+                { "shape": "rect", "x": 242, "y": 110, "w": 92, "h": 46, "fill": "box" },
+                { "shape": "text", "x": 288, "y": 133, "size": 14, "text": "도감 처음" }
             ]
         }
     ],
@@ -1604,10 +1651,24 @@
             "steps": [
                 { "card": "material-style", "function": "Find", "description": "재질 이름으로 그림체 값을 찾습니다." },
                 { "card": "material", "function": "CreateConstants", "description": "화면의 색을 빛 계산에 쓰는 값으로 바꿉니다." },
-                { "card": "scene-renderer", "function": "BindMaterial", "description": "조각을 그리기 전에 값을 b2에 연결합니다." },
+                { "card": "scene-renderer", "function": "DrawToonPass", "description": "조각을 그리기 전에 값을 b2에 연결합니다." },
                 { "card": "scene-lighting", "function": "CreateConstants", "description": "빛의 방향과 색을 b1에 보낼 모양으로 바꿉니다." },
                 { "card": "shader", "function": "PSMain", "description": "빛과 면의 방향을 비교해 밝은 면과 그늘로 끊습니다." },
                 { "card": "shader", "function": "PSMain", "description": "그늘에 재질의 색을 곱하고 가장자리에 빛을 더합니다." }
+            ]
+        },
+        {
+            "id": "feature-outline",
+            "name": "외곽선",
+            "howTo": "Assets/Styles/PandoraStyle.json에서 재질마다 외곽선의 색과 두께를 정합니다.",
+            "steps": [
+                { "card": "outline-normal-baker", "function": "Bake", "description": "모델을 등록할 때 같은 자리의 법선을 평균해 둡니다." },
+                { "card": "material-style", "function": "Find", "description": "재질의 외곽선 색과 두께를 찾습니다." },
+                { "card": "scene-renderer", "function": "DrawToonPass", "description": "물체를 먼저 그려 깊이를 남깁니다." },
+                { "card": "pipeline", "function": "GetOutlinePipelineState", "description": "앞면을 지우는 PSO로 바꿉니다." },
+                { "card": "scene-renderer", "function": "DrawOutlinePass", "description": "같은 물체를 한 번 더 그립니다." },
+                { "card": "shader", "function": "VSOutline", "description": "정점을 화면에서 정해진 픽셀만큼 밀어냅니다." },
+                { "card": "shader", "function": "PSOutline", "description": "재질에 정한 색으로 칠합니다." }
             ]
         }
     ]
