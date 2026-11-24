@@ -289,6 +289,17 @@ void GuidePictureRenderer::Draw(
     const GuideTheme::PlateColors plate = GuideTheme::GetPlateColors(card.groupColor);
 
     drawList->PushClipRect(origin, end, true);
+
+    // 창 끝에 한 픽셀도 걸치지 않은 그림을 그리면 GPU에 빈 Scissor Rect가 전해집니다.
+    const ImVec2 visibleMinimum = drawList->GetClipRectMin();
+    const ImVec2 visibleMaximum = drawList->GetClipRectMax();
+    if (visibleMaximum.x - visibleMinimum.x < 1.0f ||
+        visibleMaximum.y - visibleMinimum.y < 1.0f)
+    {
+        drawList->PopClipRect();
+        return;
+    }
+
     drawList->AddRectFilled(origin, end, plate.lit);
     drawList->AddQuadFilled(
         ImVec2(origin.x + width * 0.77f, origin.y),
