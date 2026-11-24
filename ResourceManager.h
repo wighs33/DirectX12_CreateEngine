@@ -47,6 +47,9 @@ public:
     TextureHeap& GetTextureHeap();
     const TextureHeap& GetTextureHeap() const;
 
+    // 재질이 함께 쓰는 그림체 값입니다.
+    MaterialStyleLibrary& GetStyles();
+
     // 지금까지 만든 재질의 수이며 재질 상수 버퍼에 필요한 칸 수입니다.
     std::size_t GetMaterialCount() const;
 

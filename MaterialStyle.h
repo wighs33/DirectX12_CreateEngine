@@ -2,6 +2,9 @@
 
 #include <DirectXMath.h>
 
+// 그림체 파일의 version입니다. 읽는 쪽과 쓰는 쪽이 같은 값을 씁니다.
+constexpr int MaterialStyleFormatVersion = 2;
+
 // 재질 하나의 카툰 그림체 값입니다. 색은 화면에서 고르는 값과 같은 sRGB이고 Unity 재질의 값과 뜻이 같습니다.
 struct MaterialStyle
 {
@@ -20,3 +23,6 @@ struct MaterialStyle
     // 높이가 1080인 화면을 기준으로 한 픽셀 두께이며 0이면 외곽선을 그리지 않습니다.
     float outlineWidth = 2.5f;
 };
+
+bool operator==(const MaterialStyle& left, const MaterialStyle& right);
+bool operator!=(const MaterialStyle& left, const MaterialStyle& right);

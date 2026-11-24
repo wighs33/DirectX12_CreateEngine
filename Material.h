@@ -28,7 +28,7 @@ struct MaterialConstants
 class Material final
 {
 public:
-    // texture의 수명은 ResourceManager가 관리합니다.
+    // texture와 style의 수명은 ResourceManager가 관리합니다. style을 고치면 다음 Frame부터 바뀐 값으로 그립니다.
     // constantSlot은 재질 상수 버퍼에서 이 재질이 쓰는 칸입니다.
     Material(
         const std::string& name,
@@ -47,6 +47,6 @@ public:
 private:
     std::string name_;
     const Texture* texture_;
-    MaterialStyle style_;
+    const MaterialStyle* style_;
     std::size_t constantSlot_;
 };

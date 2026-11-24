@@ -1,118 +1,101 @@
 #include "MaterialStyleLibrary.h"
 
-#include "json.hpp"
+#include "MaterialStyleFileReader.h"
+#include "MaterialStyleFileWriter.h"
 
-#include <cmath>
 #include <cstdio>
 #include <exception>
-#include <fstream>
-#include <stdexcept>
 #include <utility>
 
 namespace
 {
-    constexpr int StyleFormatVersion = 1;
-
-    using Json = nlohmann::json;
-
-    bool ReportLoadError(
-        const std::filesystem::path& filePath,
-        const std::string& reason)
-    {
-        std::fprintf(
-            stderr,
-            "그림체 파일을 읽지 못했습니다: %s (%s)\n",
-            filePath.u8string().c_str(),
-            reason.c_str());
-        return false;
-    }
-
-    float ReadFloat(const Json& styleJson, const char* name, float defaultValue)
-    {
-        const float value = styleJson.value(name, defaultValue);
-        if (!std::isfinite(value))
-        {
-            throw std::runtime_error(std::string("숫자가 아닙니다: ") + name);
-        }
-        return value;
-    }
-
-    DirectX::XMFLOAT3 ReadColor(
-        const Json& styleJson,
-        const char* name,
-        const DirectX::XMFLOAT3& defaultValue)
-    {
-        const auto color = styleJson.find(name);
-        if (color == styleJson.end())
-        {
-            return defaultValue;
-        }
-        if (!color->is_array() || color->size() != 3)
-        {
-            throw std::runtime_error(std::string("색은 숫자 세 개입니다: ") + name);
-        }
-
-        return DirectX::XMFLOAT3(
-            color->at(0).get<float>(),
-            color->at(1).get<float>(),
-            color->at(2).get<float>());
-    }
-
-    // 적지 않은 값은 기본 그림체의 값을 그대로 씁니다.
-    MaterialStyle ReadStyle(const Json& styleJson)
-    {
-        MaterialStyle style;
-        style.shadeColor = ReadColor(styleJson, "shadeColor", style.shadeColor);
-        style.shadeThreshold =
-            ReadFloat(styleJson, "shadeThreshold", style.shadeThreshold);
-        style.shadeSoftness =
-            ReadFloat(styleJson, "shadeSoftness", style.shadeSoftness);
-        style.ambientWeight =
-            ReadFloat(styleJson, "ambientWeight", style.ambientWeight);
-        style.rimColor = ReadColor(styleJson, "rimColor", style.rimColor);
-        style.rimStrength = ReadFloat(styleJson, "rimStrength", style.rimStrength);
-        style.rimWidth = ReadFloat(styleJson, "rimWidth", style.rimWidth);
-        style.outlineColor =
-            ReadColor(styleJson, "outlineColor", style.outlineColor);
-        style.outlineWidth =
-            ReadFloat(styleJson, "outlineWidth", style.outlineWidth);
-        return style;
-    }
+    const MaterialStyle DefaultStyle;
 }
 
 bool MaterialStyleLibrary::Load(const std::filesystem::path& filePath)
 {
+    filePath_ = filePath;
+    return Reload();
+}
+
+bool MaterialStyleLibrary::Reload()
+{
     try
     {
-        std::ifstream input(filePath);
-        if (!input.is_open())
-        {
-            return ReportLoadError(filePath, "파일을 열 수 없습니다");
-        }
+        savedStyles_ = MaterialStyleFileReader::Read(filePath_);
 
-        const Json document = Json::parse(input);
-        if (document.at("version").get<int>() != StyleFormatVersion)
+        // 재질이 값의 자리를 기억하고 있으므로 지우지 않고 그 자리에 다시 적습니다.
+        for (auto& [name, style] : styles_)
         {
-            return ReportLoadError(filePath, "지원하지 않는 version입니다");
+            style = FindSaved(name);
         }
-
-        std::unordered_map<std::string, MaterialStyle> styles;
-        for (const auto& item : document.at("materials").items())
+        for (const auto& [name, style] : savedStyles_)
         {
-            styles[item.key()] = ReadStyle(item.value());
+            styles_.emplace(name, style);
         }
-
-        styles_ = std::move(styles);
         return true;
     }
     catch (const std::exception& exception)
     {
-        return ReportLoadError(filePath, exception.what());
+        std::fprintf(
+            stderr,
+            "그림체 파일을 읽지 못했습니다: %s (%s)\n",
+            filePath_.u8string().c_str(),
+            exception.what());
+        return false;
     }
 }
 
-MaterialStyle MaterialStyleLibrary::Find(const std::string& materialName) const
+bool MaterialStyleLibrary::Save()
 {
-    const auto style = styles_.find(materialName);
-    return style == styles_.end() ? MaterialStyle{} : style->second;
+    try
+    {
+        // 고치지 않아 기본 그림체 그대로인 재질은 적지 않습니다.
+        std::map<std::string, MaterialStyle> styles;
+        for (const auto& [name, style] : styles_)
+        {
+            if (savedStyles_.count(name) > 0 || style != DefaultStyle)
+            {
+                styles.emplace(name, style);
+            }
+        }
+
+        MaterialStyleFileWriter::Write(styles, filePath_);
+        savedStyles_ = std::move(styles);
+        std::printf("Style saved: %s\n", filePath_.u8string().c_str());
+        return true;
+    }
+    catch (const std::exception& exception)
+    {
+        std::fprintf(
+            stderr,
+            "그림체 파일을 저장하지 못했습니다: %s (%s)\n",
+            filePath_.u8string().c_str(),
+            exception.what());
+        return false;
+    }
+}
+
+MaterialStyle& MaterialStyleLibrary::FindOrAdd(const std::string& materialName)
+{
+    return styles_.emplace(materialName, DefaultStyle).first->second;
+}
+
+bool MaterialStyleLibrary::IsModified() const
+{
+    for (const auto& [name, style] : styles_)
+    {
+        if (style != FindSaved(name))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+const MaterialStyle& MaterialStyleLibrary::FindSaved(
+    const std::string& materialName) const
+{
+    const auto style = savedStyles_.find(materialName);
+    return style == savedStyles_.end() ? DefaultStyle : style->second;
 }

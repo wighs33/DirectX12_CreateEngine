@@ -1,93 +1,101 @@
 {
-    "version": 1,
-    "materials": {
-        "Plane": {
-            "shadeColor": [0.8, 0.72, 0.84],
-            "shadeThreshold": 0.0,
-            "shadeSoftness": 0.03,
-            "ambientWeight": 0.25,
-            "rimColor": [1, 1, 1],
-            "rimStrength": 0.0,
-            "rimWidth": 0.3,
-            "outlineColor": [0, 0, 0],
-            "outlineWidth": 0.0
-        },
-        "Luna_Body": {
+    "version": 2,
+    "materials": [
+        {
+            "name": "Luna_Body",
             "shadeColor": [0.95, 0.84, 0.86],
             "shadeThreshold": -0.45,
             "shadeSoftness": 0.06,
             "ambientWeight": 0.2,
-            "rimColor": [1, 1, 1],
+            "rimColor": [1.0, 1.0, 1.0],
             "rimStrength": 0.0,
             "rimWidth": 0.3,
             "outlineColor": [0.478, 0.29, 0.251],
             "outlineWidth": 1.6
         },
-        "Luna_Hair": {
+        {
+            "name": "Luna_Hair",
             "shadeColor": [0.86, 0.83, 0.93],
             "shadeThreshold": -0.2,
             "shadeSoftness": 0.03,
             "ambientWeight": 0.2,
-            "rimColor": [1, 1, 1],
+            "rimColor": [1.0, 1.0, 1.0],
             "rimStrength": 0.25,
             "rimWidth": 0.3,
             "outlineColor": [0.361, 0.337, 0.431],
             "outlineWidth": 1.8
         },
-        "Luna_Jacket": {
+        {
+            "name": "Luna_Jacket",
             "shadeColor": [0.84, 0.82, 0.94],
             "shadeThreshold": -0.15,
             "shadeSoftness": 0.03,
             "ambientWeight": 0.2,
-            "rimColor": [1, 1, 1],
+            "rimColor": [1.0, 1.0, 1.0],
             "rimStrength": 0.15,
             "rimWidth": 0.3,
             "outlineColor": [0.18, 0.165, 0.267],
             "outlineWidth": 1.8
         },
-        "Luna_Shorts": {
+        {
+            "name": "Luna_Ornament",
+            "shadeColor": [0.88, 0.82, 0.86],
+            "shadeThreshold": 0.0,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.25,
+            "rimColor": [1.0, 1.0, 1.0],
+            "rimStrength": 0.2,
+            "rimWidth": 0.3,
+            "outlineColor": [0.29, 0.212, 0.125],
+            "outlineWidth": 1.2
+        },
+        {
+            "name": "Luna_OrnamentAntique",
+            "shadeColor": [0.88, 0.82, 0.86],
+            "shadeThreshold": 0.0,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.25,
+            "rimColor": [1.0, 1.0, 1.0],
+            "rimStrength": 0.2,
+            "rimWidth": 0.3,
+            "outlineColor": [0.29, 0.212, 0.125],
+            "outlineWidth": 1.2
+        },
+        {
+            "name": "Luna_OrnamentPearl",
+            "shadeColor": [0.88, 0.82, 0.86],
+            "shadeThreshold": 0.0,
+            "shadeSoftness": 0.03,
+            "ambientWeight": 0.25,
+            "rimColor": [1.0, 1.0, 1.0],
+            "rimStrength": 0.2,
+            "rimWidth": 0.3,
+            "outlineColor": [0.29, 0.212, 0.125],
+            "outlineWidth": 1.2
+        },
+        {
+            "name": "Luna_Shorts",
             "shadeColor": [0.84, 0.82, 0.94],
             "shadeThreshold": -0.15,
             "shadeSoftness": 0.03,
             "ambientWeight": 0.2,
-            "rimColor": [1, 1, 1],
+            "rimColor": [1.0, 1.0, 1.0],
             "rimStrength": 0.15,
             "rimWidth": 0.3,
             "outlineColor": [0.18, 0.165, 0.267],
             "outlineWidth": 1.8
         },
-        "Luna_Ornament": {
-            "shadeColor": [0.88, 0.82, 0.86],
+        {
+            "name": "Plane",
+            "shadeColor": [0.8, 0.72, 0.84],
             "shadeThreshold": 0.0,
             "shadeSoftness": 0.03,
             "ambientWeight": 0.25,
-            "rimColor": [1, 1, 1],
-            "rimStrength": 0.2,
+            "rimColor": [1.0, 1.0, 1.0],
+            "rimStrength": 0.0,
             "rimWidth": 0.3,
-            "outlineColor": [0.29, 0.212, 0.125],
-            "outlineWidth": 1.2
-        },
-        "Luna_OrnamentAntique": {
-            "shadeColor": [0.88, 0.82, 0.86],
-            "shadeThreshold": 0.0,
-            "shadeSoftness": 0.03,
-            "ambientWeight": 0.25,
-            "rimColor": [1, 1, 1],
-            "rimStrength": 0.2,
-            "rimWidth": 0.3,
-            "outlineColor": [0.29, 0.212, 0.125],
-            "outlineWidth": 1.2
-        },
-        "Luna_OrnamentPearl": {
-            "shadeColor": [0.88, 0.82, 0.86],
-            "shadeThreshold": 0.0,
-            "shadeSoftness": 0.03,
-            "ambientWeight": 0.25,
-            "rimColor": [1, 1, 1],
-            "rimStrength": 0.2,
-            "rimWidth": 0.3,
-            "outlineColor": [0.29, 0.212, 0.125],
-            "outlineWidth": 1.2
+            "outlineColor": [0.0, 0.0, 0.0],
+            "outlineWidth": 0.0
         }
-    }
+    ]
 }

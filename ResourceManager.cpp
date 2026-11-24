@@ -103,7 +103,7 @@ Model* ResourceManager::AddModel(
         materials.emplace_back(
             materialData.name,
             GetMaterialTexture(materialData),
-            styles_.Find(materialData.name),
+            styles_.FindOrAdd(materialData.name),
             materialCount_ + materials.size());
     }
     const std::size_t addedMaterialCount = materials.size();
@@ -163,6 +163,11 @@ TextureHeap& ResourceManager::GetTextureHeap()
 const TextureHeap& ResourceManager::GetTextureHeap() const
 {
     return textureHeap_;
+}
+
+MaterialStyleLibrary& ResourceManager::GetStyles()
+{
+    return styles_;
 }
 
 std::size_t ResourceManager::GetMaterialCount() const
