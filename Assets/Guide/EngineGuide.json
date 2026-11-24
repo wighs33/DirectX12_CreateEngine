@@ -3,21 +3,25 @@
     "groups": [
         { "name": "시작과 입력", "color": "flame", "cards": ["app-loop","win32-window","timer","input"] },
         { "name": "GPU 준비", "color": "violet", "cards": ["device-resources","command-context","fence","gpu-barrier"] },
-        { "name": "화면과 깊이", "color": "slate", "cards": ["swapchain","scene-target","depth-buffer","render-statistics"] },
-        { "name": "한 프레임 그리기", "color": "teal", "cards": ["d3d12-context","scene-renderer","scene-culler","scene-constants"] },
-        { "name": "그림자", "color": "rose", "cards": ["shadow-pass","shadow-map","shadow-camera"] },
+        { "name": "디스크립터", "color": "slate", "cards": ["descriptor-heap","texture-heap","imgui-descriptors"] },
+        { "name": "화면과 깊이", "color": "slate", "cards": ["swapchain","scene-target","depth-buffer","render-area"] },
+        { "name": "한 프레임 그리기", "color": "teal", "cards": ["d3d12-context","scene-renderer","scene-visibility","scene-culler","scene-constants","render-statistics"] },
+        { "name": "그림자", "color": "rose", "cards": ["shadow-pass","shadow-map","shadow-camera","shadow-settings"] },
         { "name": "그리기 패스", "color": "rose", "cards": ["toon-pass","outline-pass","outline-normal-baker"] },
-        { "name": "셰이더와 PSO", "color": "violet", "cards": ["shader","shader-compiler","root-signature","pipeline"] },
-        { "name": "GPU에 올리는 재료", "color": "slate", "cards": ["mesh","gpu-buffer","frame-constant-buffer","texture-heap"] },
-        { "name": "파일 읽기", "color": "flame", "cards": ["model-loader","gltf-file","image-loader","texture"] },
+        { "name": "셰이더와 PSO", "color": "violet", "cards": ["shader","shader-compiler","root-signature","pipeline","vertex-layout"] },
+        { "name": "GPU에 올리는 재료", "color": "slate", "cards": ["mesh","gpu-buffer","frame-constant-buffer","texture","gpu-texture","texture-uploader"] },
+        { "name": "모델 파일 읽기", "color": "flame", "cards": ["model-loader","gltf-model-reader","gltf-primitive-reader","gltf-file","image-loader"] },
         { "name": "모델", "color": "teal", "cards": ["resource-manager","model","primitive-geometry"] },
         { "name": "카툰 재질과 빛", "color": "rose", "cards": ["material","material-style","scene-lighting"] },
-        { "name": "장면", "color": "slate", "cards": ["scene","game-object","transform","scene-serializer"] },
+        { "name": "장면", "color": "slate", "cards": ["scene","game-object","transform"] },
+        { "name": "장면 파일", "color": "flame", "cards": ["scene-serializer","scene-file-reader","scene-file-writer"] },
         { "name": "보는 눈과 판정", "color": "teal", "cards": ["camera","frustum","ray","aabb"] },
         { "name": "편집기 뼈대", "color": "flame", "cards": ["scene-editor","editor-selection","editor-layout","imgui-layer"] },
         { "name": "편집기 조작", "color": "violet", "cards": ["editor-camera","transform-gizmo","viewport-picker"] },
         { "name": "편집기 패널", "color": "teal", "cards": ["create-panel","hierarchy-panel","inspector-panel","viewport-help-bar"] },
-        { "name": "엔진 도감", "color": "rose", "cards": ["engine-guide","engine-guide-window","guide-navigation","guide-theme","guide-picture"] }
+        { "name": "엔진 도감", "color": "rose", "cards": ["engine-guide-window","engine-guide","engine-guide-reader","guide-navigation","guide-theme","guide-picture"] },
+        { "name": "도감 화면", "color": "violet", "cards": ["guide-help-button","guide-navigation-bar","guide-home-page","guide-card-page","guide-feature-page","guide-card-grid","guide-feature-buttons"] },
+        { "name": "값만 담는 파일", "color": "slate", "cards": ["d3d12-config","render-pass-context","model-data","material-style-values","scene-data","guide-data"] }
     ],
     "cards": [
         {
@@ -254,7 +258,7 @@
             "functions": [
                 { "name": "Transition", "description": "앞의 쓰임과 다음 쓰임을 적어 배리어를 기록합니다." }
             ],
-            "links": ["command-context", "scene-target", "shadow-map", "texture", "gpu-buffer"],
+            "links": ["command-context", "scene-target", "shadow-map", "gpu-buffer", "texture-uploader"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 22, "w": 120, "h": 40, "fill": "box" },
                 { "shape": "text", "x": 70, "y": 42, "size": 14, "text": "깊이로 쓰기" },
@@ -281,6 +285,107 @@
             ]
         },
         {
+            "id": "descriptor-heap",
+            "name": "DescriptorHeap",
+            "file": "DescriptorHeap.cpp",
+            "role": "자원을 어떻게 볼지 적은 쪽지(Descriptor)를 칸칸이 담습니다.",
+            "without": "GPU가 텍스처의 형식과 크기를 몰라 그리거나 읽을 수 없습니다.",
+            "limit": "칸의 수를 처음에 정합니다. 모자라면 더 큰 힙을 새로 만들어야 합니다.",
+            "unreal": "FD3D12DescriptorHeap입니다.",
+            "functions": [
+                { "name": "Initialize", "description": "종류와 칸 수를 정해 힙을 만듭니다." },
+                { "name": "GetCpuHandle", "description": "쪽지를 적거나 그릴 대상으로 연결할 주소입니다." },
+                { "name": "GetGpuHandle", "description": "셰이더가 읽을 주소입니다." },
+                { "name": "GetSlot", "description": "주소가 몇 번째 칸인지 알려 줍니다." }
+            ],
+            "links": ["texture-heap", "imgui-descriptors", "swapchain", "scene-target", "depth-buffer"],
+            "picture": [
+                { "shape": "text", "x": 170, "y": 22, "size": 13, "text": "시작 주소 + 칸 번호 × 칸 크기" },
+                { "shape": "rect", "x": 20, "y": 42, "w": 60, "h": 44, "fill": "box" },
+                { "shape": "text", "x": 50, "y": 64, "size": 14, "text": "0칸" },
+                { "shape": "rect", "x": 80, "y": 42, "w": 60, "h": 44, "fill": "box" },
+                { "shape": "text", "x": 110, "y": 64, "size": 14, "text": "1칸" },
+                { "shape": "rect", "x": 140, "y": 42, "w": 60, "h": 44, "fill": "highlight" },
+                { "shape": "text", "x": 170, "y": 64, "size": 14, "text": "2칸" },
+                { "shape": "rect", "x": 200, "y": 42, "w": 60, "h": 44, "fill": "box" },
+                { "shape": "text", "x": 230, "y": 64, "size": 14, "text": "3칸" },
+                { "shape": "rect", "x": 260, "y": 42, "w": 60, "h": 44, "fill": "box" },
+                { "shape": "text", "x": 290, "y": 64, "size": 14, "text": "..." },
+                { "shape": "line", "points": [[170,88],[170,112]], "arrow": "end" },
+                { "shape": "rect", "x": 96, "y": 114, "w": 148, "h": 48, "fill": "box" },
+                { "shape": "text", "x": 170, "y": 129.5, "size": 14, "text": "형식 · 크기 · 쓰임" },
+                { "shape": "text", "x": 170, "y": 146.5, "size": 14, "text": "자원의 위치" }
+            ]
+        },
+        {
+            "id": "texture-heap",
+            "name": "TextureHeap",
+            "file": "TextureHeap.cpp",
+            "role": "텍스처마다 SRV를 한 칸씩 만들어 번호를 줍니다.",
+            "without": "텍스처를 하나만 연결할 수 있어 모든 물체가 같은 그림을 씁니다.",
+            "limit": "칸을 되돌려 받지 않습니다. 텍스처를 계속 바꾸면 256칸이 차게 됩니다.",
+            "unreal": "디스크립터를 관리하는 FD3D12DescriptorHeap입니다.",
+            "functions": [
+                { "name": "Initialize", "description": "셰이더가 볼 수 있는 힙을 만듭니다." },
+                { "name": "Add", "description": "빈 칸에 SRV를 만들고 번호를 줍니다." },
+                { "name": "GetGpuHandle", "description": "그릴 때 가리킬 칸의 주소를 줍니다." }
+            ],
+            "links": ["descriptor-heap", "texture", "shadow-map", "root-signature", "toon-pass", "resource-manager"],
+            "picture": [
+                { "shape": "rect", "x": 16, "y": 24, "w": 60, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 46, "y": 41, "size": 14, "text": "흰색" },
+                { "shape": "rect", "x": 76, "y": 24, "w": 60, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 106, "y": 41, "size": 14, "text": "몸" },
+                { "shape": "rect", "x": 136, "y": 24, "w": 60, "h": 34, "fill": "highlight" },
+                { "shape": "text", "x": 166, "y": 41, "size": 14, "text": "머리" },
+                { "shape": "rect", "x": 196, "y": 24, "w": 60, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 226, "y": 41, "size": 14, "text": "조끼" },
+                { "shape": "rect", "x": 256, "y": 24, "w": 60, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 286, "y": 41, "size": 14, "text": "…" },
+                { "shape": "text", "x": 46, "y": 72, "size": 13, "text": "0칸" },
+                { "shape": "text", "x": 106, "y": 72, "size": 13, "text": "1칸" },
+                { "shape": "text", "x": 166, "y": 72, "size": 13, "text": "2칸" },
+                { "shape": "text", "x": 226, "y": 72, "size": 13, "text": "3칸" },
+                { "shape": "rect", "x": 96, "y": 118, "w": 140, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 166, "y": 138, "size": 14, "text": "테이블 (t0)" },
+                { "shape": "line", "points": [[166,118],[166,84]], "arrow": "end" }
+            ]
+        },
+        {
+            "id": "imgui-descriptors",
+            "name": "ImGuiDescriptorAllocator",
+            "file": "ImGuiDescriptorAllocator.cpp",
+            "role": "ImGui가 글꼴 그림을 연결할 칸을 빌려 주고 돌려받습니다.",
+            "without": "ImGui가 글꼴을 화면에 그릴 수 없습니다.",
+            "limit": "칸이 16개입니다.",
+            "unreal": "Slate가 쓰는 텍스처 아틀라스의 칸 관리와 비슷합니다.",
+            "functions": [
+                { "name": "Initialize", "description": "16칸짜리 힙을 만들고 모두 빈 칸으로 둡니다." },
+                { "name": "Allocate", "description": "빈 칸 하나의 주소를 빌려 줍니다." },
+                { "name": "Free", "description": "다 쓴 칸을 돌려받습니다." }
+            ],
+            "links": ["imgui-layer", "descriptor-heap"],
+            "picture": [
+                { "shape": "rect", "x": 16, "y": 30, "w": 120, "h": 120, "fill": "box" },
+                { "shape": "text", "x": 76, "y": 48, "size": 13, "text": "빈 칸" },
+                { "shape": "rect", "x": 28, "y": 64, "w": 44, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 50, "y": 81, "size": 14, "text": "2" },
+                { "shape": "rect", "x": 80, "y": 64, "w": 44, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 102, "y": 81, "size": 14, "text": "3" },
+                { "shape": "rect", "x": 28, "y": 106, "w": 44, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 50, "y": 123, "size": 14, "text": "4" },
+                { "shape": "rect", "x": 80, "y": 106, "w": 44, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 102, "y": 123, "size": 14, "text": "..." },
+                { "shape": "line", "points": [[136,66],[208,66]], "arrow": "end" },
+                { "shape": "text", "x": 172, "y": 52, "size": 13, "text": "빌려 줌" },
+                { "shape": "line", "points": [[208,120],[138,120]], "arrow": "end" },
+                { "shape": "text", "x": 172, "y": 136, "size": 13, "text": "돌려받음" },
+                { "shape": "rect", "x": 210, "y": 44, "w": 114, "h": 94, "fill": "highlight" },
+                { "shape": "text", "x": 267, "y": 82.5, "size": 14, "text": "ImGui" },
+                { "shape": "text", "x": 267, "y": 99.5, "size": 14, "text": "글꼴 그림" }
+            ]
+        },
+        {
             "id": "swapchain",
             "name": "D3D12SwapChain",
             "file": "D3D12SwapChain.cpp",
@@ -294,7 +399,7 @@
                 { "name": "GetCurrentFrameIndex", "description": "지금 그릴 백버퍼가 몇 번인지 알려 줍니다." },
                 { "name": "Present", "description": "다 그린 그림을 화면에 내보냅니다." }
             ],
-            "links": ["device-resources", "command-context", "scene-target", "d3d12-context"],
+            "links": ["device-resources", "command-context", "scene-target", "d3d12-context", "descriptor-heap"],
             "picture": [
                 { "shape": "rect", "x": 14, "y": 22, "w": 112, "h": 52, "fill": "box" },
                 { "shape": "text", "x": 70, "y": 39.5, "size": 14, "text": "BackBuffer 0" },
@@ -322,10 +427,11 @@
             "unreal": "MSAA를 켠 SceneColor입니다.",
             "functions": [
                 { "name": "Initialize", "description": "표본이 네 개인 색과 깊이를 만듭니다." },
-                { "name": "Begin", "description": "그릴 대상으로 연결하고 이전 그림을 지웁니다." },
-                { "name": "ResolveTo", "description": "표본의 평균을 백버퍼에 씁니다." }
+                { "name": "Begin", "description": "그릴 영역과 대상을 연결하고 이전 그림을 지웁니다." },
+                { "name": "ResolveTo", "description": "표본의 평균을 백버퍼에 씁니다." },
+                { "name": "GetViewport", "description": "편집기가 클릭한 자리를 계산할 때 씁니다." }
             ],
-            "links": ["depth-buffer", "gpu-barrier", "swapchain", "pipeline", "d3d12-context"],
+            "links": ["render-area", "descriptor-heap", "gpu-texture", "depth-buffer", "gpu-barrier", "swapchain", "pipeline", "d3d12-context"],
             "picture": [
                 { "shape": "line", "points": [[24,28],[108,28],[108,112],[24,112]], "closed": true },
                 { "shape": "line", "points": [[16,118],[116,34]] },
@@ -358,7 +464,7 @@
                 { "name": "GetDSV", "description": "그릴 때 연결할 자리를 줍니다." },
                 { "name": "GetResource", "description": "그림자 맵이 읽기용 SRV를 만들 때 씁니다." }
             ],
-            "links": ["scene-target", "shadow-map", "pipeline", "device-resources"],
+            "links": ["gpu-texture", "descriptor-heap", "scene-target", "shadow-map", "pipeline"],
             "picture": [
                 { "shape": "circle", "x": 24, "y": 90, "r": 7, "fill": "dot" },
                 { "shape": "text", "x": 34, "y": 116, "size": 13, "text": "카메라" },
@@ -378,38 +484,29 @@
             ]
         },
         {
-            "id": "render-statistics",
-            "name": "RenderStatistics",
-            "file": "RenderStatistics.cpp",
-            "role": "그린 양을 세고 1초마다 FPS를 구합니다.",
-            "without": "느려져도 물체가 많아서인지 조각이 많아서인지 알 수 없습니다.",
-            "limit": "한 프레임 전체 시간만 잽니다. CPU와 GPU가 걸린 시간을 나누지 못합니다.",
-            "unreal": "stat fps와 stat scenerendering입니다.",
+            "id": "render-area",
+            "name": "RenderArea",
+            "file": "RenderArea.cpp",
+            "role": "그림이 놓일 자리와 그릴 수 있는 사각형을 정합니다.",
+            "without": "그릴 자리가 없어 화면에 아무것도 나오지 않습니다.",
+            "limit": "항상 왼쪽 위부터 전체를 씁니다. 화면을 나눠 그리지는 못합니다.",
+            "unreal": "RHISetViewport와 RHISetScissorRect입니다.",
             "functions": [
-                { "name": "BeginFrame", "description": "지난 프레임에 센 값을 0으로 되돌립니다." },
-                { "name": "SetVisibility", "description": "그린 물체와 건너뛴 물체의 수를 적습니다." },
-                { "name": "AddDraw", "description": "그리기 명령과 삼각형 수를 더합니다. 그림자를 그린 것도 셉니다." },
-                { "name": "Update", "description": "1초가 지나면 FPS와 평균 시간을 구합니다." },
-                { "name": "CreateTitle", "description": "창 제목에 적을 글을 만듭니다." }
+                { "name": "RenderArea", "description": "폭과 높이로 두 사각형을 만듭니다." },
+                { "name": "Bind", "description": "그리기 전에 두 사각형을 연결합니다." },
+                { "name": "GetViewport", "description": "클릭한 자리를 계산할 때 씁니다." }
             ],
-            "links": ["scene-culler", "toon-pass", "d3d12-context", "timer"],
+            "links": ["scene-target", "shadow-map", "viewport-picker"],
             "picture": [
-                { "shape": "rect", "x": 10, "y": 20, "w": 96, "h": 36, "fill": "box" },
-                { "shape": "text", "x": 58, "y": 38, "size": 14, "text": "그린 물체" },
-                { "shape": "rect", "x": 10, "y": 72, "w": 96, "h": 36, "fill": "box" },
-                { "shape": "text", "x": 58, "y": 90, "size": 14, "text": "건너뜀" },
-                { "shape": "rect", "x": 10, "y": 124, "w": 96, "h": 36, "fill": "box" },
-                { "shape": "text", "x": 58, "y": 142, "size": 14, "text": "삼각형" },
-                { "shape": "line", "points": [[106,38],[136,78]], "arrow": "end" },
-                { "shape": "line", "points": [[106,90],[136,90]], "arrow": "end" },
-                { "shape": "line", "points": [[106,142],[136,102]], "arrow": "end" },
-                { "shape": "rect", "x": 138, "y": 66, "w": 72, "h": 48, "fill": "highlight" },
-                { "shape": "text", "x": 174, "y": 90, "size": 14, "text": "1초 모음" },
-                { "shape": "line", "points": [[210,90],[236,90]], "arrow": "end" },
-                { "shape": "rect", "x": 238, "y": 58, "w": 92, "h": 64, "fill": "box" },
-                { "shape": "line", "points": [[238,78],[330,78]] },
-                { "shape": "text", "x": 284, "y": 68, "size": 13, "text": "FPS 144" },
-                { "shape": "text", "x": 284, "y": 100, "size": 14, "text": "창 제목" }
+                { "shape": "rect", "x": 14, "y": 38, "w": 104, "h": 104, "fill": "box" },
+                { "shape": "text", "x": 66, "y": 81.5, "size": 14, "text": "-1 ~ 1" },
+                { "shape": "text", "x": 66, "y": 98.5, "size": 14, "text": "좌표" },
+                { "shape": "line", "points": [[118,90],[148,90]], "arrow": "end" },
+                { "shape": "rect", "x": 150, "y": 38, "w": 180, "h": 104, "fill": "highlight" },
+                { "shape": "text", "x": 240, "y": 81.5, "size": 14, "text": "Viewport" },
+                { "shape": "text", "x": 240, "y": 98.5, "size": 14, "text": "1280 × 720 픽셀" },
+                { "shape": "line", "points": [[170,52],[310,52],[310,128],[170,128]], "closed": true, "dashed": true },
+                { "shape": "text", "x": 240, "y": 158, "size": 13, "text": "점선: Scissor Rect" }
             ]
         },
         {
@@ -424,11 +521,10 @@
                 { "name": "Initialize", "description": "장치부터 편집기까지 순서대로 만듭니다." },
                 { "name": "Update", "description": "편집기 프레임을 시작하고 편집기에 넘깁니다." },
                 { "name": "RenderFrame", "description": "주석의 1~22단계대로 한 프레임을 그립니다." },
-                { "name": "BeginScene", "description": "그릴 영역과 화면을 정하고 이전 그림을 지웁니다." },
                 { "name": "ResolveScene", "description": "다 그린 장면을 백버퍼로 옮깁니다." },
                 { "name": "RenderEditor", "description": "장면 위에 편집 화면을 덧그립니다." }
             ],
-            "links": ["device-resources", "command-context", "swapchain", "scene-target", "resource-manager", "scene", "scene-renderer", "render-statistics", "scene-editor", "imgui-layer"],
+            "links": ["device-resources", "command-context", "swapchain", "scene-target", "resource-manager", "scene", "scene-renderer", "render-statistics", "scene-editor", "imgui-layer", "d3d12-config"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 20, "w": 86, "h": 140, "fill": "box" },
                 { "shape": "text", "x": 53, "y": 73, "size": 14, "text": "Update" },
@@ -471,7 +567,7 @@
                 { "name": "RenderShadow", "description": "화면보다 먼저 그림자 맵을 그립니다." },
                 { "name": "RenderScene", "description": "연결된 화면에 명암과 외곽선을 그립니다." }
             ],
-            "links": ["root-signature", "scene-culler", "scene-constants", "shadow-pass", "toon-pass", "outline-pass", "scene", "d3d12-context"],
+            "links": ["root-signature", "scene-visibility", "scene-constants", "shadow-pass", "toon-pass", "outline-pass", "render-pass-context", "scene", "d3d12-context"],
             "picture": [
                 { "shape": "rect", "x": 14, "y": 30, "w": 92, "h": 44, "fill": "box" },
                 { "shape": "text", "x": 60, "y": 52, "size": 14, "text": "고르기" },
@@ -493,10 +589,36 @@
             ]
         },
         {
+            "id": "scene-visibility",
+            "name": "SceneVisibility",
+            "file": "SceneVisibility.cpp",
+            "role": "카메라와 빛이 각각 보는 물체를 골라 담습니다.",
+            "without": "화면 밖의 물체가 드리우는 그림자가 갑자기 사라집니다.",
+            "limit": "빛이 하나일 때만 다룹니다.",
+            "unreal": "뷰마다 보이는 물체를 정하는 FViewInfo의 목록입니다.",
+            "functions": [
+                { "name": "Collect", "description": "두 시야로 각각 고릅니다." },
+                { "name": "GetCameraObjects", "description": "화면에 그릴 물체입니다." },
+                { "name": "GetLightObjects", "description": "그림자를 드리울 물체입니다." },
+                { "name": "GetAllObjects", "description": "둘을 합쳐 한 번씩만 적은 목록입니다." }
+            ],
+            "links": ["scene-culler", "shadow-camera", "camera", "scene-renderer", "render-statistics"],
+            "picture": [
+                { "shape": "line", "points": [[188.0,88.0],[186.6,100.0],[182.7,111.4],[176.2,121.7],[167.7,130.2],[157.4,136.7],[146.0,140.6],[134.0,142.0],[122.0,140.6],[110.6,136.7],[100.3,130.2],[91.8,121.7],[85.3,111.4],[81.4,100.0],[80.0,88.0],[81.4,76.0],[85.3,64.6],[91.8,54.3],[100.3,45.8],[110.6,39.3],[122.0,35.4],[134.0,34.0],[146.0,35.4],[157.4,39.3],[167.7,45.8],[176.2,54.3],[182.7,64.6],[186.6,76.0]], "closed": true },
+                { "shape": "line", "points": [[256.0,88.0],[254.6,100.0],[250.7,111.4],[244.2,121.7],[235.7,130.2],[225.4,136.7],[214.0,140.6],[202.0,142.0],[190.0,140.6],[178.6,136.7],[168.3,130.2],[159.8,121.7],[153.3,111.4],[149.4,100.0],[148.0,88.0],[149.4,76.0],[153.3,64.6],[159.8,54.3],[168.3,45.8],[178.6,39.3],[190.0,35.4],[202.0,34.0],[214.0,35.4],[225.4,39.3],[235.7,45.8],[244.2,54.3],[250.7,64.6],[254.6,76.0]], "closed": true },
+                { "shape": "text", "x": 110, "y": 88, "size": 13, "text": "카메라" },
+                { "shape": "text", "x": 226, "y": 88, "size": 13, "text": "빛" },
+                { "shape": "text", "x": 168, "y": 88, "size": 13, "text": "둘 다" },
+                { "shape": "text", "x": 112, "y": 20, "size": 13, "text": "화면에 그림" },
+                { "shape": "text", "x": 230, "y": 20, "size": 13, "text": "그림자를 그림" },
+                { "shape": "text", "x": 168, "y": 162, "size": 13, "text": "합친 목록: 행렬을 한 번씩만 씀" }
+            ]
+        },
+        {
             "id": "scene-culler",
             "name": "SceneCuller",
             "file": "SceneCuller.cpp",
-            "role": "카메라나 빛의 시야에 들어온 물체만 골라 목록을 만듭니다.",
+            "role": "시야 하나에 들어온 물체만 골라 목록을 만듭니다.",
             "without": "패스마다 같은 검사를 되풀이하고, 안 보이는 물체까지 그립니다.",
             "limit": "물체를 하나씩 모두 검사합니다. 아주 많아지면 공간을 나눠 담아야 합니다.",
             "unreal": "보이는 것을 정하는 InitViews 단계입니다.",
@@ -505,7 +627,7 @@
                 { "name": "GetVisibleObjects", "description": "패스가 그릴 목록을 줍니다." },
                 { "name": "GetCulledObjectCount", "description": "빠진 물체의 수를 줍니다." }
             ],
-            "links": ["frustum", "scene", "game-object", "shadow-camera", "scene-renderer", "render-statistics"],
+            "links": ["frustum", "scene", "game-object", "scene-visibility"],
             "picture": [
                 { "shape": "rect", "x": 12, "y": 24, "w": 74, "h": 30, "fill": "box" },
                 { "shape": "text", "x": 49, "y": 39, "size": 14, "text": "Luna" },
@@ -540,7 +662,7 @@
                 { "name": "WriteMaterial", "description": "재질의 그림체 값을 씁니다." },
                 { "name": "BindFrame · BindObject · BindMaterial", "description": "써 둔 칸의 주소를 루트 시그니처의 칸에 연결합니다." }
             ],
-            "links": ["frame-constant-buffer", "root-signature", "material", "scene-lighting", "camera", "shadow-camera", "scene-renderer"],
+            "links": ["frame-constant-buffer", "root-signature", "material", "scene-lighting", "camera", "shadow-camera", "scene-renderer", "shadow-settings"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 22, "w": 92, "h": 36, "fill": "box" },
                 { "shape": "text", "x": 56, "y": 40, "size": 14, "text": "빛 · 카메라" },
@@ -577,6 +699,41 @@
             ]
         },
         {
+            "id": "render-statistics",
+            "name": "RenderStatistics",
+            "file": "RenderStatistics.cpp",
+            "role": "그린 양을 세고 1초마다 FPS를 구합니다.",
+            "without": "느려져도 물체가 많아서인지 조각이 많아서인지 알 수 없습니다.",
+            "limit": "한 프레임 전체 시간만 잽니다. CPU와 GPU가 걸린 시간을 나누지 못합니다.",
+            "unreal": "stat fps와 stat scenerendering입니다.",
+            "functions": [
+                { "name": "BeginFrame", "description": "지난 프레임에 센 값을 0으로 되돌립니다." },
+                { "name": "SetVisibility", "description": "그린 물체와 건너뛴 물체의 수를 적습니다." },
+                { "name": "AddDraw", "description": "그리기 명령과 삼각형 수를 더합니다. 그림자를 그린 것도 셉니다." },
+                { "name": "Update", "description": "1초가 지나면 FPS와 평균 시간을 구합니다." },
+                { "name": "CreateTitle", "description": "창 제목에 적을 글을 만듭니다." }
+            ],
+            "links": ["scene-visibility", "toon-pass", "d3d12-context", "timer"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 20, "w": 96, "h": 36, "fill": "box" },
+                { "shape": "text", "x": 58, "y": 38, "size": 14, "text": "그린 물체" },
+                { "shape": "rect", "x": 10, "y": 72, "w": 96, "h": 36, "fill": "box" },
+                { "shape": "text", "x": 58, "y": 90, "size": 14, "text": "건너뜀" },
+                { "shape": "rect", "x": 10, "y": 124, "w": 96, "h": 36, "fill": "box" },
+                { "shape": "text", "x": 58, "y": 142, "size": 14, "text": "삼각형" },
+                { "shape": "line", "points": [[106,38],[136,78]], "arrow": "end" },
+                { "shape": "line", "points": [[106,90],[136,90]], "arrow": "end" },
+                { "shape": "line", "points": [[106,142],[136,102]], "arrow": "end" },
+                { "shape": "rect", "x": 138, "y": 66, "w": 72, "h": 48, "fill": "highlight" },
+                { "shape": "text", "x": 174, "y": 90, "size": 14, "text": "1초 모음" },
+                { "shape": "line", "points": [[210,90],[236,90]], "arrow": "end" },
+                { "shape": "rect", "x": 238, "y": 58, "w": 92, "h": 64, "fill": "box" },
+                { "shape": "line", "points": [[238,78],[330,78]] },
+                { "shape": "text", "x": 284, "y": 68, "size": 13, "text": "FPS 144" },
+                { "shape": "text", "x": 284, "y": 100, "size": 14, "text": "창 제목" }
+            ]
+        },
+        {
             "id": "shadow-pass",
             "name": "ShadowPass",
             "file": "ShadowPass.cpp",
@@ -588,7 +745,7 @@
                 { "name": "Initialize", "description": "픽셀 셰이더가 없는 PSO를 만듭니다." },
                 { "name": "Draw", "description": "빛에 보이는 조각을 모두 그려 깊이만 남깁니다." }
             ],
-            "links": ["shadow-map", "shadow-camera", "scene-culler", "pipeline", "shader", "toon-pass"],
+            "links": ["shadow-map", "shadow-camera", "scene-visibility", "pipeline", "shader", "toon-pass", "render-pass-context", "shadow-settings"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 24, "w": 92, "h": 46, "fill": "box" },
                 { "shape": "text", "x": 56, "y": 38.5, "size": 14, "text": "빛에 보이는" },
@@ -625,7 +782,7 @@
                 { "name": "EndWrite", "description": "셰이더가 읽는 상태로 되돌립니다." },
                 { "name": "GetDescriptorSlot", "description": "t1에 연결할 칸의 번호를 줍니다." }
             ],
-            "links": ["shadow-pass", "toon-pass", "depth-buffer", "gpu-barrier", "texture-heap", "root-signature"],
+            "links": ["shadow-pass", "toon-pass", "depth-buffer", "gpu-barrier", "texture-heap", "root-signature", "render-area", "shadow-settings"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 30, "w": 122, "h": 52, "fill": "highlight" },
                 { "shape": "text", "x": 71, "y": 47.5, "size": 14, "text": "깊이로 쓰기" },
@@ -656,7 +813,7 @@
                 { "name": "GetViewProjectionMatrix", "description": "월드를 빛의 시점으로 바꾸는 행렬을 줍니다." },
                 { "name": "GetTexelSize", "description": "그림자 맵 한 칸이 장면에서 차지하는 길이를 줍니다." }
             ],
-            "links": ["shadow-pass", "scene-lighting", "scene", "camera", "scene-culler", "scene-constants"],
+            "links": ["shadow-pass", "scene-lighting", "scene", "camera", "scene-visibility", "scene-constants", "shadow-settings"],
             "picture": [
                 { "shape": "line", "points": [[24,70],[104,16],[204,106],[124,160]], "closed": true, "dashed": true },
                 { "shape": "line", "points": [[48,64],[84,96]], "arrow": "end" },
@@ -667,6 +824,38 @@
                 { "shape": "text", "x": 268, "y": 46, "size": 13, "text": "빛은 나란히 옴" },
                 { "shape": "text", "x": 268, "y": 78, "size": 13, "text": "원근 없는 상자" },
                 { "shape": "text", "x": 268, "y": 110, "size": 13, "text": "물체가 모두 들어옴" }
+            ]
+        },
+        {
+            "id": "shadow-settings",
+            "name": "ShadowSettings",
+            "file": "ShadowSettings.h",
+            "role": "그림자의 크기와 모양을 정하는 값을 한곳에 모읍니다.",
+            "without": "값이 네 파일에 흩어져 하나를 고치면 다른 곳과 어긋납니다.",
+            "limit": "코드에 적힌 값이라 바꾸면 다시 빌드해야 합니다.",
+            "unreal": "r.Shadow로 시작하는 콘솔 변수들입니다.",
+            "functions": [
+                { "name": "Resolution", "description": "그림자 맵 한 변의 칸 수입니다." },
+                { "name": "MinimumRadius · MaximumRadius", "description": "빛의 시야가 좁아지고 넓어질 수 있는 한계입니다." },
+                { "name": "DepthBias · NormalBias", "description": "자기 그림자가 얼룩지지 않게 미는 길이입니다." },
+                { "name": "SlopeScaledDepthBias", "description": "기울어진 면을 더 미는 배수입니다." }
+            ],
+            "links": ["shadow-map", "shadow-camera", "shadow-pass", "scene-constants"],
+            "picture": [
+                { "shape": "rect", "x": 110, "y": 54, "w": 120, "h": 72, "fill": "highlight" },
+                { "shape": "text", "x": 170, "y": 90, "size": 14, "text": "ShadowSettings" },
+                { "shape": "rect", "x": 8, "y": 16, "w": 84, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 50, "y": 36, "size": 14, "text": "ShadowMap" },
+                { "shape": "rect", "x": 248, "y": 16, "w": 84, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 290, "y": 36, "size": 14, "text": "Camera" },
+                { "shape": "rect", "x": 8, "y": 124, "w": 84, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 50, "y": 144, "size": 14, "text": "Pass" },
+                { "shape": "rect", "x": 248, "y": 124, "w": 84, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 290, "y": 144, "size": 14, "text": "Constants" },
+                { "shape": "line", "points": [[118,54],[94,42]], "arrow": "end" },
+                { "shape": "line", "points": [[222,54],[246,42]], "arrow": "end" },
+                { "shape": "line", "points": [[118,126],[94,138]], "arrow": "end" },
+                { "shape": "line", "points": [[222,126],[246,138]], "arrow": "end" }
             ]
         },
         {
@@ -681,7 +870,7 @@
                 { "name": "Initialize", "description": "뒷면을 지우는 PSO를 만듭니다." },
                 { "name": "Draw", "description": "그림자 맵을 연결하고, 조각마다 재질의 값과 텍스처를 연결해 그립니다." }
             ],
-            "links": ["pipeline", "shadow-map", "scene-culler", "scene-constants", "texture-heap", "mesh", "shader", "outline-pass"],
+            "links": ["pipeline", "shadow-map", "scene-visibility", "scene-constants", "texture-heap", "mesh", "shader", "outline-pass", "render-pass-context"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 12, "w": 320, "h": 156, "fill": "box" },
                 { "shape": "text", "x": 22, "y": 30, "size": 14, "text": "명암 PSO와 t1(그림자 맵) 연결", "align": "left" },
@@ -706,7 +895,7 @@
                 { "name": "Initialize", "description": "앞면을 지우는 PSO를 만듭니다." },
                 { "name": "Draw", "description": "두께가 있는 재질의 조각만 한 번 더 그립니다." }
             ],
-            "links": ["pipeline", "outline-normal-baker", "scene-culler", "material", "shader", "toon-pass"],
+            "links": ["pipeline", "outline-normal-baker", "scene-visibility", "material", "shader", "toon-pass", "render-pass-context"],
             "picture": [
                 { "shape": "circle", "x": 62, "y": 80, "r": 36, "fill": "box" },
                 { "shape": "text", "x": 62, "y": 80, "size": 14, "text": "물체" },
@@ -890,10 +1079,10 @@
             "unreal": "FGraphicsPipelineStateInitializer와 PSO 캐시입니다.",
             "functions": [
                 { "name": "Initialize", "description": "셰이더를 컴파일하고 PSO를 만듭니다. 픽셀 셰이더가 없으면 깊이만 씁니다." },
-                { "name": "CreatePipelineState", "description": "입력 레이아웃, 컬링, 깊이, 형식을 묶습니다." },
+                { "name": "CreatePipelineState", "description": "정점 배치, 컬링, 깊이, 형식을 묶습니다." },
                 { "name": "PipelineSettings", "description": "패스마다 다른 셰이더 이름과 지울 면, 표본의 수입니다." }
             ],
-            "links": ["root-signature", "shader-compiler", "shadow-pass", "toon-pass", "outline-pass", "mesh"],
+            "links": ["root-signature", "shader-compiler", "vertex-layout", "shadow-pass", "toon-pass", "outline-pass", "mesh"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 14, "w": 130, "h": 152, "fill": "box" },
                 { "shape": "text", "x": 75, "y": 31, "size": 14, "text": "같은 설정" },
@@ -920,6 +1109,44 @@
             ]
         },
         {
+            "id": "vertex-layout",
+            "name": "VertexLayout",
+            "file": "VertexLayout.cpp",
+            "role": "정점의 어느 자리에 무엇이 있는지 셰이더에 알려 줍니다.",
+            "without": "정점 버퍼는 숫자의 줄이라 어디가 위치이고 색인지 알 수 없습니다.",
+            "limit": "모든 모델이 같은 배치를 씁니다. 뼈 번호와 가중치 자리는 아직 없습니다.",
+            "unreal": "FVertexDeclaration과 FLocalVertexFactory입니다.",
+            "functions": [
+                { "name": "Get", "description": "자리의 목록을 PSO에 넘길 모양으로 줍니다." },
+                { "name": "Vertex", "description": "정점 하나에 담는 값의 묶음입니다." }
+            ],
+            "links": ["mesh", "pipeline", "shader", "outline-normal-baker"],
+            "picture": [
+                { "shape": "rect", "x": 8, "y": 58, "w": 62, "h": 46, "fill": "box" },
+                { "shape": "text", "x": 39, "y": 72.5, "size": 14, "text": "위치" },
+                { "shape": "text", "x": 39, "y": 89.5, "size": 14, "text": "12" },
+                { "shape": "rect", "x": 70, "y": 58, "w": 72, "h": 46, "fill": "box" },
+                { "shape": "text", "x": 106, "y": 72.5, "size": 14, "text": "색" },
+                { "shape": "text", "x": 106, "y": 89.5, "size": 14, "text": "16" },
+                { "shape": "rect", "x": 142, "y": 58, "w": 52, "h": 46, "fill": "box" },
+                { "shape": "text", "x": 168, "y": 72.5, "size": 14, "text": "UV" },
+                { "shape": "text", "x": 168, "y": 89.5, "size": 14, "text": "8" },
+                { "shape": "rect", "x": 194, "y": 58, "w": 62, "h": 46, "fill": "box" },
+                { "shape": "text", "x": 225, "y": 72.5, "size": 14, "text": "법선" },
+                { "shape": "text", "x": 225, "y": 89.5, "size": 14, "text": "12" },
+                { "shape": "rect", "x": 256, "y": 58, "w": 76, "h": 46, "fill": "highlight" },
+                { "shape": "text", "x": 294, "y": 72.5, "size": 14, "text": "외곽선" },
+                { "shape": "text", "x": 294, "y": 89.5, "size": 14, "text": "12" },
+                { "shape": "text", "x": 170, "y": 34, "size": 13, "text": "정점 하나 = 60바이트" },
+                { "shape": "line", "points": [[39,104],[39,130]], "arrow": "end" },
+                { "shape": "line", "points": [[168,104],[168,130]], "arrow": "end" },
+                { "shape": "line", "points": [[294,104],[294,130]], "arrow": "end" },
+                { "shape": "text", "x": 40, "y": 146, "size": 13, "text": "POSITION" },
+                { "shape": "text", "x": 168, "y": 146, "size": 13, "text": "TEXCOORD" },
+                { "shape": "text", "x": 290, "y": 146, "size": 13, "text": "NORMAL1" }
+            ]
+        },
+        {
             "id": "mesh",
             "name": "Mesh",
             "file": "Mesh.cpp",
@@ -934,7 +1161,7 @@
                 { "name": "CreateIndexBuffer", "description": "꼭짓점 번호 순서를 32비트로 올립니다." },
                 { "name": "CalculateLocalBounds", "description": "모양을 감싸는 상자를 구합니다." }
             ],
-            "links": ["model", "toon-pass", "outline-pass", "aabb", "gpu-buffer"],
+            "links": ["model", "toon-pass", "outline-pass", "aabb", "gpu-buffer", "vertex-layout"],
             "picture": [
                 { "shape": "line", "points": [[30,42],[114,42],[114,126],[30,126]], "closed": true },
                 { "shape": "line", "points": [[30,42],[114,126]] },
@@ -983,7 +1210,7 @@
                 { "name": "CreateDefault", "description": "Upload 힙에 쓰고 Default 힙으로 복사합니다." },
                 { "name": "CopyBufferRegion 호출", "description": "GPU에게 복사를 시킵니다." }
             ],
-            "links": ["mesh", "texture", "frame-constant-buffer", "gpu-barrier", "command-context"],
+            "links": ["mesh", "frame-constant-buffer", "gpu-barrier", "command-context", "texture-uploader"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 64, "w": 84, "h": 52, "fill": "box" },
                 { "shape": "text", "x": 52, "y": 90, "size": 14, "text": "CPU 배열" },
@@ -1033,72 +1260,190 @@
             ]
         },
         {
-            "id": "texture-heap",
-            "name": "TextureHeap",
-            "file": "TextureHeap.cpp",
-            "role": "여러 텍스처의 SRV를 칸칸이 담아 둡니다.",
-            "without": "텍스처를 하나만 연결할 수 있어 모든 물체가 같은 그림을 씁니다.",
-            "limit": "칸을 되돌려 받지 않습니다. 텍스처를 계속 바꾸면 256칸이 차게 됩니다.",
-            "unreal": "디스크립터를 관리하는 FD3D12DescriptorHeap입니다.",
+            "id": "texture",
+            "name": "Texture",
+            "file": "Texture.cpp",
+            "role": "픽셀이 담긴 GPU 텍스처와 연결할 칸의 번호를 보관합니다.",
+            "without": "표면에 그림을 입힐 수 없고 꼭짓점 색만 남습니다.",
+            "limit": "밉맵이 없어 멀리 있는 무늬가 자글거립니다.",
+            "unreal": "UTexture2D입니다.",
             "functions": [
-                { "name": "Initialize", "description": "셰이더가 볼 수 있는 힙을 만듭니다." },
-                { "name": "Add", "description": "빈 칸에 SRV를 만들고 번호를 줍니다." },
-                { "name": "GetGpuHandle", "description": "그릴 때 가리킬 칸의 주소를 줍니다." }
+                { "name": "LoadFromFile", "description": "파일을 풀어 텍스처로 만듭니다." },
+                { "name": "CreateFromImage", "description": "빈 텍스처를 만들고 픽셀을 옮기게 합니다." },
+                { "name": "GetDescriptorSlot", "description": "셰이더에 연결할 칸의 번호를 줍니다." },
+                { "name": "TextureFormat", "description": "읽을 때 GPU가 선형 색으로 바꾸는 sRGB 형식입니다." }
             ],
-            "links": ["texture", "shadow-map", "root-signature", "toon-pass", "resource-manager"],
+            "links": ["image-loader", "gpu-texture", "texture-uploader", "texture-heap", "resource-manager", "material"],
             "picture": [
-                { "shape": "rect", "x": 16, "y": 24, "w": 60, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 46, "y": 41, "size": 14, "text": "흰색" },
-                { "shape": "rect", "x": 76, "y": 24, "w": 60, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 106, "y": 41, "size": 14, "text": "몸" },
-                { "shape": "rect", "x": 136, "y": 24, "w": 60, "h": 34, "fill": "highlight" },
-                { "shape": "text", "x": 166, "y": 41, "size": 14, "text": "머리" },
-                { "shape": "rect", "x": 196, "y": 24, "w": 60, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 226, "y": 41, "size": 14, "text": "조끼" },
-                { "shape": "rect", "x": 256, "y": 24, "w": 60, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 286, "y": 41, "size": 14, "text": "…" },
-                { "shape": "text", "x": 46, "y": 72, "size": 13, "text": "0칸" },
-                { "shape": "text", "x": 106, "y": 72, "size": 13, "text": "1칸" },
-                { "shape": "text", "x": 166, "y": 72, "size": 13, "text": "2칸" },
-                { "shape": "text", "x": 226, "y": 72, "size": 13, "text": "3칸" },
-                { "shape": "rect", "x": 96, "y": 118, "w": 140, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 166, "y": 138, "size": 14, "text": "테이블 (t0)" },
-                { "shape": "line", "points": [[166,118],[166,84]], "arrow": "end" }
+                { "shape": "rect", "x": 14, "y": 22, "w": 132, "h": 136, "fill": "box" },
+                { "shape": "text", "x": 80, "y": 40, "size": 14, "text": "Texture" },
+                { "shape": "rect", "x": 28, "y": 56, "w": 104, "h": 44, "fill": "highlight" },
+                { "shape": "text", "x": 80.0, "y": 78.0, "size": 14, "text": "GPU의 픽셀" },
+                { "shape": "rect", "x": 28, "y": 108, "w": 104, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 80.0, "y": 127.0, "size": 14, "text": "칸 번호 2" },
+                { "shape": "line", "points": [[132,127],[188,127]], "arrow": "end" },
+                { "shape": "rect", "x": 190, "y": 108, "w": 40, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 210.0, "y": 127.0, "size": 14, "text": "0" },
+                { "shape": "rect", "x": 230, "y": 108, "w": 40, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 250.0, "y": 127.0, "size": 14, "text": "1" },
+                { "shape": "rect", "x": 270, "y": 108, "w": 40, "h": 38, "fill": "highlight" },
+                { "shape": "text", "x": 290.0, "y": 127.0, "size": 14, "text": "2" },
+                { "shape": "text", "x": 250, "y": 160, "size": 13, "text": "텍스처 힙의 칸" },
+                { "shape": "line", "points": [[132,72],[214,60]], "arrow": "end" },
+                { "shape": "text", "x": 268, "y": 56, "size": 13, "text": "재질이 읽음" }
+            ]
+        },
+        {
+            "id": "gpu-texture",
+            "name": "GpuTexture",
+            "file": "GpuTexture.cpp",
+            "role": "GPU만 읽고 쓰는 메모리에 2D 텍스처를 만듭니다.",
+            "without": "그림, 깊이, 장면 화면마다 같은 설정을 다시 적어야 합니다.",
+            "limit": "밉맵이 하나인 2D 텍스처만 만듭니다.",
+            "unreal": "텍스처를 만드는 RHICreateTexture입니다.",
+            "functions": [
+                { "name": "Create", "description": "크기와 쓰임을 받아 빈 텍스처를 만듭니다." },
+                { "name": "GpuTextureDescription", "description": "크기, 형식, 표본 수, 쓰임을 담는 묶음입니다." }
+            ],
+            "links": ["texture", "depth-buffer", "scene-target", "texture-uploader"],
+            "picture": [
+                { "shape": "rect", "x": 12, "y": 30, "w": 116, "h": 122, "fill": "box" },
+                { "shape": "text", "x": 70, "y": 65.5, "size": 14, "text": "크기" },
+                { "shape": "text", "x": 70, "y": 82.5, "size": 14, "text": "형식" },
+                { "shape": "text", "x": 70, "y": 99.5, "size": 14, "text": "표본 수" },
+                { "shape": "text", "x": 70, "y": 116.5, "size": 14, "text": "쓰임" },
+                { "shape": "line", "points": [[128,91],[152,91]], "arrow": "end" },
+                { "shape": "rect", "x": 154, "y": 62, "w": 70, "h": 58, "fill": "highlight" },
+                { "shape": "text", "x": 189, "y": 91, "size": 14, "text": "만들기" },
+                { "shape": "line", "points": [[224,78],[246,46]], "arrow": "end" },
+                { "shape": "line", "points": [[224,91],[246,91]], "arrow": "end" },
+                { "shape": "line", "points": [[224,104],[246,136]], "arrow": "end" },
+                { "shape": "rect", "x": 248, "y": 24, "w": 82, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 289, "y": 44, "size": 14, "text": "재질 그림" },
+                { "shape": "rect", "x": 248, "y": 71, "w": 82, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 289, "y": 91, "size": 14, "text": "깊이" },
+                { "shape": "rect", "x": 248, "y": 118, "w": 82, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 289, "y": 138, "size": 14, "text": "장면 화면" }
+            ]
+        },
+        {
+            "id": "texture-uploader",
+            "name": "TextureUploader",
+            "file": "TextureUploader.cpp",
+            "role": "CPU에 풀어 둔 픽셀을 GPU 전용 텍스처로 옮깁니다.",
+            "without": "텍스처는 만들어져도 안이 비어 있어 검게 보입니다.",
+            "limit": "한 장 옮길 때마다 GPU가 끝나기를 기다립니다. 많아지면 한꺼번에 옮겨야 합니다.",
+            "unreal": "RHIUpdateTexture2D로 픽셀을 올리는 부분입니다.",
+            "functions": [
+                { "name": "Upload", "description": "줄 간격을 맞춰 Upload 버퍼에 쓰고 GPU에게 복사를 시킵니다." }
+            ],
+            "links": ["texture", "gpu-buffer", "gpu-barrier", "image-loader", "command-context"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 34, "w": 84, "h": 52, "fill": "box" },
+                { "shape": "text", "x": 52, "y": 60, "size": 14, "text": "픽셀" },
+                { "shape": "rect", "x": 118, "y": 34, "w": 96, "h": 52, "fill": "box" },
+                { "shape": "text", "x": 166, "y": 51.5, "size": 14, "text": "Upload 버퍼" },
+                { "shape": "text", "x": 166, "y": 68.5, "size": 14, "text": "줄 간격 256" },
+                { "shape": "line", "points": [[94,60.0],[116,60.0]], "arrow": "end" },
+                { "shape": "rect", "x": 240, "y": 34, "w": 90, "h": 52, "fill": "highlight" },
+                { "shape": "text", "x": 285, "y": 60, "size": 14, "text": "텍스처" },
+                { "shape": "line", "points": [[214,60.0],[238,60.0]], "arrow": "end" },
+                { "shape": "text", "x": 106, "y": 104, "size": 13, "text": "CPU가 씀" },
+                { "shape": "text", "x": 228, "y": 104, "size": 13, "text": "GPU가 복사" },
+                { "shape": "line", "points": [[285,88],[285,122]], "arrow": "end" },
+                { "shape": "rect", "x": 220, "y": 124, "w": 110, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 275, "y": 144, "size": 14, "text": "Shader가 읽기" },
+                { "shape": "text", "x": 150, "y": 144, "size": 13, "text": "배리어" }
             ]
         },
         {
             "id": "model-loader",
             "name": "ModelLoader",
             "file": "ModelLoader.cpp",
-            "role": "glTF의 값을 이 엔진의 정점과 재질로 바꿉니다.",
+            "role": "모델 파일을 읽고, 실패하면 이유를 알려 줍니다.",
             "without": "Blender에서 만든 캐릭터를 쓸 수 없고 코드로 만든 도형만 그립니다.",
-            "limit": "뼈, 애니메이션, 표정은 아직 읽지 않습니다. 파일을 하나로 묶은 .glb도 읽지 않습니다.",
+            "limit": "glTF만 읽습니다. 뼈, 애니메이션, 표정은 아직 읽지 않습니다.",
             "unreal": "애셋을 가져오는 Interchange 임포터가 하는 일입니다.",
             "functions": [
-                { "name": "LoadGltf", "description": "파일을 읽고 실패하면 이유를 알려 줍니다." },
-                { "name": "ReadNode", "description": "노드의 자리를 계산해 조각을 모읍니다." },
-                { "name": "ReadPrimitive", "description": "오른손 좌표의 Z를 뒤집고 정점을 채웁니다." },
-                { "name": "CalculateNormals", "description": "법선이 없는 파일이면 면에서 만들어 냅니다." }
+                { "name": "LoadGltf", "description": "읽는 일을 맡기고 예외가 나면 이유를 출력합니다." }
             ],
-            "links": ["gltf-file", "model", "resource-manager", "material"],
+            "links": ["gltf-model-reader", "model-data", "resource-manager"],
             "picture": [
-                { "shape": "rect", "x": 10, "y": 22, "w": 92, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 56, "y": 42, "size": 14, "text": ".gltf" },
-                { "shape": "rect", "x": 10, "y": 70, "w": 92, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 56, "y": 90, "size": 14, "text": ".bin" },
-                { "shape": "rect", "x": 10, "y": 118, "w": 92, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 56, "y": 138, "size": 14, "text": ".png" },
-                { "shape": "line", "points": [[102,42],[132,76]], "arrow": "end" },
-                { "shape": "line", "points": [[102,90],[132,90]], "arrow": "end" },
-                { "shape": "line", "points": [[102,138],[132,104]], "arrow": "end" },
-                { "shape": "rect", "x": 134, "y": 60, "w": 78, "h": 60, "fill": "highlight" },
-                { "shape": "text", "x": 173, "y": 81.5, "size": 14, "text": "Z 뒤집기" },
-                { "shape": "text", "x": 173, "y": 98.5, "size": 14, "text": "순서 바꿈" },
-                { "shape": "line", "points": [[212,90],[240,90]], "arrow": "end" },
-                { "shape": "rect", "x": 242, "y": 44, "w": 88, "h": 92, "fill": "box" },
-                { "shape": "text", "x": 286, "y": 73, "size": 14, "text": "조각들" },
-                { "shape": "text", "x": 286, "y": 90, "size": 14, "text": "정점" },
-                { "shape": "text", "x": 286, "y": 107, "size": 14, "text": "재질" }
+                { "shape": "rect", "x": 12, "y": 62, "w": 88, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 56, "y": 90, "size": 14, "text": "Luna.gltf" },
+                { "shape": "rect", "x": 126, "y": 62, "w": 92, "h": 56, "fill": "highlight" },
+                { "shape": "text", "x": 172, "y": 90, "size": 14, "text": "LoadGltf" },
+                { "shape": "line", "points": [[100,90.0],[124,90.0]], "arrow": "end" },
+                { "shape": "rect", "x": 244, "y": 62, "w": 84, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 286, "y": 90, "size": 14, "text": "ModelData" },
+                { "shape": "line", "points": [[218,90.0],[242,90.0]], "arrow": "end" },
+                { "shape": "line", "points": [[172,118],[172,142]], "arrow": "end" },
+                { "shape": "text", "x": 172, "y": 156, "size": 13, "text": "실패하면 이유를 출력" }
+            ]
+        },
+        {
+            "id": "gltf-model-reader",
+            "name": "GltfModelReader",
+            "file": "GltfModelReader.cpp",
+            "role": "glTF의 노드를 따라가며 재질과 조각을 모읍니다.",
+            "without": "조각들이 제자리를 찾지 못하고 모두 원점에 겹칩니다.",
+            "limit": "장면 하나만 읽습니다. 뼈와 애니메이션은 건너뜁니다.",
+            "unreal": "Interchange의 장면 노드를 훑는 부분입니다.",
+            "functions": [
+                { "name": "Read", "description": "재질과 노드를 모두 읽어 모델 하나로 돌려줍니다." },
+                { "name": "ReadMaterials", "description": "재질의 이름, 색, 그림 경로를 읽습니다." },
+                { "name": "ReadNode", "description": "부모의 자리를 곱하며 아래 노드로 내려갑니다." },
+                { "name": "GetLocalMatrix", "description": "노드의 이동, 회전, 크기를 행렬로 만듭니다." }
+            ],
+            "links": ["model-loader", "gltf-primitive-reader", "gltf-file", "model-data"],
+            "picture": [
+                { "shape": "rect", "x": 124, "y": 12, "w": 92, "h": 36, "fill": "box" },
+                { "shape": "text", "x": 170, "y": 30, "size": 14, "text": "장면" },
+                { "shape": "line", "points": [[150,48],[84,70]], "arrow": "end" },
+                { "shape": "line", "points": [[190,48],[256,70]], "arrow": "end" },
+                { "shape": "rect", "x": 30, "y": 72, "w": 100, "h": 36, "fill": "box" },
+                { "shape": "text", "x": 80, "y": 90, "size": 14, "text": "몸 노드" },
+                { "shape": "rect", "x": 210, "y": 72, "w": 100, "h": 36, "fill": "box" },
+                { "shape": "text", "x": 260, "y": 90, "size": 14, "text": "머리 노드" },
+                { "shape": "line", "points": [[80,108],[80,128]], "arrow": "end" },
+                { "shape": "line", "points": [[260,108],[260,128]], "arrow": "end" },
+                { "shape": "rect", "x": 30, "y": 130, "w": 100, "h": 36, "fill": "highlight" },
+                { "shape": "text", "x": 80, "y": 148, "size": 14, "text": "조각" },
+                { "shape": "rect", "x": 210, "y": 130, "w": 100, "h": 36, "fill": "highlight" },
+                { "shape": "text", "x": 260, "y": 148, "size": 14, "text": "조각" },
+                { "shape": "text", "x": 170, "y": 90, "size": 13, "text": "자리를 곱함" }
+            ]
+        },
+        {
+            "id": "gltf-primitive-reader",
+            "name": "GltfPrimitiveReader",
+            "file": "GltfPrimitiveReader.cpp",
+            "role": "조각 하나를 이 엔진의 정점과 왼손 좌표로 바꿉니다.",
+            "without": "모델이 거울에 비친 것처럼 뒤집히거나 안팎이 바뀝니다.",
+            "limit": "삼각형만 읽습니다. 뼈 번호와 가중치는 아직 읽지 않습니다.",
+            "unreal": "메시 데이터를 만드는 Interchange의 페이로드 변환입니다.",
+            "functions": [
+                { "name": "Read", "description": "정점과 인덱스를 읽고 방향을 맞춥니다." },
+                { "name": "ReadVertices", "description": "Z를 뒤집고 색에 재질의 색을 곱합니다." },
+                { "name": "ReadIndices", "description": "꼭짓점 번호가 범위를 넘지 않는지 봅니다." },
+                { "name": "FlipWinding", "description": "뒤집혀 반대가 된 감기는 방향을 맞춥니다." },
+                { "name": "CalculateNormals", "description": "법선이 없으면 면에서 만들어 냅니다." }
+            ],
+            "links": ["gltf-model-reader", "gltf-file", "model-data", "vertex-layout"],
+            "picture": [
+                { "shape": "line", "points": [[40,120],[110,120],[75,56]], "closed": true },
+                { "shape": "text", "x": 75, "y": 142, "size": 13, "text": "오른손" },
+                { "shape": "text", "x": 40, "y": 134, "size": 11, "text": "0" },
+                { "shape": "text", "x": 112, "y": 134, "size": 11, "text": "1" },
+                { "shape": "text", "x": 75, "y": 46, "size": 11, "text": "2" },
+                { "shape": "line", "points": [[132,92],[204,92]], "arrow": "end" },
+                { "shape": "text", "x": 168, "y": 78, "size": 13, "text": "Z 뒤집기" },
+                { "shape": "text", "x": 168, "y": 108, "size": 13, "text": "순서 바꿈" },
+                { "shape": "line", "points": [[226,120],[296,120],[261,56]], "closed": true },
+                { "shape": "text", "x": 261, "y": 142, "size": 13, "text": "왼손" },
+                { "shape": "text", "x": 226, "y": 134, "size": 11, "text": "0" },
+                { "shape": "text", "x": 298, "y": 134, "size": 11, "text": "2" },
+                { "shape": "text", "x": 261, "y": 46, "size": 11, "text": "1" }
             ]
         },
         {
@@ -1115,7 +1460,7 @@
                 { "name": "ResolveUri", "description": "문서에 적힌 다른 파일의 경로를 구합니다." },
                 { "name": "ReadBinaryFile", "description": ".bin 파일을 통째로 읽습니다." }
             ],
-            "links": ["model-loader", "model"],
+            "links": ["model", "gltf-model-reader", "gltf-primitive-reader"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 22, "w": 112, "h": 136, "fill": "box" },
                 { "shape": "text", "x": 66, "y": 40, "size": 14, "text": "Luna.gltf" },
@@ -1175,42 +1520,6 @@
                 { "shape": "rect", "x": 274, "y": 94, "w": 26, "h": 26, "fill": "box" },
                 { "shape": "rect", "x": 300, "y": 94, "w": 26, "h": 26, "fill": "box" },
                 { "shape": "text", "x": 274, "y": 140, "size": 13, "text": "픽셀 하나에 4바이트" }
-            ]
-        },
-        {
-            "id": "texture",
-            "name": "Texture",
-            "file": "Texture.cpp",
-            "role": "RGBA 픽셀을 GPU가 읽는 텍스처로 올립니다.",
-            "without": "표면에 그림을 입힐 수 없고 꼭짓점 색만 남습니다.",
-            "limit": "한 장 올릴 때마다 GPU가 끝나기를 기다립니다. 텍스처가 많아지면 한꺼번에 올리도록 바꿔야 합니다.",
-            "unreal": "UTexture2D입니다.",
-            "functions": [
-                { "name": "LoadFromFile", "description": "파일을 풀어 텍스처로 만듭니다." },
-                { "name": "CreateFromImage", "description": "픽셀을 Upload 힙을 거쳐 Default 힙에 복사합니다." },
-                { "name": "sRGB 형식", "description": "읽을 때 GPU가 선형 색으로 바꾸게 합니다." }
-            ],
-            "links": ["image-loader", "gpu-buffer", "gpu-barrier", "texture-heap", "resource-manager", "material"],
-            "picture": [
-                { "shape": "rect", "x": 8, "y": 66, "w": 56, "h": 50, "fill": "box" },
-                { "shape": "text", "x": 36, "y": 91, "size": 14, "text": "PNG" },
-                { "shape": "line", "points": [[64,91],[90,91]], "arrow": "end" },
-                { "shape": "rect", "x": 92, "y": 66, "w": 62, "h": 50, "fill": "box" },
-                { "shape": "text", "x": 123, "y": 82.5, "size": 14, "text": "RGBA8" },
-                { "shape": "text", "x": 123, "y": 99.5, "size": 14, "text": "픽셀" },
-                { "shape": "line", "points": [[154,91],[180,91]], "arrow": "end" },
-                { "shape": "rect", "x": 182, "y": 66, "w": 62, "h": 50, "fill": "box" },
-                { "shape": "text", "x": 213, "y": 82.5, "size": 14, "text": "Upload" },
-                { "shape": "text", "x": 213, "y": 99.5, "size": 14, "text": "힙" },
-                { "shape": "line", "points": [[244,91],[270,91]], "arrow": "end" },
-                { "shape": "rect", "x": 272, "y": 66, "w": 60, "h": 50, "fill": "highlight" },
-                { "shape": "text", "x": 302, "y": 82.5, "size": 14, "text": "Default" },
-                { "shape": "text", "x": 302, "y": 99.5, "size": 14, "text": "힙" },
-                { "shape": "text", "x": 77, "y": 49, "size": 13, "text": "해독" },
-                { "shape": "text", "x": 167, "y": 49, "size": 13, "text": "CPU 복사" },
-                { "shape": "text", "x": 257, "y": 49, "size": 13, "text": "GPU 복사" },
-                { "shape": "text", "x": 206, "y": 135, "size": 13, "text": "CPU가 씀" },
-                { "shape": "text", "x": 298, "y": 135, "size": 13, "text": "GPU가 읽음" }
             ]
         },
         {
@@ -1303,7 +1612,7 @@
                 { "name": "CreateSphere", "description": "위아래로 16칸, 둘레로 32칸 나눠 만듭니다." },
                 { "name": "CreatePlane", "description": "한 변이 4인 바닥을 꼭짓점 4개로 만듭니다." }
             ],
-            "links": ["model", "mesh", "resource-manager"],
+            "links": ["model", "mesh", "resource-manager", "model-data"],
             "picture": [
                 { "shape": "line", "points": [[24,66],[72,66],[72,122],[24,122]], "closed": true },
                 { "shape": "line", "points": [[24,66],[44,46],[92,46],[72,66]] },
@@ -1345,7 +1654,7 @@
                 { "name": "GetConstantSlot", "description": "재질 상수 버퍼에서 쓸 칸 번호를 줍니다." },
                 { "name": "HasOutline", "description": "두께가 0이면 외곽선을 건너뛰게 합니다." }
             ],
-            "links": ["material-style", "texture", "model", "scene-constants", "outline-pass"],
+            "links": ["material-style", "texture", "model", "scene-constants", "outline-pass", "material-style-values"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 34, "w": 88, "h": 44, "fill": "box" },
                 { "shape": "text", "x": 54, "y": 56, "size": 14, "text": "텍스처" },
@@ -1373,10 +1682,9 @@
             "unreal": "머티리얼 인스턴스의 파라미터를 모아 둔 데이터 에셋과 비슷합니다.",
             "functions": [
                 { "name": "Load", "description": "PandoraStyle.json을 읽습니다." },
-                { "name": "Find", "description": "재질 이름으로 값을 찾고 없으면 기본값을 줍니다." },
-                { "name": "MaterialStyle", "description": "그늘색, 경계, 림, 외곽선 값을 담는 묶음입니다(MaterialStyle.h)." }
+                { "name": "Find", "description": "재질 이름으로 값을 찾고 없으면 기본값을 줍니다." }
             ],
-            "links": ["material", "resource-manager", "shader"],
+            "links": ["material-style-values", "material", "resource-manager", "shader"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 20, "w": 100, "h": 140, "fill": "box" },
                 { "shape": "text", "x": 60, "y": 81.5, "size": 14, "text": "이름으로" },
@@ -1521,16 +1829,17 @@
             "id": "scene-serializer",
             "name": "SceneSerializer",
             "file": "SceneSerializer.cpp",
-            "role": "장면을 JSON 파일로 저장하고 다시 불러옵니다.",
+            "role": "실행 중인 장면과 파일에 적을 내용 사이를 바꿉니다.",
             "without": "프로그램을 끄면 배치한 물체가 모두 사라집니다.",
             "limit": "저장 파일이 Scenes/Scene.json 하나입니다.",
             "unreal": "레벨을 .umap으로 저장하는 부분입니다.",
             "functions": [
-                { "name": "SaveScene", "description": "이름, 모델, 위치를 JSON으로 적습니다." },
-                { "name": "LoadScene", "description": "파일을 끝까지 검사한 뒤에만 지금 장면과 바꿉니다." },
+                { "name": "SaveScene", "description": "장면을 내용으로 바꿔 파일에 적게 합니다." },
+                { "name": "LoadScene", "description": "끝까지 읽은 뒤에만 지금 장면과 바꿉니다." },
+                { "name": "CreateData · CreateScene", "description": "장면을 내용으로, 내용을 장면으로 바꿉니다." },
                 { "name": "ResolveModel", "description": "적힌 이름의 모델을 찾고, 없으면 glTF 경로로 읽습니다." }
             ],
-            "links": ["scene", "game-object", "transform", "model"],
+            "links": ["scene-file-reader", "scene-file-writer", "scene-data", "scene", "game-object", "transform", "model"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 58, "w": 96, "h": 64, "fill": "highlight" },
                 { "shape": "text", "x": 58, "y": 81.5, "size": 14, "text": "Scene" },
@@ -1545,6 +1854,61 @@
                 { "shape": "text", "x": 180, "y": 91, "size": 13, "text": "  \"model\"", "align": "left" },
                 { "shape": "text", "x": 180, "y": 117, "size": 13, "text": "  \"transform\"", "align": "left" },
                 { "shape": "text", "x": 180, "y": 143, "size": 13, "text": "}] }", "align": "left" }
+            ]
+        },
+        {
+            "id": "scene-file-reader",
+            "name": "SceneFileReader",
+            "file": "SceneFileReader.cpp",
+            "role": "장면 파일을 읽고 빠지거나 틀린 값이 없는지 검사합니다.",
+            "without": "잘못 고친 파일 하나 때문에 장면이 반쯤 바뀐 채로 남습니다.",
+            "limit": "버전 1과 2만 읽습니다.",
+            "unreal": "에셋을 읽는 FArchive 불러오기 쪽입니다.",
+            "functions": [
+                { "name": "Read", "description": "파일 전체를 읽어 내용으로 돌려줍니다." },
+                { "name": "ReadVersion", "description": "읽을 수 있는 버전인지 봅니다." },
+                { "name": "ReadObject", "description": "물체 하나의 이름, 모델, 위치를 읽습니다." },
+                { "name": "TryReadFloat3", "description": "숫자 세 개가 맞는지 봅니다." }
+            ],
+            "links": ["scene-serializer", "scene-data"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 40, "w": 88, "h": 52, "fill": "box" },
+                { "shape": "text", "x": 54, "y": 66, "size": 14, "text": "Scene.json" },
+                { "shape": "rect", "x": 122, "y": 40, "w": 88, "h": 52, "fill": "highlight" },
+                { "shape": "text", "x": 166, "y": 66, "size": 14, "text": "검사" },
+                { "shape": "line", "points": [[98,66.0],[120,66.0]], "arrow": "end" },
+                { "shape": "rect", "x": 236, "y": 40, "w": 94, "h": 52, "fill": "box" },
+                { "shape": "text", "x": 283, "y": 66, "size": 14, "text": "SceneData" },
+                { "shape": "line", "points": [[210,66.0],[234,66.0]], "arrow": "end" },
+                { "shape": "line", "points": [[166,92],[166,124]], "arrow": "end" },
+                { "shape": "rect", "x": 96, "y": 126, "w": 140, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 166, "y": 145, "size": 14, "text": "틀리면 이유를 던짐" }
+            ]
+        },
+        {
+            "id": "scene-file-writer",
+            "name": "SceneFileWriter",
+            "file": "SceneFileWriter.cpp",
+            "role": "장면의 내용을 사람이 읽을 수 있는 JSON으로 적습니다.",
+            "without": "저장 버튼을 눌러도 파일이 생기지 않습니다.",
+            "limit": "파일을 바로 덮어씁니다. 쓰는 도중에 꺼지면 이전 파일이 남지 않습니다.",
+            "unreal": "에셋을 적는 FArchive 저장 쪽입니다.",
+            "functions": [
+                { "name": "Write", "description": "내용을 JSON으로 바꿔 파일에 적습니다." },
+                { "name": "CreateObjectJson", "description": "물체 하나를 JSON으로 바꿉니다." },
+                { "name": "CreateParentDirectory", "description": "폴더가 없으면 만듭니다." }
+            ],
+            "links": ["scene-serializer", "scene-data"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 58, "w": 94, "h": 60, "fill": "box" },
+                { "shape": "text", "x": 57, "y": 88, "size": 14, "text": "SceneData" },
+                { "shape": "rect", "x": 128, "y": 58, "w": 84, "h": 60, "fill": "highlight" },
+                { "shape": "text", "x": 170, "y": 88, "size": 14, "text": "JSON" },
+                { "shape": "line", "points": [[104,88.0],[126,88.0]], "arrow": "end" },
+                { "shape": "rect", "x": 238, "y": 58, "w": 92, "h": 60, "fill": "box" },
+                { "shape": "text", "x": 284, "y": 88, "size": 14, "text": "Scene.json" },
+                { "shape": "line", "points": [[212,88.0],[236,88.0]], "arrow": "end" },
+                { "shape": "text", "x": 170, "y": 142, "size": 13, "text": "이름 · 모델 · 위치 · 회전 · 크기" }
             ]
         },
         {
@@ -1761,10 +2125,9 @@
                 { "name": "Initialize", "description": "Win32와 DirectX 12 연결을 준비합니다." },
                 { "name": "HandleMessage", "description": "창으로 들어온 메시지를 ImGui에 전합니다." },
                 { "name": "BeginFrame", "description": "이번 프레임의 UI를 시작합니다." },
-                { "name": "Render", "description": "장면을 그린 화면 위에 UI를 덧그립니다." },
-                { "name": "AllocateDescriptor", "description": "글꼴 그림을 연결할 칸을 줍니다." }
+                { "name": "Render", "description": "장면을 그린 화면 위에 UI를 덧그립니다." }
             ],
-            "links": ["scene-editor", "win32-window", "d3d12-context", "swapchain"],
+            "links": ["imgui-descriptors", "scene-editor", "win32-window", "d3d12-context", "swapchain"],
             "picture": [
                 { "shape": "rect", "x": 14, "y": 44, "w": 130, "h": 84, "fill": "box" },
                 { "shape": "text", "x": 79, "y": 77.5, "size": 14, "text": "장면의 평균" },
@@ -1984,7 +2347,7 @@
                 { "name": "Draw", "description": "일곱 가지 물음표와 Guide 버튼을 그립니다." },
                 { "name": "DrawItem", "description": "기능 이름 옆에 물음표를 하나 붙입니다." }
             ],
-            "links": ["engine-guide-window", "editor-layout", "scene-editor"],
+            "links": ["editor-layout", "scene-editor", "guide-help-button"],
             "picture": [
                 { "shape": "rect", "x": 6, "y": 22, "w": 328, "h": 40, "fill": "box" },
                 { "shape": "text", "x": 34, "y": 42, "size": 12, "text": "Look ?" },
@@ -2003,19 +2366,50 @@
             ]
         },
         {
+            "id": "engine-guide-window",
+            "name": "EngineGuideWindow",
+            "file": "EngineGuideWindow.cpp",
+            "role": "도감 창을 여닫고 지금 볼 화면을 골라 그립니다.",
+            "without": "기능이 어떻게 움직이는지 알려면 코드를 직접 뒤져야 합니다.",
+            "limit": "카드를 검색할 수 없고 차례로 훑어봐야 합니다.",
+            "unreal": "에디터 안에서 여는 튜토리얼 창과 비슷합니다.",
+            "functions": [
+                { "name": "Open", "description": "이름에 맞는 설명으로 창을 엽니다." },
+                { "name": "Draw", "description": "창을 그리고 이동 요청을 처리합니다." },
+                { "name": "DrawPage", "description": "카드, 기능, 첫 화면 중에서 볼 것을 고릅니다." }
+            ],
+            "links": ["engine-guide", "guide-navigation", "guide-navigation-bar", "guide-home-page", "guide-card-page", "guide-feature-page", "guide-theme", "scene-editor"],
+            "picture": [
+                { "shape": "rect", "x": 8, "y": 64, "w": 92, "h": 52, "fill": "box" },
+                { "shape": "text", "x": 40, "y": 90, "size": 14, "text": "기능" },
+                { "shape": "circle", "x": 78, "y": 90, "r": 12, "fill": "dot" },
+                { "shape": "text", "x": 78, "y": 90, "size": 14, "text": "?" },
+                { "shape": "line", "points": [[100,90],[130,90]], "arrow": "end" },
+                { "shape": "rect", "x": 132, "y": 20, "w": 200, "h": 140, "fill": "box" },
+                { "shape": "text", "x": 232, "y": 39, "size": 14, "text": "엔진 안의 창" },
+                { "shape": "rect", "x": 144, "y": 58, "w": 82, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 185, "y": 78, "size": 14, "text": "순서" },
+                { "shape": "rect", "x": 238, "y": 58, "w": 82, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 279, "y": 78, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 144, "y": 108, "w": 176, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 232, "y": 128, "size": 14, "text": "그림과 설명" }
+            ]
+        },
+        {
             "id": "engine-guide",
             "name": "EngineGuide",
             "file": "EngineGuide.cpp",
-            "role": "카드 내용을 JSON 파일에서 읽어 이름으로 찾아 줍니다.",
+            "role": "도감의 내용을 보관하고 카드와 기능을 이름으로 찾아 줍니다.",
             "without": "설명을 고칠 때마다 C++ 코드를 바꾸고 다시 빌드해야 합니다.",
             "limit": "파일은 시작할 때 한 번만 읽습니다. 고친 설명을 보려면 엔진을 다시 켜야 합니다.",
             "unreal": "에셋을 읽어 두는 UDataAsset과 비슷합니다.",
             "functions": [
-                { "name": "Load", "description": "파일을 읽고, 이어진 카드 이름이 맞는지 검사합니다." },
+                { "name": "Load", "description": "파일을 읽고, 이어진 카드 이름이 맞으면 내용을 바꿉니다." },
                 { "name": "FindCard", "description": "클래스 카드를 이름으로 찾습니다." },
-                { "name": "FindFeature", "description": "기능 설명을 이름으로 찾습니다." }
+                { "name": "FindFeature", "description": "기능 설명을 이름으로 찾습니다." },
+                { "name": "ValidateReferences", "description": "없는 카드를 가리키는 이름이 있는지 봅니다." }
             ],
-            "links": ["engine-guide-window", "guide-picture", "scene-serializer"],
+            "links": ["engine-guide-reader", "guide-data", "engine-guide-window"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 18, "w": 108, "h": 144, "fill": "box" },
                 { "shape": "text", "x": 22, "y": 57, "size": 13, "text": "\"cards\"", "align": "left" },
@@ -2034,34 +2428,36 @@
             ]
         },
         {
-            "id": "engine-guide-window",
-            "name": "EngineGuideWindow",
-            "file": "EngineGuideWindow.cpp",
-            "role": "물음표를 그리고, 누르면 엔진 안의 창에 카드를 보여 줍니다.",
-            "without": "기능이 어떻게 움직이는지 알려면 코드를 직접 뒤져야 합니다.",
-            "limit": "카드를 검색할 수 없고 차례로 훑어봐야 합니다.",
-            "unreal": "에디터 안에서 여는 튜토리얼 창과 비슷합니다.",
+            "id": "engine-guide-reader",
+            "name": "EngineGuideReader",
+            "file": "EngineGuideReader.cpp",
+            "role": "도감의 JSON 파일을 카드, 기능, 묶음으로 바꿉니다.",
+            "without": "설명을 고칠 때마다 C++ 코드를 바꿔야 합니다.",
+            "limit": "모르는 도형이 하나라도 있으면 파일 전체를 읽지 않습니다.",
+            "unreal": "데이터 테이블을 읽는 JSON 임포터입니다.",
             "functions": [
-                { "name": "DrawHelpButton", "description": "바로 앞 글자나 버튼 옆에 물음표를 그립니다." },
-                { "name": "Open", "description": "이름에 맞는 설명으로 창을 엽니다." },
-                { "name": "Draw", "description": "지금 보고 있는 화면을 그립니다." },
-                { "name": "DrawCardPage · DrawFeaturePage", "description": "카드 한 장이나 기능의 순서를 그립니다." }
+                { "name": "Read", "description": "파일 전체를 읽어 내용으로 돌려줍니다." },
+                { "name": "ReadCard", "description": "카드의 글과 그림을 읽습니다." },
+                { "name": "ReadShape", "description": "그림의 상자, 선, 원, 글자를 읽습니다." },
+                { "name": "CopyGroupToCards", "description": "묶음의 이름과 색을 카드에 적어 둡니다." }
             ],
-            "links": ["engine-guide", "guide-navigation", "guide-theme", "guide-picture", "viewport-help-bar", "scene-editor"],
+            "links": ["engine-guide", "guide-data"],
             "picture": [
-                { "shape": "rect", "x": 8, "y": 64, "w": 92, "h": 52, "fill": "box" },
-                { "shape": "text", "x": 40, "y": 90, "size": 14, "text": "기능" },
-                { "shape": "circle", "x": 78, "y": 90, "r": 12, "fill": "dot" },
-                { "shape": "text", "x": 78, "y": 90, "size": 14, "text": "?" },
-                { "shape": "line", "points": [[100,90],[130,90]], "arrow": "end" },
-                { "shape": "rect", "x": 132, "y": 20, "w": 200, "h": 140, "fill": "box" },
-                { "shape": "text", "x": 232, "y": 39, "size": 14, "text": "엔진 안의 창" },
-                { "shape": "rect", "x": 144, "y": 58, "w": 82, "h": 40, "fill": "highlight" },
-                { "shape": "text", "x": 185, "y": 78, "size": 14, "text": "순서" },
-                { "shape": "rect", "x": 238, "y": 58, "w": 82, "h": 40, "fill": "highlight" },
-                { "shape": "text", "x": 279, "y": 78, "size": 14, "text": "카드" },
-                { "shape": "rect", "x": 144, "y": 108, "w": 176, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 232, "y": 128, "size": 14, "text": "그림과 설명" }
+                { "shape": "rect", "x": 10, "y": 46, "w": 100, "h": 88, "fill": "box" },
+                { "shape": "text", "x": 60, "y": 81.5, "size": 14, "text": "EngineGuide" },
+                { "shape": "text", "x": 60, "y": 98.5, "size": 14, "text": ".json" },
+                { "shape": "line", "points": [[110,90],[136,90]], "arrow": "end" },
+                { "shape": "rect", "x": 138, "y": 58, "w": 70, "h": 64, "fill": "highlight" },
+                { "shape": "text", "x": 173, "y": 90, "size": 14, "text": "읽기" },
+                { "shape": "line", "points": [[208,76],[234,44]], "arrow": "end" },
+                { "shape": "line", "points": [[208,90],[234,90]], "arrow": "end" },
+                { "shape": "line", "points": [[208,104],[234,136]], "arrow": "end" },
+                { "shape": "rect", "x": 236, "y": 24, "w": 94, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 283, "y": 44, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 236, "y": 70, "w": 94, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 283, "y": 90, "size": 14, "text": "기능" },
+                { "shape": "rect", "x": 236, "y": 116, "w": 94, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 283, "y": 136, "size": 14, "text": "묶음" }
             ]
         },
         {
@@ -2077,7 +2473,7 @@
                 { "name": "RequestBack", "description": "지나온 화면으로 돌아가겠다고 적어 둡니다." },
                 { "name": "Apply", "description": "그리기 전에 요청을 한꺼번에 처리합니다." }
             ],
-            "links": ["engine-guide-window", "engine-guide"],
+            "links": ["engine-guide-window", "engine-guide", "guide-navigation-bar"],
             "picture": [
                 { "shape": "rect", "x": 14, "y": 70, "w": 84, "h": 40, "fill": "box" },
                 { "shape": "text", "x": 56, "y": 90, "size": 14, "text": "전체 카드" },
@@ -2141,7 +2537,7 @@
                 { "name": "GetHeight", "description": "폭에 맞는 높이를 알려 줍니다." },
                 { "name": "DrawRectShape · DrawLineShape · DrawTextShape", "description": "도형마다 좌표를 화면 크기에 맞춰 그립니다." }
             ],
-            "links": ["engine-guide", "guide-theme", "engine-guide-window"],
+            "links": ["guide-data", "guide-theme", "guide-card-page", "guide-card-grid"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 24, "w": 132, "h": 132, "fill": "box" },
                 { "shape": "text", "x": 22, "y": 46, "size": 13, "text": "\"rect\"", "align": "left" },
@@ -2155,6 +2551,393 @@
                 { "shape": "circle", "x": 224, "y": 118, "r": 20, "fill": "box" },
                 { "shape": "text", "x": 290, "y": 118, "size": 15, "text": "글자" }
             ]
+        },
+        {
+            "id": "guide-help-button",
+            "name": "GuideHelpButton",
+            "file": "GuideHelpButton.cpp",
+            "role": "편집기 기능 옆에 물음표를 그립니다.",
+            "without": "기능을 쓰다가 모르는 것이 생겨도 설명으로 갈 길이 없습니다.",
+            "limit": "누르는 것만 됩니다. 마우스를 올려도 짧은 설명이 뜨지 않습니다.",
+            "unreal": "디테일 패널의 도움말 버튼입니다.",
+            "functions": [
+                { "name": "Draw", "description": "바로 앞 글자나 버튼 옆에 그립니다." },
+                { "name": "DrawAtRight", "description": "패널 오른쪽 끝에 맞춰 그립니다." },
+                { "name": "GetReservedWidth", "description": "물음표 자리로 남겨 둘 폭을 줍니다." }
+            ],
+            "links": ["engine-guide-window", "create-panel", "inspector-panel", "viewport-help-bar"],
+            "picture": [
+                { "shape": "rect", "x": 14, "y": 40, "w": 140, "h": 100, "fill": "box" },
+                { "shape": "rect", "x": 26, "y": 56, "w": 78, "h": 30, "fill": "box" },
+                { "shape": "text", "x": 65, "y": 71, "size": 14, "text": "Cube" },
+                { "shape": "rect", "x": 116, "y": 56, "w": 28, "h": 30, "fill": "highlight" },
+                { "shape": "text", "x": 130, "y": 71, "size": 14, "text": "?" },
+                { "shape": "rect", "x": 26, "y": 98, "w": 78, "h": 30, "fill": "box" },
+                { "shape": "text", "x": 65, "y": 113, "size": 14, "text": "Save" },
+                { "shape": "rect", "x": 116, "y": 98, "w": 28, "h": 30, "fill": "box" },
+                { "shape": "text", "x": 130, "y": 113, "size": 14, "text": "?" },
+                { "shape": "line", "points": [[146,71],[208,90]], "arrow": "end" },
+                { "shape": "rect", "x": 210, "y": 50, "w": 116, "h": 80, "fill": "box" },
+                { "shape": "text", "x": 268, "y": 81.5, "size": 14, "text": "도감 창" },
+                { "shape": "text", "x": 268, "y": 98.5, "size": 14, "text": "물체 만들기" }
+            ]
+        },
+        {
+            "id": "guide-navigation-bar",
+            "name": "GuideNavigationBar",
+            "file": "GuideNavigationBar.cpp",
+            "role": "뒤로, 전체 카드, 이전과 다음 카드 버튼을 그립니다.",
+            "without": "카드를 열고 나면 다른 카드로 갈 수 없습니다.",
+            "limit": "카드를 검색하는 칸이 없습니다.",
+            "unreal": "웹 브라우저 위젯의 이동 막대와 비슷합니다.",
+            "functions": [
+                { "name": "Draw", "description": "지금 화면에서 누를 수 있는 버튼만 켭니다." }
+            ],
+            "links": ["guide-navigation", "engine-guide", "engine-guide-window"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 62, "w": 70, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 45, "y": 82, "size": 14, "text": "← 뒤로" },
+                { "shape": "rect", "x": 88, "y": 62, "w": 82, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 129, "y": 82, "size": 14, "text": "전체 카드" },
+                { "shape": "rect", "x": 178, "y": 62, "w": 72, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 214, "y": 82, "size": 14, "text": "이전" },
+                { "shape": "rect", "x": 258, "y": 62, "w": 72, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 294, "y": 82, "size": 14, "text": "다음" },
+                { "shape": "line", "points": [[214,102],[214,128]], "arrow": "end" },
+                { "shape": "line", "points": [[294,102],[294,128]], "arrow": "end" },
+                { "shape": "text", "x": 214, "y": 144, "size": 13, "text": "Fence" },
+                { "shape": "text", "x": 294, "y": 144, "size": 13, "text": "GpuBarrier" }
+            ]
+        },
+        {
+            "id": "guide-home-page",
+            "name": "GuideHomePage",
+            "file": "GuideHomePage.cpp",
+            "role": "모든 기능과 카드를 묶음별로 보여 주는 첫 화면입니다.",
+            "without": "어떤 카드가 있는지 한눈에 볼 수 없습니다.",
+            "limit": "묶음을 접을 수 없어 카드가 많아지면 길어집니다.",
+            "unreal": "콘텐츠 브라우저의 첫 화면과 비슷합니다.",
+            "functions": [
+                { "name": "Draw", "description": "기능 버튼을 놓고 묶음마다 카드 격자를 그립니다." }
+            ],
+            "links": ["guide-feature-buttons", "guide-card-grid", "engine-guide", "engine-guide-window"],
+            "picture": [
+                { "shape": "rect", "x": 30, "y": 14, "w": 280, "h": 154, "fill": "box" },
+                { "shape": "text", "x": 62, "y": 32, "size": 13, "text": "기능" },
+                { "shape": "rect", "x": 44, "y": 42, "w": 60, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 74, "y": 53, "size": 14, "text": "저장" },
+                { "shape": "rect", "x": 110, "y": 42, "w": 60, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 140, "y": 53, "size": 14, "text": "그림자" },
+                { "shape": "rect", "x": 176, "y": 42, "w": 60, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 206, "y": 53, "size": 14, "text": "외곽선" },
+                { "shape": "text", "x": 72, "y": 82, "size": 13, "text": "GPU 준비" },
+                { "shape": "rect", "x": 44, "y": 94, "w": 76, "h": 60, "fill": "highlight" },
+                { "shape": "text", "x": 82, "y": 124, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 130, "y": 94, "w": 76, "h": 60, "fill": "highlight" },
+                { "shape": "text", "x": 168, "y": 124, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 216, "y": 94, "w": 76, "h": 60, "fill": "highlight" },
+                { "shape": "text", "x": 254, "y": 124, "size": 14, "text": "카드" }
+            ]
+        },
+        {
+            "id": "guide-card-page",
+            "name": "GuideCardPage",
+            "file": "GuideCardPage.cpp",
+            "role": "카드 한 장의 그림과 설명, 이어진 카드를 보여 줍니다.",
+            "without": "카드를 눌러도 이름과 한 줄 설명밖에 볼 수 없습니다.",
+            "limit": "적힌 파일을 바로 열어 주지는 않습니다.",
+            "unreal": "에셋을 두 번 눌렀을 때 열리는 상세 창과 비슷합니다.",
+            "functions": [
+                { "name": "Draw", "description": "위에서부터 차례로 그립니다." },
+                { "name": "DrawHeader", "description": "그림과 이름, 하는 일을 그립니다." },
+                { "name": "DrawFunctions", "description": "함수와 설명을 표로 그립니다." },
+                { "name": "DrawUsingFeatures", "description": "이 카드를 쓰는 기능을 찾아 늘어놓습니다." }
+            ],
+            "links": ["guide-picture", "guide-card-grid", "guide-feature-buttons", "guide-theme", "engine-guide-window"],
+            "picture": [
+                { "shape": "rect", "x": 30, "y": 12, "w": 280, "h": 158, "fill": "box" },
+                { "shape": "rect", "x": 42, "y": 22, "w": 92, "h": 50, "fill": "highlight" },
+                { "shape": "text", "x": 88, "y": 47, "size": 14, "text": "그림" },
+                { "shape": "text", "x": 186, "y": 36, "size": 14, "text": "ShadowMap" },
+                { "shape": "text", "x": 186, "y": 58, "size": 12, "text": "하는 일 한 줄" },
+                { "shape": "rect", "x": 42, "y": 80, "w": 256, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 170, "y": 92, "size": 14, "text": "없으면 · 한계 · 언리얼" },
+                { "shape": "rect", "x": 42, "y": 110, "w": 256, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 170, "y": 122, "size": 14, "text": "함수 표" },
+                { "shape": "rect", "x": 42, "y": 140, "w": 78, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 81, "y": 151, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 128, "y": 140, "w": 78, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 167, "y": 151, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 214, "y": 140, "w": 78, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 253, "y": 151, "size": 14, "text": "카드" }
+            ]
+        },
+        {
+            "id": "guide-feature-page",
+            "name": "GuideFeaturePage",
+            "file": "GuideFeaturePage.cpp",
+            "role": "기능 하나가 어떤 카드를 거치는지 순서대로 보여 줍니다.",
+            "without": "버튼을 눌렀을 때 코드가 어디를 지나가는지 알 수 없습니다.",
+            "limit": "순서는 JSON에 적어 둔 것입니다. 실제로 실행된 순서를 기록하지는 않습니다.",
+            "unreal": "블루프린트의 실행 흐름을 글로 적은 것과 비슷합니다.",
+            "functions": [
+                { "name": "Draw", "description": "순서마다 카드 이름, 함수, 설명을 그립니다." },
+                { "name": "DrawStepMarker", "description": "번호와 다음으로 이어지는 선을 그립니다." }
+            ],
+            "links": ["guide-card-grid", "guide-theme", "guide-navigation", "engine-guide-window"],
+            "picture": [
+                { "shape": "circle", "x": 46, "y": 36, "r": 15, "fill": "highlight" },
+                { "shape": "text", "x": 46, "y": 36, "size": 14, "text": "1" },
+                { "shape": "line", "points": [[46,51],[46,75]] },
+                { "shape": "circle", "x": 46, "y": 90, "r": 15, "fill": "highlight" },
+                { "shape": "text", "x": 46, "y": 90, "size": 14, "text": "2" },
+                { "shape": "line", "points": [[46,105],[46,129]] },
+                { "shape": "circle", "x": 46, "y": 144, "r": 15, "fill": "highlight" },
+                { "shape": "text", "x": 46, "y": 144, "size": 14, "text": "3" },
+                { "shape": "rect", "x": 80, "y": 20, "w": 150, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 155, "y": 36, "size": 14, "text": "ShadowCamera" },
+                { "shape": "rect", "x": 80, "y": 74, "w": 150, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 155, "y": 90, "size": 14, "text": "ShadowPass" },
+                { "shape": "rect", "x": 80, "y": 128, "w": 150, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 155, "y": 144, "size": 14, "text": "ToonPass" },
+                { "shape": "text", "x": 280, "y": 36, "size": 13, "text": "Update" },
+                { "shape": "text", "x": 280, "y": 90, "size": 13, "text": "Draw" },
+                { "shape": "text", "x": 280, "y": 144, "size": 13, "text": "Draw" }
+            ]
+        },
+        {
+            "id": "guide-card-grid",
+            "name": "GuideCardGrid",
+            "file": "GuideCardGrid.cpp",
+            "role": "카드를 격자로 늘어놓고, 누르면 그 카드로 갑니다.",
+            "without": "카드 모양과 배치를 화면마다 다시 만들어야 합니다.",
+            "limit": "화면 밖의 카드도 모두 그립니다.",
+            "unreal": "콘텐츠 브라우저의 STileView입니다.",
+            "functions": [
+                { "name": "Draw", "description": "창 너비에 맞춰 칸 수와 카드 크기를 정합니다." },
+                { "name": "DrawCard", "description": "카드 한 장을 그리고 눌렸는지 봅니다." }
+            ],
+            "links": ["guide-picture", "guide-theme", "guide-navigation", "guide-home-page", "guide-card-page"],
+            "picture": [
+                { "shape": "rect", "x": 14, "y": 22, "w": 96, "h": 64, "fill": "highlight" },
+                { "shape": "text", "x": 62, "y": 54, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 122, "y": 22, "w": 96, "h": 64, "fill": "highlight" },
+                { "shape": "text", "x": 170, "y": 54, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 230, "y": 22, "w": 96, "h": 64, "fill": "highlight" },
+                { "shape": "text", "x": 278, "y": 54, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 14, "y": 98, "w": 96, "h": 64, "fill": "box" },
+                { "shape": "text", "x": 62, "y": 130, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 122, "y": 98, "w": 96, "h": 64, "fill": "box" },
+                { "shape": "text", "x": 170, "y": 130, "size": 14, "text": "카드" },
+                { "shape": "text", "x": 278, "y": 130, "size": 13, "text": "너비에 맞춰" },
+                { "shape": "text", "x": 278, "y": 148, "size": 13, "text": "칸 수를 정함" }
+            ]
+        },
+        {
+            "id": "guide-feature-buttons",
+            "name": "GuideFeatureButtons",
+            "file": "GuideFeatureButtons.cpp",
+            "role": "기능의 이름을 버튼으로 늘어놓습니다.",
+            "without": "첫 화면과 카드 화면이 같은 버튼 배치를 따로 만들어야 합니다.",
+            "limit": "버튼을 가나다순으로 정리하지 않습니다.",
+            "unreal": "줄을 바꿔 가며 놓는 SWrapBox입니다.",
+            "functions": [
+                { "name": "Draw", "description": "자리가 모자라면 다음 줄로 넘기며 버튼을 그립니다." }
+            ],
+            "links": ["guide-home-page", "guide-card-page", "guide-navigation"],
+            "picture": [
+                { "shape": "rect", "x": 20, "y": 30, "w": 300, "h": 120, "fill": "box" },
+                { "shape": "rect", "x": 34, "y": 46, "w": 80, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 74, "y": 62, "size": 14, "text": "? 저장" },
+                { "shape": "rect", "x": 122, "y": 46, "w": 88, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 166, "y": 62, "size": 14, "text": "? 그림자" },
+                { "shape": "rect", "x": 218, "y": 46, "w": 88, "h": 32, "fill": "box" },
+                { "shape": "text", "x": 262, "y": 62, "size": 14, "text": "? 외곽선" },
+                { "shape": "line", "points": [[306,62],[306,92]], "arrow": "end" },
+                { "shape": "rect", "x": 34, "y": 98, "w": 96, "h": 32, "fill": "highlight" },
+                { "shape": "text", "x": 82, "y": 114, "size": 14, "text": "? 둘러보기" },
+                { "shape": "text", "x": 220, "y": 114, "size": 13, "text": "넘치면 다음 줄" }
+            ]
+        },
+        {
+            "id": "d3d12-config",
+            "name": "D3D12Config",
+            "file": "D3D12Config.h",
+            "role": "여러 클래스가 같은 값을 써야 하는 설정입니다.",
+            "without": "백버퍼, PSO, ImGui가 서로 다른 형식을 써서 그리기가 실패합니다.",
+            "limit": "코드에 적힌 값이라 바꾸면 다시 빌드해야 합니다.",
+            "unreal": "프로젝트 설정의 렌더링 항목과 비슷합니다.",
+            "functions": [
+                { "name": "FrameCount", "description": "백버퍼와 명령 할당자의 수입니다." },
+                { "name": "SceneTargetFormat", "description": "장면을 그릴 sRGB 형식입니다." },
+                { "name": "SceneSampleCount", "description": "한 픽셀에 둘 표본의 수입니다." },
+                { "name": "DepthFormat", "description": "깊이의 형식입니다." }
+            ],
+            "links": ["swapchain", "scene-target", "depth-buffer", "pipeline"],
+            "picture": [
+                { "shape": "rect", "x": 106, "y": 56, "w": 128, "h": 70, "fill": "highlight" },
+                { "shape": "text", "x": 170, "y": 91, "size": 14, "text": "D3D12Config" },
+                { "shape": "rect", "x": 8, "y": 18, "w": 84, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 50, "y": 37, "size": 14, "text": "SwapChain" },
+                { "shape": "rect", "x": 248, "y": 18, "w": 84, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 290, "y": 37, "size": 14, "text": "SceneTarget" },
+                { "shape": "rect", "x": 8, "y": 126, "w": 84, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 50, "y": 145, "size": 14, "text": "Pipeline" },
+                { "shape": "rect", "x": 248, "y": 126, "w": 84, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 290, "y": 145, "size": 14, "text": "ImGui" },
+                { "shape": "line", "points": [[116,56],[94,44]], "arrow": "end" },
+                { "shape": "line", "points": [[224,56],[246,44]], "arrow": "end" },
+                { "shape": "line", "points": [[116,126],[94,138]], "arrow": "end" },
+                { "shape": "line", "points": [[224,126],[246,138]], "arrow": "end" }
+            ]
+        },
+        {
+            "id": "render-pass-context",
+            "name": "RenderPassContext",
+            "file": "RenderPassContext.h",
+            "role": "한 프레임 동안 모든 패스가 함께 쓰는 것을 모은 묶음입니다.",
+            "without": "패스마다 일곱 가지를 따로 넘겨야 합니다.",
+            "limit": "가리키기만 하고 소유하지 않습니다. 프레임이 끝나면 쓸 수 없습니다.",
+            "unreal": "렌더 그래프 패스가 받는 파라미터 구조체입니다.",
+            "functions": [
+                { "name": "visibleObjects", "description": "이 패스가 그릴 물체입니다." },
+                { "name": "constants", "description": "물체와 재질의 값을 연결해 줍니다." },
+                { "name": "shadowMap", "description": "그림자를 쓰거나 읽을 때 씁니다." }
+            ],
+            "links": ["scene-renderer", "shadow-pass", "toon-pass", "outline-pass"],
+            "picture": [
+                { "shape": "rect", "x": 14, "y": 24, "w": 130, "h": 132, "fill": "box" },
+                { "shape": "text", "x": 79, "y": 38, "size": 14, "text": "묶음" },
+                { "shape": "text", "x": 79, "y": 58, "size": 13, "text": "명령 목록" },
+                { "shape": "text", "x": 79, "y": 78, "size": 13, "text": "보이는 물체" },
+                { "shape": "text", "x": 79, "y": 98, "size": 13, "text": "상수 · 텍스처" },
+                { "shape": "text", "x": 79, "y": 118, "size": 13, "text": "그림자 맵" },
+                { "shape": "text", "x": 79, "y": 138, "size": 13, "text": "통계" },
+                { "shape": "line", "points": [[144,60],[206,44]], "arrow": "end" },
+                { "shape": "line", "points": [[144,90],[206,90]], "arrow": "end" },
+                { "shape": "line", "points": [[144,120],[206,136]], "arrow": "end" },
+                { "shape": "rect", "x": 208, "y": 24, "w": 120, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 268, "y": 44, "size": 14, "text": "ShadowPass" },
+                { "shape": "rect", "x": 208, "y": 70, "w": 120, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 268, "y": 90, "size": 14, "text": "ToonPass" },
+                { "shape": "rect", "x": 208, "y": 116, "w": 120, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 268, "y": 136, "size": 14, "text": "OutlinePass" }
+            ]
+        },
+        {
+            "id": "model-data",
+            "name": "ModelData",
+            "file": "ModelData.h",
+            "role": "GPU에 올리기 전의 모델 내용입니다.",
+            "without": "파일을 읽는 코드와 GPU에 올리는 코드가 서로를 알아야 합니다.",
+            "limit": "뼈와 애니메이션 값을 담는 자리는 아직 없습니다.",
+            "unreal": "FMeshDescription입니다.",
+            "functions": [
+                { "name": "ModelMaterialData", "description": "재질의 이름과 그림 경로입니다." },
+                { "name": "ModelPartData", "description": "조각의 정점, 인덱스, 재질 번호입니다." }
+            ],
+            "links": ["gltf-model-reader", "primitive-geometry", "outline-normal-baker", "resource-manager", "model"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 30, "w": 86, "h": 44, "fill": "box" },
+                { "shape": "text", "x": 53, "y": 52, "size": 14, "text": "glTF 파일" },
+                { "shape": "rect", "x": 10, "y": 106, "w": 86, "h": 44, "fill": "box" },
+                { "shape": "text", "x": 53, "y": 128, "size": 14, "text": "기본 도형" },
+                { "shape": "line", "points": [[96,52],[122,78]], "arrow": "end" },
+                { "shape": "line", "points": [[96,128],[122,102]], "arrow": "end" },
+                { "shape": "rect", "x": 124, "y": 52, "w": 92, "h": 76, "fill": "highlight" },
+                { "shape": "text", "x": 170, "y": 90, "size": 14, "text": "ModelData" },
+                { "shape": "line", "points": [[216,90],[240,90]], "arrow": "end" },
+                { "shape": "rect", "x": 242, "y": 60, "w": 88, "h": 60, "fill": "box" },
+                { "shape": "text", "x": 286, "y": 81.5, "size": 14, "text": "GPU의" },
+                { "shape": "text", "x": 286, "y": 98.5, "size": 14, "text": "Model" }
+            ]
+        },
+        {
+            "id": "material-style-values",
+            "name": "MaterialStyle",
+            "file": "MaterialStyle.h",
+            "role": "재질 하나의 카툰 그림체 값입니다.",
+            "without": "그늘색과 외곽선 두께를 재질마다 다르게 줄 수 없습니다.",
+            "limit": "그늘이 두 단뿐입니다. 세 단으로 나누는 값은 없습니다.",
+            "unreal": "머티리얼 인스턴스의 파라미터 값들입니다.",
+            "functions": [
+                { "name": "shadeColor · shadeThreshold · shadeSoftness", "description": "그늘의 색과 경계, 번지는 폭입니다." },
+                { "name": "rimColor · rimStrength · rimWidth", "description": "가장자리 빛의 색, 세기, 폭입니다." },
+                { "name": "outlineColor · outlineWidth", "description": "외곽선의 색과 두께입니다." }
+            ],
+            "links": ["material-style", "material", "shader"],
+            "picture": [
+                { "shape": "circle", "x": 96, "y": 88, "r": 60, "fill": "box" },
+                { "shape": "line", "points": [[96,28],[78,58],[72,88],[78,118],[96,148]] },
+                { "shape": "text", "x": 116, "y": 88, "size": 13, "text": "밝은 면" },
+                { "shape": "text", "x": 54, "y": 88, "size": 13, "text": "그늘" },
+                { "shape": "line", "points": [[190,50],[160,64]], "arrow": "end" },
+                { "shape": "text", "x": 258, "y": 46, "size": 13, "text": "가장자리 빛" },
+                { "shape": "line", "points": [[190,90],[84,104]], "arrow": "end" },
+                { "shape": "text", "x": 258, "y": 90, "size": 13, "text": "경계 · 그늘색" },
+                { "shape": "line", "points": [[190,134],[148,124]], "arrow": "end" },
+                { "shape": "text", "x": 258, "y": 134, "size": 13, "text": "외곽선" }
+            ]
+        },
+        {
+            "id": "scene-data",
+            "name": "SceneData",
+            "file": "SceneData.h",
+            "role": "장면 파일의 내용입니다. 모델을 찾기 전이라 GPU와 상관없습니다.",
+            "without": "파일을 읽는 코드가 모델과 GPU까지 알아야 합니다.",
+            "limit": "물체만 담습니다. 빛과 카메라는 저장하지 않습니다.",
+            "unreal": "저장용 구조체인 USaveGame과 비슷합니다.",
+            "functions": [
+                { "name": "SceneObjectData", "description": "이름, 모델, 위치, 회전, 크기입니다." },
+                { "name": "CurrentVersion", "description": "지금 적는 파일의 버전입니다." }
+            ],
+            "links": ["scene-serializer", "scene-file-reader", "scene-file-writer"],
+            "picture": [
+                { "shape": "rect", "x": 8, "y": 62, "w": 80, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 48, "y": 90, "size": 14, "text": "Scene" },
+                { "shape": "line", "points": [[88,80],[120,80]], "arrow": "end" },
+                { "shape": "line", "points": [[120,102],[90,102]], "arrow": "end" },
+                { "shape": "rect", "x": 122, "y": 52, "w": 96, "h": 76, "fill": "highlight" },
+                { "shape": "text", "x": 170, "y": 90, "size": 14, "text": "SceneData" },
+                { "shape": "line", "points": [[218,80],[250,80]], "arrow": "end" },
+                { "shape": "line", "points": [[250,102],[220,102]], "arrow": "end" },
+                { "shape": "rect", "x": 252, "y": 62, "w": 80, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 292, "y": 90, "size": 14, "text": ".json" },
+                { "shape": "text", "x": 104, "y": 144, "size": 13, "text": "모델 찾기" },
+                { "shape": "text", "x": 236, "y": 144, "size": 13, "text": "글자로" }
+            ]
+        },
+        {
+            "id": "guide-data",
+            "name": "EngineGuideData",
+            "file": "EngineGuideData.h",
+            "role": "도감 파일에 적힌 카드, 기능, 묶음, 그림의 내용입니다.",
+            "without": "읽는 코드와 그리는 코드가 JSON을 함께 다뤄야 합니다.",
+            "limit": "그림은 340 × 180 칸에 맞춰 적어야 합니다.",
+            "unreal": "데이터 테이블의 행 구조체입니다.",
+            "functions": [
+                { "name": "GuideCard", "description": "클래스 하나를 설명하는 카드입니다." },
+                { "name": "GuideFeature · GuideStep", "description": "기능과 거쳐 가는 순서입니다." },
+                { "name": "GuideShape", "description": "카드 그림을 이루는 도형입니다." }
+            ],
+            "links": ["engine-guide-reader", "engine-guide", "guide-picture"],
+            "picture": [
+                { "shape": "rect", "x": 20, "y": 20, "w": 140, "h": 140, "fill": "box" },
+                { "shape": "text", "x": 90, "y": 38, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 34, "y": 52, "w": 112, "h": 28, "fill": "box" },
+                { "shape": "text", "x": 90, "y": 66, "size": 14, "text": "이름 · 하는 일" },
+                { "shape": "rect", "x": 34, "y": 86, "w": 112, "h": 28, "fill": "box" },
+                { "shape": "text", "x": 90, "y": 100, "size": 14, "text": "함수" },
+                { "shape": "rect", "x": 34, "y": 120, "w": 112, "h": 28, "fill": "highlight" },
+                { "shape": "text", "x": 90, "y": 134, "size": 14, "text": "도형" },
+                { "shape": "line", "points": [[146,134],[196,134]], "arrow": "end" },
+                { "shape": "rect", "x": 198, "y": 104, "w": 122, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 259, "y": 123.5, "size": 14, "text": "상자 · 선" },
+                { "shape": "text", "x": 259, "y": 140.5, "size": 14, "text": "원 · 글자" },
+                { "shape": "rect", "x": 198, "y": 24, "w": 122, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 259, "y": 43.5, "size": 14, "text": "기능" },
+                { "shape": "text", "x": 259, "y": 60.5, "size": 14, "text": "순서 1 · 2 · 3" }
+            ]
         }
     ],
     "features": [
@@ -2164,7 +2947,7 @@
             "howTo": "창 제목에서 1초마다 바뀝니다.",
             "steps": [
                 { "card": "timer", "function": "GetDeltaTime", "description": "이번 프레임에 걸린 시간을 줍니다." },
-                { "card": "scene-culler", "function": "Collect", "description": "카메라에 보이는 물체를 고르고 빠진 수를 셉니다." },
+                { "card": "scene-visibility", "function": "Collect", "description": "카메라에 보이는 물체를 고르고 빠진 수를 셉니다." },
                 { "card": "toon-pass", "function": "Draw", "description": "그릴 때마다 그리기 명령과 삼각형 수를 더합니다." },
                 { "card": "render-statistics", "function": "Update", "description": "1초 동안 모아 FPS와 평균 시간을 구합니다." },
                 { "card": "render-statistics", "function": "CreateTitle", "description": "창 제목에 적을 글을 만듭니다." }
@@ -2190,9 +2973,12 @@
             "steps": [
                 { "card": "create-panel", "function": "DrawModelPicker", "description": "Assets/Models의 glTF 파일을 목록으로 보여 줍니다." },
                 { "card": "resource-manager", "function": "LoadModel", "description": "이미 읽은 모델이면 그대로 돌려줍니다." },
-                { "card": "gltf-file", "function": "GetAccessor", "description": "처음이면 파일에서 정점 값의 자리를 찾습니다." },
-                { "card": "model-loader", "function": "ReadPrimitive", "description": "값을 이 엔진의 정점으로 바꿉니다." },
+                { "card": "model-loader", "function": "LoadGltf", "description": "처음이면 파일을 읽게 합니다." },
+                { "card": "gltf-model-reader", "function": "ReadNode", "description": "노드를 따라가며 조각의 자리를 구합니다." },
+                { "card": "gltf-file", "function": "GetAccessor", "description": "파일에서 정점 값의 자리를 찾습니다." },
+                { "card": "gltf-primitive-reader", "function": "Read", "description": "값을 이 엔진의 정점으로 바꿉니다." },
                 { "card": "image-loader", "function": "Load", "description": "재질의 그림을 픽셀로 풉니다." },
+                { "card": "texture-uploader", "function": "Upload", "description": "픽셀을 GPU 텍스처로 옮깁니다." },
                 { "card": "texture-heap", "function": "Add", "description": "그림마다 SRV 칸을 만듭니다." },
                 { "card": "material", "function": "Material", "description": "텍스처와 그림체 값을 재질로 묶습니다." },
                 { "card": "gpu-buffer", "function": "CreateDefault", "description": "조각의 정점과 인덱스를 GPU 메모리로 옮깁니다." },
@@ -2205,8 +2991,10 @@
             "howTo": "Create 패널의 Save Scene, Load Scene 버튼을 누릅니다.",
             "steps": [
                 { "card": "create-panel", "function": "DrawSceneButtons", "description": "버튼이 눌렸는지 확인합니다." },
-                { "card": "scene-serializer", "function": "SaveScene · LoadScene", "description": "JSON 파일에 적거나 읽어 옵니다." },
-                { "card": "scene", "function": "AddGameObject", "description": "불러올 때 임시 장면을 채우고, 다 되면 바꿉니다." },
+                { "card": "scene-serializer", "function": "SaveScene · LoadScene", "description": "장면과 파일에 적을 내용 사이를 바꿉니다." },
+                { "card": "scene-file-writer", "function": "Write", "description": "저장할 때 내용을 JSON으로 적습니다." },
+                { "card": "scene-file-reader", "function": "Read", "description": "불러올 때 파일을 읽고 틀린 값이 없는지 봅니다." },
+                { "card": "scene", "function": "AddGameObject", "description": "임시 장면을 채우고, 다 되면 바꿉니다." },
                 { "card": "editor-selection", "function": "Clear", "description": "불러온 뒤에는 선택을 풉니다." }
             ]
         },
@@ -2285,10 +3073,12 @@
             "name": "물음표와 도감",
             "howTo": "기능 옆의 물음표나 아래쪽 Guide 버튼을 누릅니다.",
             "steps": [
-                { "card": "engine-guide-window", "function": "DrawHelpButton", "description": "눌린 물음표에 적힌 이름을 확인합니다." },
+                { "card": "guide-help-button", "function": "Draw", "description": "물음표를 그리고 눌렸는지 봅니다." },
+                { "card": "engine-guide-window", "function": "Open", "description": "적힌 이름으로 창을 엽니다." },
                 { "card": "guide-navigation", "function": "Request", "description": "다음에 보여 줄 화면으로 적어 둡니다." },
                 { "card": "engine-guide", "function": "FindFeature · FindCard", "description": "읽어 둔 내용에서 설명을 찾습니다." },
-                { "card": "engine-guide-window", "function": "Draw", "description": "순서와 카드를 창에 그립니다." },
+                { "card": "engine-guide-window", "function": "DrawPage", "description": "카드, 기능, 첫 화면 중에서 고릅니다." },
+                { "card": "guide-feature-page", "function": "Draw", "description": "거쳐 가는 카드를 순서대로 그립니다." },
                 { "card": "guide-picture", "function": "Draw", "description": "카드의 그림을 그립니다." }
             ]
         },
@@ -2311,7 +3101,7 @@
             "howTo": "Create 패널의 Plane 버튼으로 바닥을 놓으면 물체의 그림자가 보입니다.",
             "steps": [
                 { "card": "shadow-camera", "function": "Update", "description": "물체가 모두 들어오도록 빛의 시야를 맞춥니다." },
-                { "card": "scene-culler", "function": "Collect", "description": "화면 밖이어도 빛의 시야에 들어온 물체를 고릅니다." },
+                { "card": "scene-visibility", "function": "Collect", "description": "화면 밖이어도 빛의 시야에 들어온 물체를 고릅니다." },
                 { "card": "shadow-map", "function": "BeginWrite", "description": "읽던 그림자 맵을 쓰는 상태로 바꾸고 지웁니다." },
                 { "card": "shadow-pass", "function": "Draw", "description": "색 없이 빛에서 본 깊이만 그립니다." },
                 { "card": "shadow-map", "function": "EndWrite", "description": "다 쓴 뒤 셰이더가 읽는 상태로 바꿉니다." },
