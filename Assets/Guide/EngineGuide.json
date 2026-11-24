@@ -2,8 +2,8 @@
     "version": 1,
     "groups": [
         { "name": "시작과 입력", "color": "flame", "cards": ["app-loop","win32-window","timer","input"] },
-        { "name": "GPU 준비", "color": "violet", "cards": ["device-resources","command-context","fence"] },
-        { "name": "화면과 깊이", "color": "slate", "cards": ["swapchain","depth-buffer","render-statistics"] },
+        { "name": "GPU 준비", "color": "violet", "cards": ["device-resources","command-context","fence","gpu-barrier"] },
+        { "name": "화면과 깊이", "color": "slate", "cards": ["swapchain","scene-target","depth-buffer","render-statistics"] },
         { "name": "한 프레임 그리기", "color": "teal", "cards": ["d3d12-context","scene-renderer","scene-culler","scene-constants"] },
         { "name": "그림자", "color": "rose", "cards": ["shadow-pass","shadow-map","shadow-camera"] },
         { "name": "그리기 패스", "color": "rose", "cards": ["toon-pass","outline-pass","outline-normal-baker"] },
@@ -244,6 +244,43 @@
             ]
         },
         {
+            "id": "gpu-barrier",
+            "name": "GpuBarrier",
+            "file": "GpuBarrier.cpp",
+            "role": "자원의 쓰임이 바뀐다고 GPU에 알립니다.",
+            "without": "아직 쓰는 중인 그림자 맵을 읽거나, 복사가 안 끝난 텍스처를 그리게 됩니다.",
+            "limit": "한 번에 자원 하나씩 알립니다. 여러 개를 모아 보내지는 않습니다.",
+            "unreal": "FRHICommandList::Transition과 FRHITransitionInfo입니다.",
+            "functions": [
+                { "name": "Transition", "description": "앞의 쓰임과 다음 쓰임을 적어 배리어를 기록합니다." }
+            ],
+            "links": ["command-context", "scene-target", "shadow-map", "texture", "gpu-buffer"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 22, "w": 120, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 70, "y": 42, "size": 14, "text": "깊이로 쓰기" },
+                { "shape": "rect", "x": 210, "y": 22, "w": 120, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 270, "y": 42, "size": 14, "text": "Shader가 읽기" },
+                { "shape": "rect", "x": 10, "y": 66, "w": 120, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 70, "y": 86, "size": 14, "text": "복사 받기" },
+                { "shape": "rect", "x": 210, "y": 66, "w": 120, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 270, "y": 86, "size": 14, "text": "Shader가 읽기" },
+                { "shape": "rect", "x": 10, "y": 110, "w": 120, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 70, "y": 130, "size": 14, "text": "장면 그리기" },
+                { "shape": "rect", "x": 210, "y": 110, "w": 120, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 270, "y": 130, "size": 14, "text": "평균의 재료" },
+                { "shape": "rect", "x": 156, "y": 16, "w": 28, "h": 140, "fill": "highlight" },
+                { "shape": "text", "x": 170, "y": 69, "size": 14, "text": "배" },
+                { "shape": "text", "x": 170, "y": 86, "size": 14, "text": "리" },
+                { "shape": "text", "x": 170, "y": 103, "size": 14, "text": "어" },
+                { "shape": "line", "points": [[130,42],[154,42]], "arrow": "end" },
+                { "shape": "line", "points": [[184,42],[208,42]], "arrow": "end" },
+                { "shape": "line", "points": [[130,86],[154,86]], "arrow": "end" },
+                { "shape": "line", "points": [[184,86],[208,86]], "arrow": "end" },
+                { "shape": "line", "points": [[130,130],[154,130]], "arrow": "end" },
+                { "shape": "line", "points": [[184,130],[208,130]], "arrow": "end" }
+            ]
+        },
+        {
             "id": "swapchain",
             "name": "D3D12SwapChain",
             "file": "D3D12SwapChain.cpp",
@@ -253,11 +290,11 @@
             "unreal": "FD3D12Viewport입니다.",
             "functions": [
                 { "name": "CreateSwapChain", "description": "창에 연결된 백버퍼 2장을 만듭니다." },
-                { "name": "CreateRenderTargets", "description": "백버퍼마다 장면용 sRGB RTV와 ImGui용 RTV를 만듭니다." },
+                { "name": "CreateRenderTargets", "description": "백버퍼마다 편집 화면을 그릴 RTV를 만듭니다." },
                 { "name": "GetCurrentFrameIndex", "description": "지금 그릴 백버퍼가 몇 번인지 알려 줍니다." },
                 { "name": "Present", "description": "다 그린 그림을 화면에 내보냅니다." }
             ],
-            "links": ["device-resources", "command-context", "depth-buffer", "d3d12-context"],
+            "links": ["device-resources", "command-context", "scene-target", "d3d12-context"],
             "picture": [
                 { "shape": "rect", "x": 14, "y": 22, "w": 112, "h": 52, "fill": "box" },
                 { "shape": "text", "x": 70, "y": 39.5, "size": 14, "text": "BackBuffer 0" },
@@ -267,30 +304,61 @@
                 { "shape": "text", "x": 270, "y": 56.5, "size": 14, "text": "그리는 중" },
                 { "shape": "line", "points": [[126,48],[214,48]], "arrow": "both" },
                 { "shape": "text", "x": 170, "y": 32, "size": 14, "text": "교대" },
-                { "shape": "rect", "x": 150, "y": 122, "w": 82, "h": 38, "fill": "box" },
-                { "shape": "text", "x": 191, "y": 141, "size": 14, "text": "장면 RTV" },
-                { "shape": "rect", "x": 244, "y": 122, "w": 82, "h": 38, "fill": "box" },
-                { "shape": "text", "x": 285, "y": 141, "size": 14, "text": "UI RTV" },
-                { "shape": "line", "points": [[191,122],[240,76]], "arrow": "end" },
-                { "shape": "line", "points": [[285,122],[278,76]], "arrow": "end" },
-                { "shape": "text", "x": 74, "y": 141, "size": 13, "text": "같은 그림을 두 가지로" }
+                { "shape": "rect", "x": 116, "y": 122, "w": 92, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 162, "y": 141, "size": 14, "text": "장면의 평균" },
+                { "shape": "rect", "x": 232, "y": 122, "w": 92, "h": 38, "fill": "box" },
+                { "shape": "text", "x": 278, "y": 141, "size": 14, "text": "편집 화면" },
+                { "shape": "line", "points": [[162,122],[238,76]], "arrow": "end" },
+                { "shape": "line", "points": [[278,122],[274,76]], "arrow": "end" }
+            ]
+        },
+        {
+            "id": "scene-target",
+            "name": "SceneTarget",
+            "file": "SceneTarget.cpp",
+            "role": "한 픽셀에 표본을 네 개 두고 장면을 그린 뒤 평균을 냅니다.",
+            "without": "윤곽과 외곽선이 계단처럼 보입니다.",
+            "limit": "물체의 가장자리만 부드러워집니다. 텍스처 안의 무늬와 그림자 가장자리는 그대로입니다.",
+            "unreal": "MSAA를 켠 SceneColor입니다.",
+            "functions": [
+                { "name": "Initialize", "description": "표본이 네 개인 색과 깊이를 만듭니다." },
+                { "name": "Begin", "description": "그릴 대상으로 연결하고 이전 그림을 지웁니다." },
+                { "name": "ResolveTo", "description": "표본의 평균을 백버퍼에 씁니다." }
+            ],
+            "links": ["depth-buffer", "gpu-barrier", "swapchain", "pipeline", "d3d12-context"],
+            "picture": [
+                { "shape": "line", "points": [[24,28],[108,28],[108,112],[24,112]], "closed": true },
+                { "shape": "line", "points": [[16,118],[116,34]] },
+                { "shape": "circle", "x": 48, "y": 52, "r": 6, "fill": "box" },
+                { "shape": "circle", "x": 78, "y": 44, "r": 6, "fill": "box" },
+                { "shape": "circle", "x": 56, "y": 82, "r": 6, "fill": "box" },
+                { "shape": "circle", "x": 86, "y": 74, "r": 6, "fill": "dot" },
+                { "shape": "text", "x": 74, "y": 132, "size": 13, "text": "한 픽셀에 표본 4개" },
+                { "shape": "line", "points": [[116,70],[148,70]], "arrow": "end" },
+                { "shape": "rect", "x": 150, "y": 44, "w": 82, "h": 52, "fill": "highlight" },
+                { "shape": "text", "x": 191, "y": 70, "size": 14, "text": "평균" },
+                { "shape": "line", "points": [[232,70],[250,70]], "arrow": "end" },
+                { "shape": "rect", "x": 252, "y": 44, "w": 78, "h": 52, "fill": "box" },
+                { "shape": "text", "x": 291, "y": 70, "size": 14, "text": "BackBuffer" },
+                { "shape": "text", "x": 190, "y": 114, "size": 13, "text": "선형 색으로" },
+                { "shape": "text", "x": 170, "y": 157, "size": 13, "text": "물체 안에 든 표본만큼 색이 섞임" }
             ]
         },
         {
             "id": "depth-buffer",
             "name": "DepthBuffer",
             "file": "DepthBuffer.cpp",
-            "role": "앞뒤를 비교할 깊이 값을 보관합니다. 화면과 그림자 맵이 하나씩 씁니다.",
+            "role": "앞뒤를 비교할 깊이 값을 보관합니다. 장면과 그림자 맵이 하나씩 씁니다.",
             "without": "나중에 그린 물체가 멀리 있어도 항상 앞에 보입니다.",
-            "limit": "한 픽셀에 깊이를 하나만 담습니다. MSAA를 쓰려면 여러 개를 담아야 합니다.",
+            "limit": "창 크기가 바뀔 때 다시 만드는 함수가 없습니다.",
             "unreal": "SceneDepth입니다.",
             "functions": [
-                { "name": "Initialize", "description": "32비트 깊이 텍스처와 DSV를 만듭니다." },
+                { "name": "Initialize", "description": "32비트 깊이 텍스처와 DSV를 만듭니다. 한 픽셀에 담을 깊이의 수도 정합니다." },
                 { "name": "Clear", "description": "이전 프레임의 깊이를 가장 먼 값 1.0으로 지웁니다." },
                 { "name": "GetDSV", "description": "그릴 때 연결할 자리를 줍니다." },
                 { "name": "GetResource", "description": "그림자 맵이 읽기용 SRV를 만들 때 씁니다." }
             ],
-            "links": ["shadow-map", "swapchain", "pipeline", "d3d12-context", "device-resources"],
+            "links": ["scene-target", "shadow-map", "pipeline", "device-resources"],
             "picture": [
                 { "shape": "circle", "x": 24, "y": 90, "r": 7, "fill": "dot" },
                 { "shape": "text", "x": 34, "y": 116, "size": 13, "text": "카메라" },
@@ -356,10 +424,11 @@
                 { "name": "Initialize", "description": "장치부터 편집기까지 순서대로 만듭니다." },
                 { "name": "Update", "description": "편집기 프레임을 시작하고 편집기에 넘깁니다." },
                 { "name": "RenderFrame", "description": "주석의 1~22단계대로 한 프레임을 그립니다." },
-                { "name": "BindAndClearRenderTarget", "description": "그릴 화면을 정하고 이전 그림을 지웁니다." },
+                { "name": "BeginScene", "description": "그릴 영역과 화면을 정하고 이전 그림을 지웁니다." },
+                { "name": "ResolveScene", "description": "다 그린 장면을 백버퍼로 옮깁니다." },
                 { "name": "RenderEditor", "description": "장면 위에 편집 화면을 덧그립니다." }
             ],
-            "links": ["device-resources", "command-context", "swapchain", "depth-buffer", "resource-manager", "scene", "scene-renderer", "render-statistics", "scene-editor", "imgui-layer"],
+            "links": ["device-resources", "command-context", "swapchain", "scene-target", "resource-manager", "scene", "scene-renderer", "render-statistics", "scene-editor", "imgui-layer"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 20, "w": 86, "h": 140, "fill": "box" },
                 { "shape": "text", "x": 53, "y": 73, "size": 14, "text": "Update" },
@@ -369,16 +438,16 @@
                 { "shape": "rect", "x": 118, "y": 20, "w": 212, "h": 140, "fill": "box" },
                 { "shape": "text", "x": 224, "y": 37, "size": 14, "text": "RenderFrame" },
                 { "shape": "rect", "x": 126, "y": 54, "w": 56, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 154, "y": 71, "size": 14, "text": "대기" },
+                { "shape": "text", "x": 154, "y": 71, "size": 14, "text": "그림자" },
                 { "shape": "line", "points": [[182,71],[194,71]], "arrow": "end" },
                 { "shape": "rect", "x": 196, "y": 54, "w": 56, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 224, "y": 71, "size": 14, "text": "그림자" },
+                { "shape": "text", "x": 224, "y": 71, "size": 14, "text": "지우기" },
                 { "shape": "line", "points": [[252,71],[264,71]], "arrow": "end" },
-                { "shape": "rect", "x": 266, "y": 54, "w": 56, "h": 34, "fill": "box" },
-                { "shape": "text", "x": 294, "y": 71, "size": 14, "text": "지우기" },
+                { "shape": "rect", "x": 266, "y": 54, "w": 56, "h": 34, "fill": "highlight" },
+                { "shape": "text", "x": 294, "y": 71, "size": 14, "text": "장면" },
                 { "shape": "line", "points": [[294,88],[294,110]], "arrow": "end" },
-                { "shape": "rect", "x": 266, "y": 112, "w": 56, "h": 34, "fill": "highlight" },
-                { "shape": "text", "x": 294, "y": 129, "size": 14, "text": "장면" },
+                { "shape": "rect", "x": 266, "y": 112, "w": 56, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 294, "y": 129, "size": 14, "text": "평균" },
                 { "shape": "line", "points": [[266,129],[254,129]], "arrow": "end" },
                 { "shape": "rect", "x": 196, "y": 112, "w": 56, "h": 34, "fill": "box" },
                 { "shape": "text", "x": 224, "y": 129, "size": 14, "text": "편집기" },
@@ -556,7 +625,7 @@
                 { "name": "EndWrite", "description": "셰이더가 읽는 상태로 되돌립니다." },
                 { "name": "GetDescriptorSlot", "description": "t1에 연결할 칸의 번호를 줍니다." }
             ],
-            "links": ["shadow-pass", "toon-pass", "depth-buffer", "texture-heap", "root-signature"],
+            "links": ["shadow-pass", "toon-pass", "depth-buffer", "gpu-barrier", "texture-heap", "root-signature"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 30, "w": 122, "h": 52, "fill": "highlight" },
                 { "shape": "text", "x": 71, "y": 47.5, "size": 14, "text": "깊이로 쓰기" },
@@ -817,12 +886,12 @@
             "file": "D3D12Pipeline.cpp",
             "role": "셰이더와 그리기 설정을 PSO 하나로 묶습니다.",
             "without": "GPU가 정점을 어떻게 읽고, 어떤 셰이더로 색을 낼지 알 수 없습니다.",
-            "limit": "패스마다 다르게 정하는 것은 셰이더, 지울 면, 깊이를 미는 정도입니다. 블렌드는 모두 같습니다.",
+            "limit": "패스마다 다르게 정하는 것은 셰이더, 지울 면, 표본의 수, 깊이를 미는 정도입니다. 블렌드는 모두 같습니다.",
             "unreal": "FGraphicsPipelineStateInitializer와 PSO 캐시입니다.",
             "functions": [
                 { "name": "Initialize", "description": "셰이더를 컴파일하고 PSO를 만듭니다. 픽셀 셰이더가 없으면 깊이만 씁니다." },
                 { "name": "CreatePipelineState", "description": "입력 레이아웃, 컬링, 깊이, 형식을 묶습니다." },
-                { "name": "PipelineSettings", "description": "패스마다 다른 셰이더 이름과 지울 면, 깊이를 미는 정도입니다." }
+                { "name": "PipelineSettings", "description": "패스마다 다른 셰이더 이름과 지울 면, 표본의 수입니다." }
             ],
             "links": ["root-signature", "shader-compiler", "shadow-pass", "toon-pass", "outline-pass", "mesh"],
             "picture": [
@@ -912,10 +981,9 @@
             "functions": [
                 { "name": "CreateUpload", "description": "CPU가 값을 바로 쓰는 Upload 힙에 만듭니다." },
                 { "name": "CreateDefault", "description": "Upload 힙에 쓰고 Default 힙으로 복사합니다." },
-                { "name": "CopyBufferRegion 호출", "description": "GPU에게 복사를 시킵니다." },
-                { "name": "배리어", "description": "정점이나 인덱스로 읽는 상태로 바꿉니다." }
+                { "name": "CopyBufferRegion 호출", "description": "GPU에게 복사를 시킵니다." }
             ],
-            "links": ["mesh", "texture", "frame-constant-buffer", "command-context"],
+            "links": ["mesh", "texture", "frame-constant-buffer", "gpu-barrier", "command-context"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 64, "w": 84, "h": 52, "fill": "box" },
                 { "shape": "text", "x": 52, "y": 90, "size": 14, "text": "CPU 배열" },
@@ -1120,10 +1188,9 @@
             "functions": [
                 { "name": "LoadFromFile", "description": "파일을 풀어 텍스처로 만듭니다." },
                 { "name": "CreateFromImage", "description": "픽셀을 Upload 힙을 거쳐 Default 힙에 복사합니다." },
-                { "name": "배리어", "description": "복사 대상에서 셰이더가 읽는 상태로 바꿉니다." },
                 { "name": "sRGB 형식", "description": "읽을 때 GPU가 선형 색으로 바꾸게 합니다." }
             ],
-            "links": ["image-loader", "gpu-buffer", "texture-heap", "resource-manager", "material"],
+            "links": ["image-loader", "gpu-buffer", "gpu-barrier", "texture-heap", "resource-manager", "material"],
             "picture": [
                 { "shape": "rect", "x": 8, "y": 66, "w": 56, "h": 50, "fill": "box" },
                 { "shape": "text", "x": 36, "y": 91, "size": 14, "text": "PNG" },
@@ -1699,14 +1766,14 @@
             ],
             "links": ["scene-editor", "win32-window", "d3d12-context", "swapchain"],
             "picture": [
-                { "shape": "rect", "x": 20, "y": 40, "w": 130, "h": 100, "fill": "box" },
-                { "shape": "text", "x": 85, "y": 81.5, "size": 14, "text": "장면" },
-                { "shape": "text", "x": 85, "y": 98.5, "size": 14, "text": "sRGB RTV" },
-                { "shape": "line", "points": [[150,90],[186,90]], "arrow": "end" },
-                { "shape": "rect", "x": 188, "y": 40, "w": 130, "h": 100, "fill": "highlight" },
-                { "shape": "text", "x": 253, "y": 81.5, "size": 14, "text": "장면 + UI" },
-                { "shape": "text", "x": 253, "y": 98.5, "size": 14, "text": "변환 없는 RTV" },
-                { "shape": "text", "x": 168, "y": 78, "size": 13, "text": "위에" }
+                { "shape": "rect", "x": 14, "y": 44, "w": 130, "h": 84, "fill": "box" },
+                { "shape": "text", "x": 79, "y": 77.5, "size": 14, "text": "장면의 평균" },
+                { "shape": "text", "x": 79, "y": 94.5, "size": 14, "text": "담긴 BackBuffer" },
+                { "shape": "line", "points": [[144,86],[184,86]], "arrow": "end" },
+                { "shape": "text", "x": 164, "y": 68, "size": 13, "text": "위에" },
+                { "shape": "rect", "x": 186, "y": 44, "w": 140, "h": 84, "fill": "highlight" },
+                { "shape": "text", "x": 256, "y": 77.5, "size": 14, "text": "장면 + UI" },
+                { "shape": "text", "x": 256, "y": 94.5, "size": 14, "text": "변환 없는 RTV" }
             ]
         },
         {
@@ -1914,7 +1981,7 @@
             "limit": "항목이 코드에 적혀 있어 늘리려면 코드를 고쳐야 합니다.",
             "unreal": "뷰포트 아래쪽 도구 막대와 비슷합니다.",
             "functions": [
-                { "name": "Draw", "description": "여섯 가지 물음표와 Guide 버튼을 그립니다." },
+                { "name": "Draw", "description": "일곱 가지 물음표와 Guide 버튼을 그립니다." },
                 { "name": "DrawItem", "description": "기능 이름 옆에 물음표를 하나 붙입니다." }
             ],
             "links": ["engine-guide-window", "editor-layout", "scene-editor"],
@@ -2264,6 +2331,19 @@
                 { "card": "outline-pass", "function": "Draw", "description": "앞면을 지우는 PSO로 바꿔 한 번 더 그립니다." },
                 { "card": "shader", "function": "VSOutline", "description": "정점을 화면에서 정해진 픽셀만큼 밀어냅니다." },
                 { "card": "shader", "function": "PSOutline", "description": "재질에 정한 색으로 칠합니다." }
+            ]
+        },
+        {
+            "id": "feature-msaa",
+            "name": "안티앨리어싱",
+            "howTo": "D3D12Config.h의 SceneSampleCount가 한 픽셀에 둘 표본의 수입니다.",
+            "steps": [
+                { "card": "scene-target", "function": "Initialize", "description": "표본이 네 개인 색과 깊이를 한 번 만듭니다." },
+                { "card": "pipeline", "function": "PipelineSettings", "description": "명암과 외곽선 PSO도 같은 표본 수로 만듭니다." },
+                { "card": "scene-target", "function": "Begin", "description": "백버퍼 대신 이 화면에 장면을 그립니다." },
+                { "card": "gpu-barrier", "function": "Transition", "description": "다 그린 뒤 평균을 낼 수 있는 상태로 바꿉니다." },
+                { "card": "scene-target", "function": "ResolveTo", "description": "표본 네 개의 평균을 백버퍼에 씁니다." },
+                { "card": "d3d12-context", "function": "RenderEditor", "description": "그 위에 편집 화면을 덧그립니다." }
             ]
         }
     ]

@@ -16,6 +16,7 @@ void ViewportHelpBar::Draw(EngineGuideWindow& guideWindow)
     DrawItem("Toon", "feature-toon", guideWindow);
     DrawItem("Shadow", "feature-shadow", guideWindow);
     DrawItem("Outline", "feature-outline", guideWindow);
+    DrawItem("MSAA", "feature-msaa", guideWindow);
     if (ImGui::SmallButton("Guide"))
     {
         guideWindow.OpenHome();
