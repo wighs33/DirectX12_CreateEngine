@@ -34,12 +34,6 @@ public:
     bool RenderFrame();
 
 private:
-    // Resource의 사용 목적이 바뀐다는 것을 GPU에 명시적으로 알려줍니다.
-    static void TransitionBackBuffer(
-        ID3D12GraphicsCommandList* commandList,
-        ID3D12Resource* backBuffer,
-        D3D12_RESOURCE_STATES stateBefore,
-        D3D12_RESOURCE_STATES stateAfter);
     void BindAndClearRenderTarget(
         ID3D12GraphicsCommandList* commandList,
         UINT frameIndex);

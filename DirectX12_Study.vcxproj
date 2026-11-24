@@ -172,6 +172,7 @@
     <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="GpuBarrier.cpp" />
     <ClCompile Include="ShadowPass.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="ShadowCamera.cpp" />
@@ -242,6 +243,7 @@
     <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="GpuBarrier.h" />
     <ClInclude Include="ShadowPass.h" />
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="ShadowCamera.h" />

@@ -1,6 +1,7 @@
 #include "Texture.h"
 
 #include "D3D12CommandContext.h"
+#include "GpuBarrier.h"
 #include "GpuBuffer.h"
 #include "ImageLoader.h"
 
@@ -170,14 +171,11 @@ bool Texture::CreateFromImage(
         &sourceLocation,
         nullptr);
 
-    D3D12_RESOURCE_BARRIER textureBarrier{};
-    textureBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    textureBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    textureBarrier.Transition.pResource = textureResource.Get();
-    textureBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    textureBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    textureBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-    commandList->ResourceBarrier(1, &textureBarrier);
+    GpuBarrier::Transition(
+        commandList,
+        textureResource.Get(),
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     if (!commandContext.Execute() || !commandContext.WaitForGPU())
     {

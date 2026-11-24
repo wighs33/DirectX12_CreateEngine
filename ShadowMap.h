@@ -32,11 +32,6 @@ public:
     UINT GetDescriptorSlot() const;
 
 private:
-    void Transition(
-        ID3D12GraphicsCommandList* commandList,
-        D3D12_RESOURCE_STATES stateBefore,
-        D3D12_RESOURCE_STATES stateAfter) const;
-
     DepthBuffer depthBuffer_;
     UINT descriptorSlot_ = 0;
 };

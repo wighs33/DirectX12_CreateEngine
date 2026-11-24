@@ -1,6 +1,7 @@
 #include "GpuBuffer.h"
 
 #include "D3D12CommandContext.h"
+#include "GpuBarrier.h"
 
 #include <cstdio>
 #include <cstring>
@@ -85,14 +86,11 @@ bool GpuBuffer::CreateDefault(
         0,
         size);
 
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = defaultBuffer.Get();
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    barrier.Transition.StateAfter = finalState;
-    commandList->ResourceBarrier(1, &barrier);
+    GpuBarrier::Transition(
+        commandList,
+        defaultBuffer.Get(),
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        finalState);
 
     // GPU가 Upload Buffer를 모두 읽은 뒤에만 함수를 나가며 Upload Buffer를 해제합니다.
     if (!commandContext.Execute() || !commandContext.WaitForGPU())

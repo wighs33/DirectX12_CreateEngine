@@ -1,5 +1,7 @@
 #include "D3D12Context.h"
 
+#include "GpuBarrier.h"
+
 D3D12Context::~D3D12Context()
 {
     imguiLayer_.Shutdown(commandContext_);
@@ -85,7 +87,7 @@ bool D3D12Context::RenderFrame()
     ID3D12Resource* const backBuffer = swapChain_.GetBackBuffer(frameIndex);
 
     // [5단계] 화면 표시 상태의 BackBuffer를 렌더링 가능한 상태로 전환합니다.
-    TransitionBackBuffer(
+    GpuBarrier::Transition(
         commandList,
         backBuffer,
         D3D12_RESOURCE_STATE_PRESENT,
@@ -121,7 +123,7 @@ bool D3D12Context::RenderFrame()
     RenderEditor(commandList, frameIndex);
 
     // [18단계] Scene과 Editor 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
-    TransitionBackBuffer(
+    GpuBarrier::Transition(
         commandList,
         backBuffer,
         D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -137,22 +139,6 @@ bool D3D12Context::RenderFrame()
 
     // [22단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
     return commandContext_.SignalFrame(frameIndex);
-}
-
-void D3D12Context::TransitionBackBuffer(
-    ID3D12GraphicsCommandList* commandList,
-    ID3D12Resource* backBuffer,
-    D3D12_RESOURCE_STATES stateBefore,
-    D3D12_RESOURCE_STATES stateAfter)
-{
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = backBuffer;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    barrier.Transition.StateBefore = stateBefore;
-    barrier.Transition.StateAfter = stateAfter;
-    commandList->ResourceBarrier(1, &barrier);
 }
 
 void D3D12Context::BindAndClearRenderTarget(

@@ -1,5 +1,6 @@
 #include "ShadowMap.h"
 
+#include "GpuBarrier.h"
 #include "TextureHeap.h"
 
 bool ShadowMap::Initialize(ID3D12Device* device, TextureHeap& textureHeap)
@@ -32,8 +33,9 @@ bool ShadowMap::Initialize(ID3D12Device* device, TextureHeap& textureHeap)
 
 void ShadowMap::BeginWrite(ID3D12GraphicsCommandList* commandList) const
 {
-    Transition(
+    GpuBarrier::Transition(
         commandList,
+        depthBuffer_.GetResource(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
@@ -61,8 +63,10 @@ void ShadowMap::BeginWrite(ID3D12GraphicsCommandList* commandList) const
 
 void ShadowMap::EndWrite(ID3D12GraphicsCommandList* commandList) const
 {
-    Transition(
+    // 깊이를 모두 쓴 뒤에 읽기를 시작하게 합니다.
+    GpuBarrier::Transition(
         commandList,
+        depthBuffer_.GetResource(),
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
@@ -70,20 +74,4 @@ void ShadowMap::EndWrite(ID3D12GraphicsCommandList* commandList) const
 UINT ShadowMap::GetDescriptorSlot() const
 {
     return descriptorSlot_;
-}
-
-void ShadowMap::Transition(
-    ID3D12GraphicsCommandList* commandList,
-    D3D12_RESOURCE_STATES stateBefore,
-    D3D12_RESOURCE_STATES stateAfter) const
-{
-    // 쓰기가 모두 끝난 뒤에 읽기를 시작하도록 GPU에 알려 줍니다.
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = depthBuffer_.GetResource();
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    barrier.Transition.StateBefore = stateBefore;
-    barrier.Transition.StateAfter = stateAfter;
-    commandList->ResourceBarrier(1, &barrier);
 }
