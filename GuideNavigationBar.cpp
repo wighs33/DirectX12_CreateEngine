@@ -9,6 +9,48 @@
 #include <string>
 #include <vector>
 
+namespace
+{
+    // 지금 보는 것의 앞과 뒤로 가는 버튼을 그립니다. 목록에 없으면 false를 반환합니다.
+    template <typename T>
+    bool DrawNeighbors(
+        const std::vector<T>& items,
+        GuideNavigation& navigation)
+    {
+        const auto current = std::find_if(
+            items.begin(),
+            items.end(),
+            [&navigation](const T& item)
+            {
+                return item.id == navigation.GetCurrentId();
+            });
+        if (current == items.end())
+        {
+            return false;
+        }
+
+        if (current != items.begin())
+        {
+            const T& previous = *(current - 1);
+            ImGui::SameLine();
+            if (ImGui::Button(("이전: " + previous.name + "###Previous").c_str()))
+            {
+                navigation.Request(previous.id);
+            }
+        }
+        if (current + 1 != items.end())
+        {
+            const T& next = *(current + 1);
+            ImGui::SameLine();
+            if (ImGui::Button(("다음: " + next.name + "###Next").c_str()))
+            {
+                navigation.Request(next.id);
+            }
+        }
+        return true;
+    }
+}
+
 void GuideNavigationBar::Draw(
     const EngineGuide& guide,
     GuideNavigation& navigation)
@@ -28,35 +70,8 @@ void GuideNavigationBar::Draw(
     }
     ImGui::EndDisabled();
 
-    const std::vector<GuideCard>& cards = guide.GetCards();
-    const auto current = std::find_if(
-        cards.begin(),
-        cards.end(),
-        [&navigation](const GuideCard& card)
-        {
-            return card.id == navigation.GetCurrentId();
-        });
-    if (current == cards.end())
+    if (!DrawNeighbors(guide.GetCards(), navigation))
     {
-        return;
-    }
-
-    if (current != cards.begin())
-    {
-        const GuideCard& previous = *(current - 1);
-        ImGui::SameLine();
-        if (ImGui::Button(("이전: " + previous.name + "###Previous").c_str()))
-        {
-            navigation.Request(previous.id);
-        }
-    }
-    if (current + 1 != cards.end())
-    {
-        const GuideCard& next = *(current + 1);
-        ImGui::SameLine();
-        if (ImGui::Button(("다음: " + next.name + "###Next").c_str()))
-        {
-            navigation.Request(next.id);
-        }
+        DrawNeighbors(guide.GetStages(), navigation);
     }
 }

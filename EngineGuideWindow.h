@@ -17,14 +17,14 @@ public:
 
     void OpenHome();
 
-    // 카드 또는 기능의 이름에 해당하는 설명으로 창을 엽니다.
+    // 카드, 기능, 단계의 이름에 해당하는 설명으로 창을 엽니다.
     void Open(const std::string& id);
 
     // 창이 열려 있을 때 현재 화면을 그립니다.
     void Draw();
 
 private:
-    // 카드, 기능, 첫 화면 중에서 지금 볼 것을 그립니다.
+    // 카드, 기능, 단계, 첫 화면 중에서 지금 볼 것을 그립니다.
     void DrawPage();
 
     EngineGuide guide_;

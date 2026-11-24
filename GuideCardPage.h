@@ -22,4 +22,9 @@ private:
         const GuideCard& card,
         const EngineGuide& guide,
         GuideNavigation& navigation);
+    // 이 카드의 클래스가 생긴 커밋과 단계를 그립니다.
+    static void DrawOrigin(
+        const GuideCard& card,
+        const EngineGuide& guide,
+        GuideNavigation& navigation);
 };

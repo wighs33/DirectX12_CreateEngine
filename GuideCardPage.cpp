@@ -2,7 +2,7 @@
 
 #include "EngineGuide.h"
 #include "GuideCardGrid.h"
-#include "GuideFeatureButtons.h"
+#include "GuideLinkButtons.h"
 #include "GuidePictureRenderer.h"
 #include "GuideTheme.h"
 
@@ -24,6 +24,7 @@ void GuideCardPage::Draw(
 
     DrawFunctions(card);
     DrawUsingFeatures(card, guide, navigation);
+    DrawOrigin(card, guide, navigation);
 
     ImGui::Dummy(ImVec2(0.0f, 4.0f));
     GuideTheme::DrawHeading("이어진 카드", GuideTheme::HeadingFontSize);
@@ -82,7 +83,7 @@ void GuideCardPage::DrawUsingFeatures(
     const EngineGuide& guide,
     GuideNavigation& navigation)
 {
-    std::vector<const GuideFeature*> features;
+    std::vector<GuideLink> links;
     for (const GuideFeature& feature : guide.GetFeatures())
     {
         const bool usesCard = std::any_of(
@@ -91,13 +92,39 @@ void GuideCardPage::DrawUsingFeatures(
             [&card](const GuideStep& step) { return step.cardId == card.id; });
         if (usesCard)
         {
-            features.push_back(&feature);
+            links.push_back({ "?  " + feature.name, feature.id });
         }
     }
-    if (!features.empty())
+    if (!links.empty())
     {
         ImGui::Dummy(ImVec2(0.0f, 4.0f));
         GuideTheme::DrawHeading("이 카드를 쓰는 기능", GuideTheme::HeadingFontSize);
-        GuideFeatureButtons::Draw(features, navigation);
+        GuideLinkButtons::Draw(links, navigation);
+    }
+}
+
+void GuideCardPage::DrawOrigin(
+    const GuideCard& card,
+    const EngineGuide& guide,
+    GuideNavigation& navigation)
+{
+    for (const GuideStage& stage : guide.GetStages())
+    {
+        for (const GuideCommit& commit : stage.commits)
+        {
+            if (std::find(
+                    commit.cardIds.begin(),
+                    commit.cardIds.end(),
+                    card.id) == commit.cardIds.end())
+            {
+                continue;
+            }
+
+            ImGui::Dummy(ImVec2(0.0f, 4.0f));
+            GuideTheme::DrawHeading("생긴 단계", GuideTheme::HeadingFontSize);
+            GuideTheme::DrawMutedText(commit.hash + " · " + commit.title);
+            GuideLinkButtons::Draw({ { stage.name, stage.id } }, navigation);
+            return;
+        }
     }
 }

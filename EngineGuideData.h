@@ -85,6 +85,26 @@ struct GuideFeature
     std::vector<GuideStep> steps;
 };
 
+// 커밋 하나와, 그 커밋에서 생긴 클래스의 카드입니다.
+struct GuideCommit
+{
+    std::string hash;
+    std::string title;
+    std::vector<std::string> cardIds;
+};
+
+// 계획의 단계 하나에서 만든 것, 배운 것, 확인한 것과 커밋입니다.
+struct GuideStage
+{
+    std::string id;
+    std::string name;
+    std::string date;
+    std::string made;
+    std::string learned;
+    std::string checked;
+    std::vector<GuideCommit> commits;
+};
+
 struct GuideGroup
 {
     std::string name;
@@ -98,4 +118,5 @@ struct EngineGuideData
     std::vector<GuideGroup> groups;
     std::vector<GuideCard> cards;
     std::vector<GuideFeature> features;
+    std::vector<GuideStage> stages;
 };

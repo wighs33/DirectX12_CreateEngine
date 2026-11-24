@@ -4,6 +4,7 @@
 #include "GuideFeaturePage.h"
 #include "GuideHomePage.h"
 #include "GuideNavigationBar.h"
+#include "GuideStagePage.h"
 
 #include "imgui.h"
 
@@ -107,6 +108,10 @@ void EngineGuideWindow::DrawPage()
     else if (const GuideFeature* const feature = guide_.FindFeature(currentId))
     {
         GuideFeaturePage::Draw(*feature, guide_, navigation_);
+    }
+    else if (const GuideStage* const stage = guide_.FindStage(currentId))
+    {
+        GuideStagePage::Draw(*stage, guide_, navigation_);
     }
     else
     {

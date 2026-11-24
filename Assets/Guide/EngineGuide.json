@@ -1,5 +1,5 @@
 {
-    "version": 1,
+    "version": 2,
     "groups": [
         { "name": "시작과 입력", "color": "flame", "cards": ["app-loop","win32-window","timer","input"] },
         { "name": "GPU 준비", "color": "violet", "cards": ["device-resources","command-context","fence","gpu-barrier"] },
@@ -21,7 +21,7 @@
         { "name": "편집기 조작", "color": "violet", "cards": ["editor-camera","transform-gizmo","viewport-picker"] },
         { "name": "편집기 패널", "color": "teal", "cards": ["create-panel","hierarchy-panel","inspector-panel","style-panel","viewport-help-bar"] },
         { "name": "엔진 도감", "color": "rose", "cards": ["engine-guide-window","engine-guide","engine-guide-reader","guide-navigation","guide-theme","guide-picture"] },
-        { "name": "도감 화면", "color": "violet", "cards": ["guide-help-button","guide-navigation-bar","guide-home-page","guide-card-page","guide-feature-page","guide-card-grid","guide-feature-buttons"] },
+        { "name": "도감 화면", "color": "violet", "cards": ["guide-help-button","guide-navigation-bar","guide-home-page","guide-card-page","guide-feature-page","guide-stage-page","guide-card-grid","guide-link-buttons"] },
         { "name": "값만 담는 파일", "color": "slate", "cards": ["d3d12-config","render-pass-context","model-data","material-style-values","scene-data","guide-data"] }
     ],
     "cards": [
@@ -2510,9 +2510,9 @@
             "functions": [
                 { "name": "Open", "description": "이름에 맞는 설명으로 창을 엽니다." },
                 { "name": "Draw", "description": "창을 그리고 이동 요청을 처리합니다." },
-                { "name": "DrawPage", "description": "카드, 기능, 첫 화면 중에서 볼 것을 고릅니다." }
+                { "name": "DrawPage", "description": "카드, 기능, 단계, 첫 화면 중에서 볼 것을 고릅니다." }
             ],
-            "links": ["engine-guide", "guide-navigation", "guide-navigation-bar", "guide-home-page", "guide-card-page", "guide-feature-page", "guide-theme", "scene-editor"],
+            "links": ["engine-guide", "guide-navigation", "guide-navigation-bar", "guide-home-page", "guide-card-page", "guide-feature-page", "guide-stage-page", "guide-theme", "scene-editor"],
             "picture": [
                 { "shape": "rect", "x": 8, "y": 64, "w": 92, "h": 52, "fill": "box" },
                 { "shape": "text", "x": 40, "y": 90, "size": 14, "text": "기능" },
@@ -2533,39 +2533,43 @@
             "id": "engine-guide",
             "name": "EngineGuide",
             "file": "EngineGuide.cpp",
-            "role": "도감의 내용을 보관하고 카드와 기능을 이름으로 찾아 줍니다.",
+            "role": "도감의 내용을 보관하고 카드, 기능, 단계를 이름으로 찾아 줍니다.",
             "without": "설명을 고칠 때마다 C++ 코드를 바꾸고 다시 빌드해야 합니다.",
             "limit": "파일은 시작할 때 한 번만 읽습니다. 고친 설명을 보려면 엔진을 다시 켜야 합니다.",
             "unreal": "에셋을 읽어 두는 UDataAsset과 비슷합니다.",
             "functions": [
                 { "name": "Load", "description": "파일을 읽고, 이어진 카드 이름이 맞으면 내용을 바꿉니다." },
                 { "name": "FindCard", "description": "클래스 카드를 이름으로 찾습니다." },
-                { "name": "FindFeature", "description": "기능 설명을 이름으로 찾습니다." },
+                { "name": "FindFeature · FindStage", "description": "기능과 단계의 설명을 이름으로 찾습니다." },
                 { "name": "ValidateReferences", "description": "없는 카드를 가리키는 이름이 있는지 봅니다." }
             ],
             "links": ["engine-guide-reader", "guide-data", "engine-guide-window"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 18, "w": 108, "h": 144, "fill": "box" },
-                { "shape": "text", "x": 22, "y": 57, "size": 13, "text": "\"cards\"", "align": "left" },
-                { "shape": "text", "x": 22, "y": 91, "size": 13, "text": "\"features\"", "align": "left" },
-                { "shape": "text", "x": 22, "y": 125, "size": 13, "text": "\"picture\"", "align": "left" },
+                { "shape": "text", "x": 22, "y": 46, "size": 13, "text": "\"cards\"", "align": "left" },
+                { "shape": "text", "x": 22, "y": 75, "size": 13, "text": "\"features\"", "align": "left" },
+                { "shape": "text", "x": 22, "y": 104, "size": 13, "text": "\"stages\"", "align": "left" },
+                { "shape": "text", "x": 22, "y": 133, "size": 13, "text": "\"groups\"", "align": "left" },
                 { "shape": "line", "points": [[118,90],[148,90]], "arrow": "end" },
                 { "shape": "text", "x": 133, "y": 73, "size": 13, "text": "읽기" },
                 { "shape": "rect", "x": 150, "y": 60, "w": 84, "h": 60, "fill": "highlight" },
                 { "shape": "text", "x": 192, "y": 90, "size": 14, "text": "보관" },
-                { "shape": "line", "points": [[234,76],[262,52]], "arrow": "end" },
-                { "shape": "line", "points": [[234,104],[262,128]], "arrow": "end" },
-                { "shape": "rect", "x": 264, "y": 28, "w": 68, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 298, "y": 48, "size": 14, "text": "카드" },
-                { "shape": "rect", "x": 264, "y": 112, "w": 68, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 298, "y": 132, "size": 14, "text": "기능" }
+                { "shape": "line", "points": [[234,74],[262,42]], "arrow": "end" },
+                { "shape": "line", "points": [[234,90],[262,90]], "arrow": "end" },
+                { "shape": "line", "points": [[234,106],[262,138]], "arrow": "end" },
+                { "shape": "rect", "x": 264, "y": 18, "w": 68, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 298, "y": 38, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 264, "y": 70, "w": 68, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 298, "y": 90, "size": 14, "text": "기능" },
+                { "shape": "rect", "x": 264, "y": 122, "w": 68, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 298, "y": 142, "size": 14, "text": "단계" }
             ]
         },
         {
             "id": "engine-guide-reader",
             "name": "EngineGuideReader",
             "file": "EngineGuideReader.cpp",
-            "role": "도감의 JSON 파일을 카드, 기능, 묶음으로 바꿉니다.",
+            "role": "도감의 JSON 파일을 카드, 기능, 단계, 묶음으로 바꿉니다.",
             "without": "설명을 고칠 때마다 C++ 코드를 바꿔야 합니다.",
             "limit": "모르는 도형이 하나라도 있으면 파일 전체를 읽지 않습니다.",
             "unreal": "데이터 테이블을 읽는 JSON 임포터입니다.",
@@ -2573,6 +2577,7 @@
                 { "name": "Read", "description": "파일 전체를 읽어 내용으로 돌려줍니다." },
                 { "name": "ReadCard", "description": "카드의 글과 그림을 읽습니다." },
                 { "name": "ReadShape", "description": "그림의 상자, 선, 원, 글자를 읽습니다." },
+                { "name": "ReadStage", "description": "단계의 글과 커밋을 읽습니다." },
                 { "name": "CopyGroupToCards", "description": "묶음의 이름과 색을 카드에 적어 둡니다." }
             ],
             "links": ["engine-guide", "guide-data"],
@@ -2583,15 +2588,18 @@
                 { "shape": "line", "points": [[110,90],[136,90]], "arrow": "end" },
                 { "shape": "rect", "x": 138, "y": 58, "w": 70, "h": 64, "fill": "highlight" },
                 { "shape": "text", "x": 173, "y": 90, "size": 14, "text": "읽기" },
-                { "shape": "line", "points": [[208,76],[234,44]], "arrow": "end" },
-                { "shape": "line", "points": [[208,90],[234,90]], "arrow": "end" },
-                { "shape": "line", "points": [[208,104],[234,136]], "arrow": "end" },
-                { "shape": "rect", "x": 236, "y": 24, "w": 94, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 283, "y": 44, "size": 14, "text": "카드" },
-                { "shape": "rect", "x": 236, "y": 70, "w": 94, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 283, "y": 90, "size": 14, "text": "기능" },
-                { "shape": "rect", "x": 236, "y": 116, "w": 94, "h": 40, "fill": "box" },
-                { "shape": "text", "x": 283, "y": 136, "size": 14, "text": "묶음" }
+                { "shape": "line", "points": [[208,72],[234,32]], "arrow": "end" },
+                { "shape": "line", "points": [[208,84],[234,71]], "arrow": "end" },
+                { "shape": "line", "points": [[208,96],[234,110]], "arrow": "end" },
+                { "shape": "line", "points": [[208,108],[234,149]], "arrow": "end" },
+                { "shape": "rect", "x": 236, "y": 16, "w": 94, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 283, "y": 33, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 236, "y": 55, "w": 94, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 283, "y": 72, "size": 14, "text": "기능" },
+                { "shape": "rect", "x": 236, "y": 94, "w": 94, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 283, "y": 111, "size": 14, "text": "단계" },
+                { "shape": "rect", "x": 236, "y": 133, "w": 94, "h": 34, "fill": "box" },
+                { "shape": "text", "x": 283, "y": 150, "size": 14, "text": "묶음" }
             ]
         },
         {
@@ -2720,12 +2728,13 @@
             "id": "guide-navigation-bar",
             "name": "GuideNavigationBar",
             "file": "GuideNavigationBar.cpp",
-            "role": "뒤로, 전체 카드, 이전과 다음 카드 버튼을 그립니다.",
+            "role": "뒤로, 전체 카드, 이전과 다음 카드나 단계로 가는 버튼을 그립니다.",
             "without": "카드를 열고 나면 다른 카드로 갈 수 없습니다.",
             "limit": "카드를 검색하는 칸이 없습니다.",
             "unreal": "웹 브라우저 위젯의 이동 막대와 비슷합니다.",
             "functions": [
-                { "name": "Draw", "description": "지금 화면에서 누를 수 있는 버튼만 켭니다." }
+                { "name": "Draw", "description": "지금 화면에서 누를 수 있는 버튼만 켭니다." },
+                { "name": "DrawNeighbors", "description": "지금 보는 카드나 단계의 앞뒤로 가는 버튼을 그립니다." }
             ],
             "links": ["guide-navigation", "engine-guide", "engine-guide-window"],
             "picture": [
@@ -2747,30 +2756,37 @@
             "id": "guide-home-page",
             "name": "GuideHomePage",
             "file": "GuideHomePage.cpp",
-            "role": "모든 기능과 카드를 묶음별로 보여 주는 첫 화면입니다.",
+            "role": "모든 기능과 단계, 카드를 묶음별로 보여 주는 첫 화면입니다.",
             "without": "어떤 카드가 있는지 한눈에 볼 수 없습니다.",
             "limit": "묶음을 접을 수 없어 카드가 많아지면 길어집니다.",
             "unreal": "콘텐츠 브라우저의 첫 화면과 비슷합니다.",
             "functions": [
-                { "name": "Draw", "description": "기능 버튼을 놓고 묶음마다 카드 격자를 그립니다." }
+                { "name": "Draw", "description": "기능과 단계 버튼을 놓고 묶음마다 카드 격자를 그립니다." }
             ],
-            "links": ["guide-feature-buttons", "guide-card-grid", "engine-guide", "engine-guide-window"],
+            "links": ["guide-link-buttons", "guide-card-grid", "engine-guide", "engine-guide-window"],
             "picture": [
-                { "shape": "rect", "x": 30, "y": 14, "w": 280, "h": 154, "fill": "box" },
-                { "shape": "text", "x": 62, "y": 32, "size": 13, "text": "기능" },
-                { "shape": "rect", "x": 44, "y": 42, "w": 60, "h": 22, "fill": "box" },
-                { "shape": "text", "x": 74, "y": 53, "size": 14, "text": "저장" },
-                { "shape": "rect", "x": 110, "y": 42, "w": 60, "h": 22, "fill": "box" },
-                { "shape": "text", "x": 140, "y": 53, "size": 14, "text": "그림자" },
-                { "shape": "rect", "x": 176, "y": 42, "w": 60, "h": 22, "fill": "box" },
-                { "shape": "text", "x": 206, "y": 53, "size": 14, "text": "외곽선" },
-                { "shape": "text", "x": 72, "y": 82, "size": 13, "text": "GPU 준비" },
-                { "shape": "rect", "x": 44, "y": 94, "w": 76, "h": 60, "fill": "highlight" },
-                { "shape": "text", "x": 82, "y": 124, "size": 14, "text": "카드" },
-                { "shape": "rect", "x": 130, "y": 94, "w": 76, "h": 60, "fill": "highlight" },
-                { "shape": "text", "x": 168, "y": 124, "size": 14, "text": "카드" },
-                { "shape": "rect", "x": 216, "y": 94, "w": 76, "h": 60, "fill": "highlight" },
-                { "shape": "text", "x": 254, "y": 124, "size": 14, "text": "카드" }
+                { "shape": "rect", "x": 30, "y": 8, "w": 280, "h": 166, "fill": "box" },
+                { "shape": "text", "x": 62, "y": 24, "size": 13, "text": "기능" },
+                { "shape": "rect", "x": 44, "y": 34, "w": 60, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 74, "y": 44, "size": 14, "text": "저장" },
+                { "shape": "rect", "x": 110, "y": 34, "w": 60, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 140, "y": 44, "size": 14, "text": "그림자" },
+                { "shape": "rect", "x": 176, "y": 34, "w": 60, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 206, "y": 44, "size": 14, "text": "외곽선" },
+                { "shape": "text", "x": 62, "y": 70, "size": 13, "text": "단계" },
+                { "shape": "rect", "x": 44, "y": 80, "w": 60, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 74, "y": 90, "size": 14, "text": "1단계" },
+                { "shape": "rect", "x": 110, "y": 80, "w": 60, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 140, "y": 90, "size": 14, "text": "2단계" },
+                { "shape": "rect", "x": 176, "y": 80, "w": 60, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 206, "y": 90, "size": 14, "text": "3단계" },
+                { "shape": "text", "x": 72, "y": 116, "size": 13, "text": "GPU 준비" },
+                { "shape": "rect", "x": 44, "y": 126, "w": 76, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 82, "y": 146, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 130, "y": 126, "w": 76, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 168, "y": 146, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 216, "y": 126, "w": 76, "h": 40, "fill": "highlight" },
+                { "shape": "text", "x": 254, "y": 146, "size": 14, "text": "카드" }
             ]
         },
         {
@@ -2785,25 +2801,28 @@
                 { "name": "Draw", "description": "위에서부터 차례로 그립니다." },
                 { "name": "DrawHeader", "description": "그림과 이름, 하는 일을 그립니다." },
                 { "name": "DrawFunctions", "description": "함수와 설명을 표로 그립니다." },
-                { "name": "DrawUsingFeatures", "description": "이 카드를 쓰는 기능을 찾아 늘어놓습니다." }
+                { "name": "DrawUsingFeatures", "description": "이 카드를 쓰는 기능을 찾아 늘어놓습니다." },
+                { "name": "DrawOrigin", "description": "이 카드의 클래스가 생긴 커밋과 단계를 그립니다." }
             ],
-            "links": ["guide-picture", "guide-card-grid", "guide-feature-buttons", "guide-theme", "engine-guide-window"],
+            "links": ["guide-picture", "guide-card-grid", "guide-link-buttons", "guide-theme", "engine-guide-window"],
             "picture": [
-                { "shape": "rect", "x": 30, "y": 12, "w": 280, "h": 158, "fill": "box" },
-                { "shape": "rect", "x": 42, "y": 22, "w": 92, "h": 50, "fill": "highlight" },
-                { "shape": "text", "x": 88, "y": 47, "size": 14, "text": "그림" },
-                { "shape": "text", "x": 186, "y": 36, "size": 14, "text": "ShadowMap" },
-                { "shape": "text", "x": 186, "y": 58, "size": 12, "text": "하는 일 한 줄" },
-                { "shape": "rect", "x": 42, "y": 80, "w": 256, "h": 24, "fill": "box" },
-                { "shape": "text", "x": 170, "y": 92, "size": 14, "text": "없으면 · 한계 · 언리얼" },
-                { "shape": "rect", "x": 42, "y": 110, "w": 256, "h": 24, "fill": "box" },
-                { "shape": "text", "x": 170, "y": 122, "size": 14, "text": "함수 표" },
-                { "shape": "rect", "x": 42, "y": 140, "w": 78, "h": 22, "fill": "box" },
-                { "shape": "text", "x": 81, "y": 151, "size": 14, "text": "카드" },
-                { "shape": "rect", "x": 128, "y": 140, "w": 78, "h": 22, "fill": "box" },
-                { "shape": "text", "x": 167, "y": 151, "size": 14, "text": "카드" },
-                { "shape": "rect", "x": 214, "y": 140, "w": 78, "h": 22, "fill": "box" },
-                { "shape": "text", "x": 253, "y": 151, "size": 14, "text": "카드" }
+                { "shape": "rect", "x": 30, "y": 8, "w": 280, "h": 166, "fill": "box" },
+                { "shape": "rect", "x": 42, "y": 16, "w": 92, "h": 46, "fill": "highlight" },
+                { "shape": "text", "x": 88, "y": 39, "size": 14, "text": "그림" },
+                { "shape": "text", "x": 186, "y": 29, "size": 14, "text": "ShadowMap" },
+                { "shape": "text", "x": 186, "y": 50, "size": 12, "text": "하는 일 한 줄" },
+                { "shape": "rect", "x": 42, "y": 68, "w": 256, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 170, "y": 79, "size": 14, "text": "없으면 · 한계 · 언리얼" },
+                { "shape": "rect", "x": 42, "y": 95, "w": 256, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 170, "y": 106, "size": 14, "text": "함수 표" },
+                { "shape": "rect", "x": 42, "y": 122, "w": 256, "h": 22, "fill": "box" },
+                { "shape": "text", "x": 170, "y": 133, "size": 14, "text": "생긴 단계" },
+                { "shape": "rect", "x": 42, "y": 149, "w": 78, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 81, "y": 159, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 128, "y": 149, "w": 78, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 167, "y": 159, "size": 14, "text": "카드" },
+                { "shape": "rect", "x": 214, "y": 149, "w": 78, "h": 20, "fill": "box" },
+                { "shape": "text", "x": 253, "y": 159, "size": 14, "text": "카드" }
             ]
         },
         {
@@ -2840,6 +2859,41 @@
             ]
         },
         {
+            "id": "guide-stage-page",
+            "name": "GuideStagePage",
+            "file": "GuideStagePage.cpp",
+            "role": "단계에서 만든 것과 커밋, 그때 생긴 카드를 보여 줍니다.",
+            "without": "클래스가 언제 왜 생겼는지 알려면 git 기록을 하나씩 뒤져야 합니다.",
+            "limit": "커밋은 JSON에 적어 둔 것입니다. git을 직접 읽지는 않습니다.",
+            "unreal": "버전 기록을 보여 주는 리비전 창과 비슷합니다.",
+            "functions": [
+                { "name": "Draw", "description": "만든 것, 배운 것, 확인한 것을 그립니다." },
+                { "name": "DrawCommit", "description": "커밋 제목과 그 커밋에서 생긴 카드를 그립니다." },
+                { "name": "GetCardIds", "description": "단계에서 생긴 카드를 커밋 순서대로 모읍니다." }
+            ],
+            "links": ["guide-link-buttons", "guide-card-grid", "guide-theme", "engine-guide", "engine-guide-window"],
+            "picture": [
+                { "shape": "rect", "x": 16, "y": 10, "w": 308, "h": 162, "fill": "box" },
+                { "shape": "text", "x": 82, "y": 28, "size": 14, "text": "4단계 그림자" },
+                { "shape": "rect", "x": 28, "y": 44, "w": 70, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 63, "y": 56, "size": 14, "text": "dab0d74" },
+                { "shape": "rect", "x": 110, "y": 44, "w": 92, "h": 24, "fill": "highlight" },
+                { "shape": "text", "x": 156, "y": 56, "size": 14, "text": "ShadowMap" },
+                { "shape": "rect", "x": 208, "y": 44, "w": 106, "h": 24, "fill": "highlight" },
+                { "shape": "text", "x": 261, "y": 56, "size": 14, "text": "ShadowCamera" },
+                { "shape": "rect", "x": 28, "y": 76, "w": 70, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 63, "y": 88, "size": 14, "text": "591e264" },
+                { "shape": "rect", "x": 110, "y": 76, "w": 92, "h": 24, "fill": "highlight" },
+                { "shape": "text", "x": 156, "y": 88, "size": 14, "text": "ShadowPass" },
+                { "shape": "rect", "x": 28, "y": 108, "w": 70, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 63, "y": 120, "size": 14, "text": "db777d4" },
+                { "shape": "rect", "x": 110, "y": 108, "w": 92, "h": 24, "fill": "highlight" },
+                { "shape": "text", "x": 156, "y": 120, "size": 14, "text": "SceneTarget" },
+                { "shape": "text", "x": 63, "y": 152, "size": 13, "text": "커밋" },
+                { "shape": "text", "x": 156, "y": 152, "size": 13, "text": "생긴 카드" }
+            ]
+        },
+        {
             "id": "guide-card-grid",
             "name": "GuideCardGrid",
             "file": "GuideCardGrid.cpp",
@@ -2868,29 +2922,31 @@
             ]
         },
         {
-            "id": "guide-feature-buttons",
-            "name": "GuideFeatureButtons",
-            "file": "GuideFeatureButtons.cpp",
-            "role": "기능의 이름을 버튼으로 늘어놓습니다.",
-            "without": "첫 화면과 카드 화면이 같은 버튼 배치를 따로 만들어야 합니다.",
+            "id": "guide-link-buttons",
+            "name": "GuideLinkButtons",
+            "file": "GuideLinkButtons.cpp",
+            "role": "갈 곳을 버튼으로 늘어놓고, 누르면 그 설명으로 갑니다.",
+            "without": "기능, 단계, 카드로 가는 버튼의 배치를 화면마다 따로 만들어야 합니다.",
             "limit": "버튼을 가나다순으로 정리하지 않습니다.",
             "unreal": "줄을 바꿔 가며 놓는 SWrapBox입니다.",
             "functions": [
-                { "name": "Draw", "description": "자리가 모자라면 다음 줄로 넘기며 버튼을 그립니다." }
+                { "name": "Draw", "description": "자리가 모자라면 다음 줄로 넘기며 버튼을 그립니다." },
+                { "name": "GuideLink", "description": "버튼의 글자와 갈 곳을 담는 묶음입니다." }
             ],
-            "links": ["guide-home-page", "guide-card-page", "guide-navigation"],
+            "links": ["guide-home-page", "guide-card-page", "guide-stage-page", "guide-navigation"],
             "picture": [
-                { "shape": "rect", "x": 20, "y": 30, "w": 300, "h": 120, "fill": "box" },
-                { "shape": "rect", "x": 34, "y": 46, "w": 80, "h": 32, "fill": "box" },
-                { "shape": "text", "x": 74, "y": 62, "size": 14, "text": "? 저장" },
-                { "shape": "rect", "x": 122, "y": 46, "w": 88, "h": 32, "fill": "box" },
-                { "shape": "text", "x": 166, "y": 62, "size": 14, "text": "? 그림자" },
-                { "shape": "rect", "x": 218, "y": 46, "w": 88, "h": 32, "fill": "box" },
-                { "shape": "text", "x": 262, "y": 62, "size": 14, "text": "? 외곽선" },
-                { "shape": "line", "points": [[306,62],[306,92]], "arrow": "end" },
-                { "shape": "rect", "x": 34, "y": 98, "w": 96, "h": 32, "fill": "highlight" },
-                { "shape": "text", "x": 82, "y": 114, "size": 14, "text": "? 둘러보기" },
-                { "shape": "text", "x": 220, "y": 114, "size": 13, "text": "넘치면 다음 줄" }
+                { "shape": "rect", "x": 20, "y": 26, "w": 300, "h": 128, "fill": "box" },
+                { "shape": "rect", "x": 34, "y": 40, "w": 80, "h": 30, "fill": "box" },
+                { "shape": "text", "x": 74, "y": 55, "size": 14, "text": "? 그림자" },
+                { "shape": "rect", "x": 122, "y": 40, "w": 88, "h": 30, "fill": "box" },
+                { "shape": "text", "x": 166, "y": 55, "size": 14, "text": "? 외곽선" },
+                { "shape": "rect", "x": 218, "y": 40, "w": 88, "h": 30, "fill": "box" },
+                { "shape": "text", "x": 262, "y": 55, "size": 14, "text": "4단계" },
+                { "shape": "line", "points": [[306,55],[306,84]], "arrow": "end" },
+                { "shape": "rect", "x": 34, "y": 88, "w": 104, "h": 30, "fill": "highlight" },
+                { "shape": "text", "x": 86, "y": 103, "size": 14, "text": "ShadowMap" },
+                { "shape": "text", "x": 226, "y": 103, "size": 13, "text": "넘치면 다음 줄" },
+                { "shape": "text", "x": 170, "y": 138, "size": 13, "text": "기능 · 단계 · 카드" }
             ]
         },
         {
@@ -3045,13 +3101,14 @@
             "id": "guide-data",
             "name": "EngineGuideData",
             "file": "EngineGuideData.h",
-            "role": "도감 파일에 적힌 카드, 기능, 묶음, 그림의 내용입니다.",
+            "role": "도감 파일에 적힌 카드, 기능, 단계, 묶음, 그림의 내용입니다.",
             "without": "읽는 코드와 그리는 코드가 JSON을 함께 다뤄야 합니다.",
             "limit": "그림은 340 × 180 칸에 맞춰 적어야 합니다.",
             "unreal": "데이터 테이블의 행 구조체입니다.",
             "functions": [
                 { "name": "GuideCard", "description": "클래스 하나를 설명하는 카드입니다." },
                 { "name": "GuideFeature · GuideStep", "description": "기능과 거쳐 가는 순서입니다." },
+                { "name": "GuideStage · GuideCommit", "description": "단계와 그 커밋에서 생긴 카드입니다." },
                 { "name": "GuideShape", "description": "카드 그림을 이루는 도형입니다." }
             ],
             "links": ["engine-guide-reader", "engine-guide", "guide-picture"],
@@ -3065,12 +3122,15 @@
                 { "shape": "rect", "x": 34, "y": 120, "w": 112, "h": 28, "fill": "highlight" },
                 { "shape": "text", "x": 90, "y": 134, "size": 14, "text": "도형" },
                 { "shape": "line", "points": [[146,134],[196,134]], "arrow": "end" },
-                { "shape": "rect", "x": 198, "y": 104, "w": 122, "h": 56, "fill": "box" },
-                { "shape": "text", "x": 259, "y": 123.5, "size": 14, "text": "상자 · 선" },
-                { "shape": "text", "x": 259, "y": 140.5, "size": 14, "text": "원 · 글자" },
-                { "shape": "rect", "x": 198, "y": 24, "w": 122, "h": 56, "fill": "box" },
-                { "shape": "text", "x": 259, "y": 43.5, "size": 14, "text": "기능" },
-                { "shape": "text", "x": 259, "y": 60.5, "size": 14, "text": "순서 1 · 2 · 3" }
+                { "shape": "rect", "x": 198, "y": 112, "w": 122, "h": 48, "fill": "box" },
+                { "shape": "text", "x": 259, "y": 127.5, "size": 14, "text": "상자 · 선" },
+                { "shape": "text", "x": 259, "y": 144.5, "size": 14, "text": "원 · 글자" },
+                { "shape": "rect", "x": 198, "y": 20, "w": 122, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 259, "y": 31.5, "size": 14, "text": "기능" },
+                { "shape": "text", "x": 259, "y": 48.5, "size": 14, "text": "순서 1 · 2 · 3" },
+                { "shape": "rect", "x": 198, "y": 66, "w": 122, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 259, "y": 77.5, "size": 14, "text": "단계" },
+                { "shape": "text", "x": 259, "y": 94.5, "size": 14, "text": "커밋과 카드" }
             ]
         }
     ],
@@ -3211,7 +3271,7 @@
                 { "card": "engine-guide-window", "function": "Open", "description": "적힌 이름으로 창을 엽니다." },
                 { "card": "guide-navigation", "function": "Request", "description": "다음에 보여 줄 화면으로 적어 둡니다." },
                 { "card": "engine-guide", "function": "FindFeature · FindCard", "description": "읽어 둔 내용에서 설명을 찾습니다." },
-                { "card": "engine-guide-window", "function": "DrawPage", "description": "카드, 기능, 첫 화면 중에서 고릅니다." },
+                { "card": "engine-guide-window", "function": "DrawPage", "description": "카드, 기능, 단계, 첫 화면 중에서 고릅니다." },
                 { "card": "guide-feature-page", "function": "Draw", "description": "거쳐 가는 카드를 순서대로 그립니다." },
                 { "card": "guide-picture", "function": "Draw", "description": "카드의 그림을 그립니다." }
             ]
@@ -3283,6 +3343,133 @@
                 { "card": "gpu-barrier", "function": "Transition", "description": "다 그린 뒤 평균을 낼 수 있는 상태로 바꿉니다." },
                 { "card": "scene-target", "function": "ResolveTo", "description": "표본 네 개의 평균을 백버퍼에 씁니다." },
                 { "card": "d3d12-context", "function": "RenderEditor", "description": "그 위에 편집 화면을 덧그립니다." }
+            ]
+        }
+    ],
+    "stages": [
+        {
+            "id": "stage-0",
+            "name": "0단계 엔진의 뼈대",
+            "date": "2026.08.11 – 11.23",
+            "made": "삼각형 하나에서 시작해 큐브와 구를 놓고 고르고 옮기고 저장하는 편집기와, 그 원리를 엔진 안에서 보여 주는 도감을 만들었습니다.",
+            "learned": "장치와 명령 목록, CPU와 GPU의 동기화, 상수 버퍼와 텍스처, 깊이 비교, 절두체 컬링, 화면 좌표로 물체 고르기",
+            "checked": "물체를 만들고 지우고, JSON으로 저장한 장면을 다시 불러오고, 물음표를 눌러 엔진 안에서 설명을 여는 것을 화면에서 확인했습니다.",
+            "commits": [
+                { "hash": "8760f62", "title": "DirectX 12 삼각형 렌더링 프로젝트 초기 구성", "cards": ["app-loop","device-resources","command-context","swapchain","d3d12-context","shader","pipeline","d3d12-config"] },
+                { "hash": "a4eccfe", "title": "Index Buffer 기반 Indexed Rendering 추가", "cards": [] },
+                { "hash": "0acb467", "title": "Constant Buffer로 WVP 3D 변환 추가", "cards": [] },
+                { "hash": "d0108e3", "title": "Depth Test를 적용한 3D Cube 렌더링 추가", "cards": [] },
+                { "hash": "aa1a01d", "title": "DeltaTime 기반 자유 카메라 조작 추가", "cards": ["timer","input","camera"] },
+                { "hash": "4aab04f", "title": "Transform과 Mesh로 렌더링 객체 책임 분리", "cards": ["mesh","transform"] },
+                { "hash": "0b80d18", "title": "Transform과 Mesh를 GameObject로 연결", "cards": ["game-object"] },
+                { "hash": "4cfd3f0", "title": "여러 GameObject 렌더링과 Scene 관리 추가", "cards": ["scene"] },
+                { "hash": "cfd8b51", "title": "체크무늬 텍스처 렌더링 추가", "cards": [] },
+                { "hash": "1df5fc8", "title": "WIC 텍스처 로딩과 리소스 캐시 추가", "cards": ["texture","resource-manager"] },
+                { "hash": "5d62c24", "title": "Directional Light 기반 Lambert 조명 추가", "cards": [] },
+                { "hash": "eb701c7", "title": "렌더링 통계와 Window Title 출력 추가", "cards": [] },
+                { "hash": "63b13a3", "title": "AABB 기반 Frustum Culling 추가", "cards": ["frustum","aabb"] },
+                { "hash": "ff13649", "title": "Dear ImGui 기반 Editor UI 추가", "cards": [] },
+                { "hash": "61a60bd", "title": "RMB 기반 Editor Camera 조작 추가", "cards": [] },
+                { "hash": "e04fe9b", "title": "Hierarchy 선택과 Transform Inspector 연결", "cards": [] },
+                { "hash": "a7c54f5", "title": "동적 Cube 생성과 Object Buffer 확장 추가", "cards": [] },
+                { "hash": "e7ea223", "title": "절차적 Sphere Primitive 생성 기능 추가", "cards": [] },
+                { "hash": "9b8a0f5", "title": "Scene Object 삭제 기능 추가", "cards": [] },
+                { "hash": "2b2616d", "title": "Editor 시작 Scene을 빈 상태로 변경", "cards": [] },
+                { "hash": "1e466f3", "title": "AABB 기반 Viewport Ray Picking 추가", "cards": ["ray"] },
+                { "hash": "9b49ef8", "title": "ImGuizmo 기반 Transform Gizmo 조작 추가", "cards": [] },
+                { "hash": "7def5e5", "title": "JSON 기반 Scene 저장 및 불러오기 추가", "cards": ["scene-serializer"] },
+                { "hash": "c143a73", "title": "Editor 기능별 물음표 도움말 버튼 추가", "cards": [] },
+                { "hash": "384ccfb", "title": "엔진 안에서 여는 카드 도감 창 추가", "cards": ["engine-guide-window","engine-guide"] }
+            ]
+        },
+        {
+            "id": "stage-1",
+            "name": "1단계 Luna 띄우기",
+            "date": "2026.11.23",
+            "made": "glTF 모델을 읽어 재질마다 자기 텍스처를 입히고, Luna를 T자세로 화면에 띄웠습니다.",
+            "learned": "Default 힙으로 옮기기, 디스크립터 힙의 여러 칸, 디스크립터 테이블, sRGB와 선형 색",
+            "checked": "같은 카메라와 빛으로 그린 Blender 그림과 색 차이의 중앙값이 1, 평균이 7.3입니다(0~255). 조각 9개, 삼각형 45,649개인 Luna를 144fps(주사율 상한)로 그립니다.",
+            "commits": [
+                { "hash": "1d52dd3", "title": "Mesh 인덱스를 32비트로 변경", "cards": [] },
+                { "hash": "c95912b", "title": "정점과 인덱스 버퍼를 Default 힙으로 이동", "cards": ["gpu-buffer"] },
+                { "hash": "b786929", "title": "glTF를 읽는 ModelLoader 추가", "cards": ["model-loader","model-data"] },
+                { "hash": "5aeeaee", "title": "여러 조각을 가진 모델과 모델 고르기 추가", "cards": ["model","primitive-geometry"] },
+                { "hash": "93377c3", "title": "조각마다 자기 텍스처를 쓰도록 SRV 힙 확장", "cards": ["texture-heap"] },
+                { "hash": "dab8b6d", "title": "빛 계산을 선형 색으로 하도록 sRGB 적용", "cards": [] },
+                { "hash": "a52a91f", "title": "Luna를 T자세 glTF로 내보내는 스크립트 추가", "cards": [] },
+                { "hash": "279c509", "title": "장면 파일에 모델 경로 저장", "cards": [] },
+                { "hash": "7a9836b", "title": "도감에 모델 카드 4장과 모델 불러오기 설명 추가", "cards": [] },
+                { "hash": "f869aa7", "title": "관문 1 비교용 Blender 렌더 스크립트 추가", "cards": [] }
+            ]
+        },
+        {
+            "id": "stage-2",
+            "name": "2단계 2단 명암",
+            "date": "2026.11.23",
+            "made": "밝은 면과 그늘을 두 단으로 끊고, 재질마다 다른 그늘색과 림라이트를 넣었습니다. 편집기를 D3D12Context에서 떼어 내고 긴 클래스를 역할별로 나눴습니다.",
+            "learned": "루트 시그니처에 칸 더하기, 상수 버퍼의 배치와 정렬, 프레임마다 따로 쓰는 상수 버퍼",
+            "checked": "명암의 식과 재질 값, 빛의 색을 Pandora Arena에서 옮겼습니다. 클래스를 나눈 뒤 같은 순서로 실행한 화면의 모든 픽셀과 저장한 파일이 나누기 전과 같습니다.",
+            "commits": [
+                { "hash": "e925aa2", "title": "편집기를 D3D12Context에서 분리", "cards": ["scene-editor","imgui-layer"] },
+                { "hash": "28ae983", "title": "프레임별 상수 버퍼를 FrameConstantBuffer로 정리", "cards": ["frame-constant-buffer"] },
+                { "hash": "7286c1b", "title": "재질 상수 버퍼와 그림체 파일 추가", "cards": ["material-style-values"] },
+                { "hash": "ee81413", "title": "2단 명암과 재질별 그늘색 적용", "cards": [] },
+                { "hash": "d9fe4d8", "title": "빛을 받는 가장자리에 림라이트 추가", "cards": [] },
+                { "hash": "6d6a59d", "title": "도감에 2단계 카드 4장과 카툰 명암 설명 추가", "cards": [] },
+                { "hash": "c4ce22d", "title": "편집기와 그리기 코드를 역할별 클래스로 정리", "cards": ["win32-window","scene-renderer","render-statistics","material","material-style","scene-lighting","editor-selection","editor-layout","editor-camera","transform-gizmo","viewport-picker","create-panel","hierarchy-panel","inspector-panel","viewport-help-bar"] },
+                { "hash": "0a51117", "title": "도감에 새 클래스 카드 15장 추가", "cards": [] }
+            ]
+        },
+        {
+            "id": "stage-3",
+            "name": "3단계 외곽선",
+            "date": "2026.11.23 – 11.24",
+            "made": "뒷면을 부풀려 거리와 해상도가 달라도 같은 굵기로 보이는 외곽선을 넣었습니다. 그리기 패스와 파일 읽기 코드를 클래스 13개로 나눴습니다.",
+            "learned": "PSO 여러 개, 앞면을 지우는 컬링, 화면 공간 두께, 부드러운 법선 굽기",
+            "checked": "각진 큐브를 원래 법선으로 밀면 모서리의 선이 갈라지고, 구운 법선으로 밀면 이어집니다. Luna의 그리기 명령이 9번에서 18번으로 늘고 144fps(주사율 상한)를 유지합니다. 클래스를 나눈 뒤 화면 30장이 나누기 전과 픽셀까지 같습니다.",
+            "commits": [
+                { "hash": "e681d7e", "title": "외곽선을 밀어낼 부드러운 법선 굽기", "cards": ["outline-normal-baker"] },
+                { "hash": "0ef2eb7", "title": "재질에 외곽선 색과 두께 추가", "cards": [] },
+                { "hash": "23bdda9", "title": "뒷면을 부풀려 그리는 외곽선 패스 추가", "cards": [] },
+                { "hash": "2c52f20", "title": "도감에 외곽선 카드와 물음표 추가", "cards": [] },
+                { "hash": "66e1562", "title": "그리기 패스와 파일 읽기 코드를 역할별 클래스로 정리", "cards": ["fence","depth-buffer","scene-culler","scene-constants","toon-pass","outline-pass","shader-compiler","root-signature","gltf-file","image-loader","guide-navigation","guide-theme","guide-picture","render-pass-context"] },
+                { "hash": "23f700b", "title": "도감에 새 클래스 카드 13장 추가", "cards": [] }
+            ]
+        },
+        {
+            "id": "stage-4",
+            "name": "4단계 그림자",
+            "date": "2026.11.24 – 11.25",
+            "made": "빛에서 본 깊이를 그림자 맵에 그리고, 카툰 명암이 그것을 읽어 같은 두 단으로 끊게 했습니다. MSAA 4배로 윤곽의 계단을 없애고, 겹치던 코드와 긴 클래스를 클래스 20개로 나눴습니다.",
+            "learned": "깊이만 그리는 패스, 배리어, 깊이 텍스처 읽기, 여러 표본으로 그려 합치기",
+            "checked": "같은 Luna를 Pandora Arena의 셰이더와 URP 설정으로 그린 그림과 비교해, 세 장면에서 색 차이의 중앙값이 1~4, 평균이 4.2~5.6입니다(0~255, MSAA 4배). 클래스를 나눈 뒤 화면 36장과 망가진 파일 22가지를 읽은 결과가 나누기 전과 같습니다.",
+            "commits": [
+                { "hash": "dab0d74", "title": "빛에서 본 깊이를 담을 그림자 맵과 빛의 시점 추가", "cards": ["shadow-map","shadow-camera"] },
+                { "hash": "591e264", "title": "빛에서 본 깊이만 그리는 그림자 패스 추가", "cards": ["shadow-pass"] },
+                { "hash": "30afee3", "title": "카툰 명암이 그림자를 받아 같은 두 단으로 끊기게 하기", "cards": [] },
+                { "hash": "7323ef4", "title": "그림자를 받을 바닥(Plane) 추가", "cards": [] },
+                { "hash": "524928d", "title": "도감에 그림자 카드 3장과 물음표 추가", "cards": [] },
+                { "hash": "202bee7", "title": "네 곳에 흩어진 배리어를 GpuBarrier로 모으기", "cards": ["gpu-barrier"] },
+                { "hash": "db777d4", "title": "장면을 MSAA 4배로 그려 윤곽의 계단 없애기", "cards": ["scene-target"] },
+                { "hash": "27c4d86", "title": "도감에 MSAA와 배리어 카드 2장과 물음표 추가", "cards": [] },
+                { "hash": "3a3cb55", "title": "겹치는 코드를 모으고 남은 긴 클래스를 역할별로 나누기", "cards": ["descriptor-heap","imgui-descriptors","render-area","scene-visibility","shadow-settings","vertex-layout","gpu-texture","texture-uploader","gltf-model-reader","gltf-primitive-reader","scene-file-reader","scene-file-writer","engine-guide-reader","guide-help-button","guide-navigation-bar","guide-home-page","guide-card-page","guide-feature-page","guide-card-grid","scene-data","guide-data"] },
+                { "hash": "b7940d5", "title": "도감에 새 클래스 카드 20장과 값 파일 카드 6장 추가", "cards": [] }
+            ]
+        },
+        {
+            "id": "stage-5",
+            "name": "5단계 스타일 저장",
+            "date": "2026.11.25",
+            "made": "재질마다 그림체 값을 화면에서 고치고 저장하는 Style 패널과, 그 파일을 Unity 재질에 넣는 스크립트를 만들었습니다. 도감에는 단계마다 커밋과 클래스를 보여 주는 화면을 더했습니다.",
+            "learned": "데이터 주도 설정, 실행 중에 값 바꾸기, 파일을 안전하게 바꿔 쓰기",
+            "checked": "저장하면 바꾼 줄만 달라지고 다시 켜도 같은 화면입니다. 다섯 재질의 값을 바꾼 파일을 Pandora Arena 재질의 복사본에 가져와, 같은 값의 엔진 화면과 색 차이의 중앙값이 1~4입니다(0~255). 실제 Arena 프로젝트에는 아직 넣지 않았습니다.",
+            "commits": [
+                { "hash": "00c337a", "title": "그림체 값을 재질이 함께 쓰고 파일에 저장할 수 있게 하기", "cards": ["style-file-reader","style-file-writer"] },
+                { "hash": "3896558", "title": "재질의 그림체 값을 고치고 저장하는 Style 패널 추가", "cards": ["style-panel"] },
+                { "hash": "999e444", "title": "그림체 파일을 Unity 재질에 넣는 스크립트 추가", "cards": ["style-importer"] },
+                { "hash": "be5a289", "title": "읽지 못한 그림체 파일을 덮어쓰지 않게 하기", "cards": [] },
+                { "hash": "f99a14d", "title": "창 끝에 걸친 카드 그림이 빈 Scissor Rect를 보내지 않게 하기", "cards": [] },
+                { "hash": "05bf4fd", "title": "도감에 그림체 카드 4장과 물음표 추가", "cards": [] }
             ]
         }
     ]

@@ -9,7 +9,7 @@
 
 namespace
 {
-    constexpr int GuideFormatVersion = 1;
+    constexpr int GuideFormatVersion = 2;
 
     using Json = nlohmann::json;
 
@@ -144,6 +144,29 @@ namespace
         return feature;
     }
 
+    GuideStage ReadStage(const Json& stageJson)
+    {
+        GuideStage stage;
+        stage.id = stageJson.at("id").get<std::string>();
+        stage.name = stageJson.at("name").get<std::string>();
+        stage.date = stageJson.at("date").get<std::string>();
+        stage.made = stageJson.at("made").get<std::string>();
+        stage.learned = stageJson.at("learned").get<std::string>();
+        stage.checked = stageJson.at("checked").get<std::string>();
+
+        for (const Json& commitJson : stageJson.at("commits"))
+        {
+            stage.commits.push_back(
+                {
+                    commitJson.at("hash").get<std::string>(),
+                    commitJson.at("title").get<std::string>(),
+                    commitJson.at("cards").get<std::vector<std::string>>()
+                });
+        }
+
+        return stage;
+    }
+
     GuideGroup ReadGroup(const Json& groupJson)
     {
         GuideGroup group;
@@ -194,6 +217,10 @@ EngineGuideData EngineGuideReader::Read(const std::filesystem::path& filePath)
     for (const Json& featureJson : guideJson.at("features"))
     {
         data.features.push_back(ReadFeature(featureJson));
+    }
+    for (const Json& stageJson : guideJson.at("stages"))
+    {
+        data.stages.push_back(ReadStage(stageJson));
     }
     for (const Json& groupJson : guideJson.at("groups"))
     {

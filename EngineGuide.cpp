@@ -61,6 +61,11 @@ const std::vector<GuideFeature>& EngineGuide::GetFeatures() const
     return data_.features;
 }
 
+const std::vector<GuideStage>& EngineGuide::GetStages() const
+{
+    return data_.stages;
+}
+
 const GuideCard* EngineGuide::FindCard(const std::string& id) const
 {
     return FindById(data_.cards, id);
@@ -69,6 +74,11 @@ const GuideCard* EngineGuide::FindCard(const std::string& id) const
 const GuideFeature* EngineGuide::FindFeature(const std::string& id) const
 {
     return FindById(data_.features, id);
+}
+
+const GuideStage* EngineGuide::FindStage(const std::string& id) const
+{
+    return FindById(data_.stages, id);
 }
 
 bool EngineGuide::ValidateReferences() const
@@ -103,6 +113,14 @@ bool EngineGuide::ValidateReferences() const
     {
         for (const GuideStep& step : feature.steps)
             checkCard(feature.id, step.cardId);
+    }
+    for (const GuideStage& stage : data_.stages)
+    {
+        for (const GuideCommit& commit : stage.commits)
+        {
+            for (const std::string& cardId : commit.cardIds)
+                checkCard(stage.id, cardId);
+        }
     }
 
     return isValid;

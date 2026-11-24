@@ -90,6 +90,9 @@
     <ClCompile Include="SceneSerializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GuideStagePage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="StylePanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -105,7 +108,7 @@
     <ClCompile Include="GuideCardGrid.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GuideFeatureButtons.cpp">
+    <ClCompile Include="GuideLinkButtons.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GuideFeaturePage.cpp">
@@ -377,6 +380,9 @@
     <ClInclude Include="SceneSerializer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GuideStagePage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="StylePanel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -389,7 +395,7 @@
     <ClInclude Include="GuideCardGrid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GuideFeatureButtons.h">
+    <ClInclude Include="GuideLinkButtons.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GuideFeaturePage.h">
