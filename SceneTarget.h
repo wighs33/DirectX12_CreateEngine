@@ -1,6 +1,8 @@
 #pragma once
 
 #include "DepthBuffer.h"
+#include "DescriptorHeap.h"
+#include "RenderArea.h"
 
 #include <d3d12.h>
 #include <wrl.h>
@@ -17,7 +19,7 @@ public:
 
     bool Initialize(ID3D12Device* device, UINT width, UINT height);
 
-    // 색과 깊이를 그릴 대상으로 연결하고 이전 Frame의 것을 지웁니다.
+    // 화면 전체를 그릴 영역으로 정하고, 색과 깊이를 연결한 뒤 이전 Frame의 것을 지웁니다.
     void Begin(ID3D12GraphicsCommandList* commandList) const;
 
     // 표본의 평균을 BackBuffer에 씁니다. BackBuffer는 RESOLVE_DEST 상태여야 합니다.
@@ -25,12 +27,14 @@ public:
         ID3D12GraphicsCommandList* commandList,
         ID3D12Resource* backBuffer) const;
 
+    const D3D12_VIEWPORT& GetViewport() const;
+
 private:
     bool CreateColorBuffer(ID3D12Device* device, UINT width, UINT height);
     bool CreateRenderTargetView(ID3D12Device* device);
 
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap_;
+    RenderArea renderArea_;
+    DescriptorHeap descriptorHeap_;
     Microsoft::WRL::ComPtr<ID3D12Resource> colorBuffer_;
     DepthBuffer depthBuffer_;
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle_{};
 };

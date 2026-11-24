@@ -2,8 +2,8 @@
 
 #include "EditorLayout.h"
 #include "EditorSelection.h"
-#include "EngineGuideWindow.h"
 #include "GameObject.h"
+#include "GuideHelpButton.h"
 #include "Scene.h"
 
 #include "imgui.h"
@@ -18,7 +18,7 @@ void HierarchyPanel::Draw(
 {
     EditorLayout::BeginPanel("Hierarchy", EditorLayout::GetHierarchyPanel());
     ImGui::TextUnformatted("Objects");
-    guideWindow.DrawHelpButtonAtRight("feature-hierarchy");
+    GuideHelpButton::DrawAtRight(guideWindow, "feature-hierarchy");
     ImGui::Separator();
 
     const std::vector<GameObject>& gameObjects = scene.GetGameObjects();

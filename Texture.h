@@ -8,7 +8,7 @@
 class D3D12CommandContext;
 struct ImageData;
 
-// RGBA8 이미지를 GPU Texture Resource로 업로드합니다.
+// 픽셀이 담긴 GPU Texture와 그것을 연결할 칸의 번호를 보관합니다.
 class Texture final
 {
 public:

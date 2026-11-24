@@ -4,8 +4,9 @@
 
 class ResourceManager;
 class Scene;
+struct SceneData;
 
-// Runtime Scene과 사람이 읽을 수 있는 JSON File 사이의 변환만 담당합니다.
+// 실행 중인 Scene과 파일에 적을 SceneData 사이를 바꿉니다.
 class SceneSerializer final
 {
 public:
@@ -14,8 +15,16 @@ public:
     static bool SaveScene(
         const Scene& scene,
         const std::filesystem::path& filePath);
+
+    // 파일을 모두 읽고 모델까지 찾은 뒤에만 현재 Scene을 교체합니다.
     static bool LoadScene(
         Scene& scene,
         ResourceManager& resourceManager,
         const std::filesystem::path& filePath);
+
+private:
+    static SceneData CreateData(const Scene& scene);
+    static Scene CreateScene(
+        const SceneData& data,
+        ResourceManager& resourceManager);
 };

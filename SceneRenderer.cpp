@@ -9,9 +9,6 @@
 #include "Scene.h"
 #include "TextureHeap.h"
 
-#include <algorithm>
-#include <iterator>
-
 bool SceneRenderer::Initialize(ID3D12Device* device, TextureHeap& textureHeap)
 {
     return rootSignature_.Initialize(device) &&
@@ -47,7 +44,14 @@ void SceneRenderer::BeginFrame(
         camera.GetProjectionMatrix());
 
     shadowCamera_.Update(scene, camera);
-    CollectObjects(scene, viewProjectionMatrix, statistics);
+    visibility_.Collect(
+        scene,
+        viewProjectionMatrix,
+        shadowCamera_.GetViewProjectionMatrix());
+    statistics.SetVisibility(
+        visibility_.GetCameraObjects().size(),
+        visibility_.GetCulledObjectCount());
+
     WriteConstants(frameIndex, scene, camera, viewProjectionMatrix);
     BindCommonState(commandList, frameIndex, resourceManager);
 }
@@ -63,7 +67,7 @@ void SceneRenderer::RenderShadow(
     {
         commandList,
         frameIndex,
-        shadowCuller_.GetVisibleObjects(),
+        visibility_.GetLightObjects(),
         constants_,
         resourceManager.GetTextureHeap(),
         shadowMap_,
@@ -82,7 +86,7 @@ void SceneRenderer::RenderScene(
     {
         commandList,
         frameIndex,
-        culler_.GetVisibleObjects(),
+        visibility_.GetCameraObjects(),
         constants_,
         resourceManager.GetTextureHeap(),
         shadowMap_,
@@ -91,34 +95,6 @@ void SceneRenderer::RenderScene(
     // 물체를 먼저 그려 두면 안쪽에 가려진 외곽선은 깊이 비교에서 지워집니다.
     toonPass_.Draw(context);
     outlinePass_.Draw(context);
-}
-
-void SceneRenderer::CollectObjects(
-    const Scene& scene,
-    const DirectX::XMMATRIX& viewProjectionMatrix,
-    RenderStatistics& statistics)
-{
-    culler_.Collect(scene, viewProjectionMatrix);
-    shadowCuller_.Collect(scene, shadowCamera_.GetViewProjectionMatrix());
-
-    const std::vector<VisibleObject>& visibleObjects = culler_.GetVisibleObjects();
-    const std::vector<VisibleObject>& shadowObjects = shadowCuller_.GetVisibleObjects();
-    statistics.SetVisibility(
-        visibleObjects.size(),
-        culler_.GetCulledObjectCount());
-
-    // 두 목록 모두 Scene의 순서대로이므로 번호를 견주어 합칩니다.
-    drawnObjects_.clear();
-    std::set_union(
-        visibleObjects.begin(),
-        visibleObjects.end(),
-        shadowObjects.begin(),
-        shadowObjects.end(),
-        std::back_inserter(drawnObjects_),
-        [](const VisibleObject& left, const VisibleObject& right)
-        {
-            return left.objectIndex < right.objectIndex;
-        });
 }
 
 void SceneRenderer::WriteConstants(
@@ -134,7 +110,7 @@ void SceneRenderer::WriteConstants(
         shadowCamera_,
         viewProjectionMatrix);
 
-    for (const VisibleObject& object : drawnObjects_)
+    for (const VisibleObject& object : visibility_.GetAllObjects())
     {
         constants_.WriteObject(
             frameIndex,
@@ -144,7 +120,7 @@ void SceneRenderer::WriteConstants(
     }
 
     // 그림자 패스는 재질을 쓰지 않으므로 재질은 화면에 보이는 물체만 씁니다.
-    for (const VisibleObject& object : culler_.GetVisibleObjects())
+    for (const VisibleObject& object : visibility_.GetCameraObjects())
     {
         for (const Material& material :
              object.gameObject->GetModel()->GetMaterials())

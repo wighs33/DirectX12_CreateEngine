@@ -4,15 +4,7 @@
 #include "D3D12CommandContext.h"
 #include "D3D12RootSignature.h"
 #include "ShadowCamera.h"
-#include "ShadowMap.h"
-
-namespace
-{
-    // 그림자 맵 한 칸보다 작은 요철은 담기지 않으므로, 자기 표면에 그림자가 얼룩지지 않도록 칸의 몇 배를 밀어냅니다.
-    // 시야의 반지름이 4일 때 Pandora Arena의 그림자와 같은 길이(약 3mm, 14mm)가 됩니다.
-    constexpr float ShadowDepthBias = 0.75f;
-    constexpr float ShadowNormalBias = 3.7f;
-}
+#include "ShadowSettings.h"
 
 bool SceneConstants::EnsureCapacity(
     ID3D12Device* device,
@@ -42,9 +34,11 @@ void SceneConstants::WriteFrame(
     DirectX::XMStoreFloat4x4(
         &constants.lightViewProjection,
         DirectX::XMMatrixTranspose(shadowCamera.GetViewProjectionMatrix()));
-    constants.shadowDepthBias = ShadowDepthBias * shadowCamera.GetTexelSize();
-    constants.shadowNormalBias = ShadowNormalBias * shadowCamera.GetTexelSize();
-    constants.shadowTexelUv = 1.0f / static_cast<float>(ShadowMap::Resolution);
+    constants.shadowDepthBias =
+        ShadowSettings::DepthBias * shadowCamera.GetTexelSize();
+    constants.shadowNormalBias =
+        ShadowSettings::NormalBias * shadowCamera.GetTexelSize();
+    constants.shadowTexelUv = 1.0f / static_cast<float>(ShadowSettings::Resolution);
     frameConstants_.Write(frameIndex, 0, &constants);
 }
 

@@ -52,7 +52,7 @@ void D3D12Context::Update(float deltaTime)
     {
         SetWindowTextW(window_, statistics_.CreateTitle().c_str());
     }
-    sceneEditor_.Update(deltaTime, swapChain_.GetViewport());
+    sceneEditor_.Update(deltaTime, sceneTarget_.GetViewport());
 }
 
 bool D3D12Context::RenderFrame()
@@ -97,7 +97,7 @@ bool D3D12Context::RenderFrame()
         statistics_);
 
     // [7~11단계] 그릴 영역과 대상을 정하고 이전 Frame의 색과 깊이를 지웁니다.
-    BeginScene(commandList);
+    sceneTarget_.Begin(commandList);
 
     // [12~16단계] 장면의 물체와 외곽선을 그립니다.
     sceneRenderer_.RenderScene(
@@ -129,19 +129,6 @@ bool D3D12Context::RenderFrame()
 
     // [22단계] 이 Frame의 GPU 작업 완료 지점을 Fence 값으로 Queue 뒤에 기록합니다.
     return commandContext_.SignalFrame(frameIndex);
-}
-
-void D3D12Context::BeginScene(ID3D12GraphicsCommandList* commandList)
-{
-    // [7단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
-    const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
-    commandList->RSSetViewports(1, &viewport);
-
-    // [8단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
-    const D3D12_RECT& scissorRect = swapChain_.GetScissorRect();
-    commandList->RSSetScissorRects(1, &scissorRect);
-
-    sceneTarget_.Begin(commandList);
 }
 
 void D3D12Context::ResolveScene(

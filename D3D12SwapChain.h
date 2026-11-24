@@ -1,6 +1,7 @@
 #pragma once
 
 #include "D3D12Config.h"
+#include "DescriptorHeap.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -32,8 +33,6 @@ public:
     ID3D12Resource* GetBackBuffer(UINT frameIndex) const;
     // 색을 변환하지 않고 쓰는 ImGui용 RTV입니다.
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTV(UINT frameIndex) const;
-    const D3D12_VIEWPORT& GetViewport() const;
-    const D3D12_RECT& GetScissorRect() const;
     bool Present();
 
 private:
@@ -49,10 +48,6 @@ private:
     UINT currentBackBufferIndex_ = 0;
     std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, FrameCount> backBuffers_;
 
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;
-    UINT rtvDescriptorSize_ = 0;
-    std::array<D3D12_CPU_DESCRIPTOR_HANDLE, FrameCount> rtvHandles_{};
-
-    D3D12_VIEWPORT viewport_{};
-    D3D12_RECT scissorRect_{};
+    // BackBuffer마다 한 칸을 사용합니다.
+    DescriptorHeap rtvHeap_;
 };

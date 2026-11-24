@@ -6,14 +6,9 @@
 #include "RenderStatistics.h"
 #include "SceneConstants.h"
 #include "ShadowMap.h"
+#include "ShadowSettings.h"
 
 #include <memory>
-
-namespace
-{
-    // 빛과 나란한 면은 그림자 맵 한 칸 안에서도 깊이가 크게 바뀌므로 그만큼 뒤로 밉니다.
-    constexpr float SlopeScaledDepthBias = 5.0f;
-}
 
 bool ShadowPass::Initialize(
     ID3D12Device* device,
@@ -24,7 +19,7 @@ bool ShadowPass::Initialize(
     settings.vertexShader = "VSShadow";
     settings.pixelShader = nullptr;
     settings.cullMode = D3D12_CULL_MODE_BACK;
-    settings.slopeScaledDepthBias = SlopeScaledDepthBias;
+    settings.slopeScaledDepthBias = ShadowSettings::SlopeScaledDepthBias;
     return pipeline_.Initialize(device, rootSignature, settings);
 }
 

@@ -20,13 +20,6 @@ public:
     float GetTexelSize() const;
 
 private:
-    // 작은 장면이라도 이보다 좁히지 않아, 물체를 더해도 그림자 가장자리의 모양이 바뀌지 않습니다.
-    static constexpr float MinimumRadius = 4.0f;
-    // 담을 수 있는 가장 넓은 시야의 반지름입니다.
-    static constexpr float MaximumRadius = 12.0f;
-    // 물체가 조금 움직여도 한 칸의 크기가 바뀌지 않도록 반지름을 이 간격으로 올립니다.
-    static constexpr float RadiusStep = 0.25f;
-
     // 모델이 있는 물체를 모두 감싸는 상자를 구하고, 물체가 없으면 false를 반환합니다.
     static bool CalculateSceneBounds(const Scene& scene, AABB& bounds);
 

@@ -1,25 +1,14 @@
 #pragma once
 
 #include "BoundingBox.h"
+#include "VertexLayout.h"
 
-#include <DirectXMath.h>
 #include <d3d12.h>
 #include <wrl.h>
 
 #include <cstdint>
 
 class D3D12CommandContext;
-
-// 현재 Input Layout과 HLSL Vertex 입력에 대응하는 정점 데이터입니다.
-struct Vertex
-{
-    DirectX::XMFLOAT3 position;
-    DirectX::XMFLOAT4 color;
-    DirectX::XMFLOAT2 uv;
-    DirectX::XMFLOAT3 normal;
-    // 외곽선을 밀어낼 방향이며 OutlineNormalBaker가 채웁니다.
-    DirectX::XMFLOAT3 outlineNormal{};
-};
 
 // CPU Geometry로 DirectX 12 Vertex/Index Buffer를 만들고 렌더링에 필요한 View를 제공합니다.
 class Mesh final

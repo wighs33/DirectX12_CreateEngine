@@ -1,7 +1,8 @@
 #pragma once
 
+#include "DescriptorHeap.h"
+
 #include <d3d12.h>
-#include <wrl.h>
 
 class Texture;
 
@@ -31,8 +32,6 @@ public:
     D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(UINT slot) const;
 
 private:
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap_;
-    UINT descriptorSize_ = 0;
-    UINT capacity_ = 0;
+    DescriptorHeap heap_;
     UINT count_ = 0;
 };

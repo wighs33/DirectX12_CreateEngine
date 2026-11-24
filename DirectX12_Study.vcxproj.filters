@@ -90,6 +90,63 @@
     <ClCompile Include="SceneSerializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GuideCardGrid.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GuideFeatureButtons.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GuideFeaturePage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GuideCardPage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GuideHomePage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GuideNavigationBar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GuideHelpButton.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="EngineGuideReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GltfPrimitiveReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GltfModelReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneFileWriter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneFileReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneVisibility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VertexLayout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureUploader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGuiDescriptorAllocator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderArea.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GpuTexture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DescriptorHeap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="SceneTarget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -306,6 +363,72 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SceneSerializer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GuideCardGrid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GuideFeatureButtons.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GuideFeaturePage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GuideCardPage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GuideHomePage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GuideNavigationBar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GuideHelpButton.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="EngineGuideReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="EngineGuideData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GltfPrimitiveReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GltfModelReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneFileWriter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneFileReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowSettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneVisibility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VertexLayout.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureUploader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGuiDescriptorAllocator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderArea.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GpuTexture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DescriptorHeap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SceneTarget.h">

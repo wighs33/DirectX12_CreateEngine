@@ -1,14 +1,13 @@
 #pragma once
 
-#include <d3d12.h>
-#include <wrl.h>
+#include "ImGuiDescriptorAllocator.h"
 
-#include <vector>
+#include <d3d12.h>
 
 class D3D12CommandContext;
 struct ImGui_ImplDX12_InitInfo;
 
-// ImGui Context와 Win32/DirectX 12 Backend의 수명, 그리고 Editor 전용 Descriptor Heap을 관리합니다.
+// ImGui Context와 Win32/DirectX 12 Backend의 수명을 관리합니다.
 class ImGuiLayer final
 {
 public:
@@ -39,8 +38,7 @@ public:
     void Render(ID3D12GraphicsCommandList* commandList);
 
 private:
-    static constexpr UINT DescriptorCount = 16;
-
+    // Backend가 칸이 필요하거나 다 썼을 때 부르는 함수입니다.
     static void AllocateDescriptor(
         ImGui_ImplDX12_InitInfo* information,
         D3D12_CPU_DESCRIPTOR_HANDLE* cpuHandle,
@@ -50,8 +48,6 @@ private:
         D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
         D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
 
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap_;
-    std::vector<UINT> freeDescriptorIndices_;
-    UINT descriptorSize_ = 0;
+    ImGuiDescriptorAllocator descriptorAllocator_;
     bool isInitialized_ = false;
 };

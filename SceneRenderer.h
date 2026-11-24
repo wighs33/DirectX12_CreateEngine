@@ -3,7 +3,7 @@
 #include "D3D12RootSignature.h"
 #include "OutlinePass.h"
 #include "SceneConstants.h"
-#include "SceneCuller.h"
+#include "SceneVisibility.h"
 #include "ShadowCamera.h"
 #include "ShadowMap.h"
 #include "ShadowPass.h"
@@ -11,8 +11,6 @@
 
 #include <DirectXMath.h>
 #include <d3d12.h>
-
-#include <vector>
 
 class Camera;
 class D3D12CommandContext;
@@ -65,11 +63,6 @@ public:
         RenderStatistics& statistics) const;
 
 private:
-    // 카메라에 보이는 물체와, 화면 밖이어도 그림자를 드리울 물체를 고릅니다.
-    void CollectObjects(
-        const Scene& scene,
-        const DirectX::XMMATRIX& viewProjectionMatrix,
-        RenderStatistics& statistics);
     // 고른 물체와 그 재질의 값을 상수 버퍼에 씁니다.
     void WriteConstants(
         UINT frameIndex,
@@ -82,10 +75,7 @@ private:
         const ResourceManager& resourceManager) const;
 
     D3D12RootSignature rootSignature_;
-    SceneCuller culler_;
-    SceneCuller shadowCuller_;
-    // 두 목록을 합쳐 한 번씩만 적은 것입니다.
-    std::vector<VisibleObject> drawnObjects_;
+    SceneVisibility visibility_;
     SceneConstants constants_;
 
     ShadowCamera shadowCamera_;

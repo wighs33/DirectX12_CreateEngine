@@ -7,8 +7,8 @@ bool ShadowMap::Initialize(ID3D12Device* device, TextureHeap& textureHeap)
 {
     if (!depthBuffer_.Initialize(
             device,
-            Resolution,
-            Resolution,
+            ShadowSettings::Resolution,
+            ShadowSettings::Resolution,
             1,
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE))
     {
@@ -40,21 +40,7 @@ void ShadowMap::BeginWrite(ID3D12GraphicsCommandList* commandList) const
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-    D3D12_VIEWPORT viewport{};
-    viewport.Width = static_cast<float>(Resolution);
-    viewport.Height = static_cast<float>(Resolution);
-    viewport.MinDepth = D3D12_MIN_DEPTH;
-    viewport.MaxDepth = D3D12_MAX_DEPTH;
-    commandList->RSSetViewports(1, &viewport);
-
-    const D3D12_RECT scissorRect
-    {
-        0,
-        0,
-        static_cast<LONG>(Resolution),
-        static_cast<LONG>(Resolution)
-    };
-    commandList->RSSetScissorRects(1, &scissorRect);
+    renderArea_.Bind(commandList);
 
     // 색은 그리지 않으므로 RTV 없이 DSV만 연결합니다.
     const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = depthBuffer_.GetDSV();

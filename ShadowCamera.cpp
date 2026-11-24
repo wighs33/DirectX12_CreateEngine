@@ -4,7 +4,7 @@
 #include "Camera.h"
 #include "GameObject.h"
 #include "Scene.h"
-#include "ShadowMap.h"
+#include "ShadowSettings.h"
 
 #include <algorithm>
 #include <cmath>
@@ -24,17 +24,17 @@ void ShadowCamera::Update(const Scene& scene, const Camera& camera)
         0.5f);
     float radius = 0.5f * DirectX::XMVectorGetX(
         DirectX::XMVector3Length(DirectX::XMVectorSubtract(maximum, minimum)));
-    if (radius > MaximumRadius)
+    if (radius > ShadowSettings::MaximumRadius)
     {
-        radius = MaximumRadius;
+        radius = ShadowSettings::MaximumRadius;
         center = DirectX::XMVectorAdd(
             DirectX::XMLoadFloat3(&camera.GetPosition()),
-            DirectX::XMVectorScale(camera.GetForwardVector(), MaximumRadius));
+            DirectX::XMVectorScale(camera.GetForwardVector(), ShadowSettings::MaximumRadius));
     }
     radius = (std::max)(
-        MinimumRadius,
-        std::ceil(radius / RadiusStep) * RadiusStep);
-    texelSize_ = radius * 2.0f / static_cast<float>(ShadowMap::Resolution);
+        ShadowSettings::MinimumRadius,
+        std::ceil(radius / ShadowSettings::RadiusStep) * ShadowSettings::RadiusStep);
+    texelSize_ = radius * 2.0f / static_cast<float>(ShadowSettings::Resolution);
 
     // 빛의 방향을 앞으로 삼아 장면을 빛이 보는 축으로 돌립니다.
     const DirectX::XMVECTOR direction = DirectX::XMVector3Normalize(

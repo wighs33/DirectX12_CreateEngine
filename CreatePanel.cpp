@@ -2,8 +2,8 @@
 
 #include "EditorLayout.h"
 #include "EditorSelection.h"
-#include "EngineGuideWindow.h"
 #include "GameObject.h"
+#include "GuideHelpButton.h"
 #include "Model.h"
 #include "ResourceManager.h"
 #include "Scene.h"
@@ -67,7 +67,7 @@ void CreatePanel::Draw(
     {
         AddObject(resourceManager.FindModel("Cube"), "Cube", scene, selection);
     }
-    guideWindow.DrawHelpButtonAtRight("feature-create");
+    GuideHelpButton::DrawAtRight(guideWindow, "feature-create");
     if (ImGui::Button("Sphere", ImVec2(120.0f, 0.0f)))
     {
         AddObject(resourceManager.FindModel("Sphere"), "Sphere", scene, selection);
@@ -77,11 +77,11 @@ void CreatePanel::Draw(
         AddObject(resourceManager.FindModel("Plane"), "Plane", scene, selection);
     }
     DrawModelPicker(scene, resourceManager, selection);
-    guideWindow.DrawHelpButtonAtRight("feature-model");
+    GuideHelpButton::DrawAtRight(guideWindow, "feature-model");
 
     ImGui::Separator();
     DrawSceneButtons(scene, resourceManager, selection);
-    guideWindow.DrawHelpButtonAtRight("feature-save");
+    GuideHelpButton::DrawAtRight(guideWindow, "feature-save");
     ImGui::End();
 }
 

@@ -34,8 +34,6 @@ public:
     bool RenderFrame();
 
 private:
-    // 그릴 영역과 대상을 정하고 이전 Frame의 색과 깊이를 지웁니다.
-    void BeginScene(ID3D12GraphicsCommandList* commandList);
     // 장면을 BackBuffer로 옮기고 그 위에 편집 화면을 그릴 수 있게 합니다.
     void ResolveScene(
         ID3D12GraphicsCommandList* commandList,

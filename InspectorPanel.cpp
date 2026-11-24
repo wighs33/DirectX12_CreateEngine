@@ -2,8 +2,8 @@
 
 #include "EditorLayout.h"
 #include "EditorSelection.h"
-#include "EngineGuideWindow.h"
 #include "GameObject.h"
+#include "GuideHelpButton.h"
 #include "Scene.h"
 #include "Transform.h"
 
@@ -29,18 +29,18 @@ void InspectorPanel::Draw(
     ImGui::TextUnformatted(selectedObject->GetName().c_str());
 
     ImGui::SeparatorText("Transform");
-    guideWindow.DrawHelpButtonAtRight("feature-inspector");
+    GuideHelpButton::DrawAtRight(guideWindow, "feature-inspector");
     DrawTransform(selectedObject->GetTransform());
 
     ImGui::Spacing();
     ImGui::Separator();
     if (ImGui::Button(
             "Delete Object",
-            ImVec2(-EngineGuideWindow::GetHelpButtonReservedWidth(), 0.0f)))
+            ImVec2(-GuideHelpButton::GetReservedWidth(), 0.0f)))
     {
         selection.RequestDelete();
     }
-    guideWindow.DrawHelpButtonAtRight("feature-delete");
+    GuideHelpButton::DrawAtRight(guideWindow, "feature-delete");
     ImGui::End();
 }
 

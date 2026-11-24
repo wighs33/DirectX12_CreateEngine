@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineGuide.h"
+#include "EngineGuideData.h"
 
 // 카드에 적힌 상자, 선, 원, 글자를 그림판 위에 그립니다.
 class GuidePictureRenderer final

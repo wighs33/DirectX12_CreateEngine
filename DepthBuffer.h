@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DescriptorHeap.h"
+
 #include <d3d12.h>
 #include <wrl.h>
 
@@ -31,7 +33,6 @@ private:
     // 지울 때 쓰는 가장 먼 깊이입니다.
     static constexpr float FarthestDepth = 1.0f;
 
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap_;
+    DescriptorHeap descriptorHeap_;
     Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_{};
 };

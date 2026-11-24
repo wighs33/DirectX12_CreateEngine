@@ -18,20 +18,6 @@ bool D3D12SwapChain::Initialize(
         return false;
     }
 
-    // Clip Space 결과를 전체 Client 영역으로 변환할 Viewport를 저장합니다.
-    viewport_.TopLeftX = 0.0f;
-    viewport_.TopLeftY = 0.0f;
-    viewport_.Width = static_cast<float>(width);
-    viewport_.Height = static_cast<float>(height);
-    viewport_.MinDepth = 0.0f;
-    viewport_.MaxDepth = 1.0f;
-
-    // 전체 Client 영역을 통과시키는 Scissor Rect를 저장합니다.
-    scissorRect_.left = 0;
-    scissorRect_.top = 0;
-    scissorRect_.right = static_cast<LONG>(width);
-    scissorRect_.bottom = static_cast<LONG>(height);
-
     if (!CreateSwapChain(factory, commandQueue, window, width, height))
         return false;
     if (!CreateRenderTargets(device))
@@ -53,17 +39,7 @@ ID3D12Resource* D3D12SwapChain::GetBackBuffer(UINT frameIndex) const
 
 D3D12_CPU_DESCRIPTOR_HANDLE D3D12SwapChain::GetRTV(UINT frameIndex) const
 {
-    return rtvHandles_[frameIndex];
-}
-
-const D3D12_VIEWPORT& D3D12SwapChain::GetViewport() const
-{
-    return viewport_;
-}
-
-const D3D12_RECT& D3D12SwapChain::GetScissorRect() const
-{
-    return scissorRect_;
+    return rtvHeap_.GetCpuHandle(frameIndex);
 }
 
 bool D3D12SwapChain::Present()
@@ -158,44 +134,25 @@ bool D3D12SwapChain::CreateRenderTargets(ID3D12Device* device)
         }
     }
 
-    // 두 BackBuffer의 RTV Descriptor를 보관할 Heap을 생성합니다.
-    D3D12_DESCRIPTOR_HEAP_DESC heapDescription{};
-    heapDescription.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    heapDescription.NumDescriptors = FrameCount;
-    heapDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    heapDescription.NodeMask = 0;
-
-    const HRESULT heapResult = device->CreateDescriptorHeap(
-        &heapDescription,
-        IID_PPV_ARGS(&rtvDescriptorHeap_));
-
-    if (FAILED(heapResult))
+    if (!rtvHeap_.Initialize(
+            device,
+            D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+            FrameCount,
+            false))
     {
-        std::fprintf(
-            stderr,
-            "ID3D12Device::CreateDescriptorHeap 호출에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(heapResult));
         return false;
     }
 
-    rtvDescriptorSize_ =
-        device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-    // Heap의 각 슬롯에 같은 인덱스의 BackBuffer를 참조하는 RTV를 생성합니다.
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle =
-        rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
-
+    // Heap의 각 칸에 같은 번호의 BackBuffer를 참조하는 RTV를 생성합니다.
     for (UINT frameIndex = 0; frameIndex < FrameCount; ++frameIndex)
     {
-        D3D12_RENDER_TARGET_VIEW_DESC rtvDescription{};
-        rtvDescription.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-        rtvDescription.Format = D3D12Config::BackBufferFormat;
-        rtvHandles_[frameIndex] = rtvHandle;
+        D3D12_RENDER_TARGET_VIEW_DESC description{};
+        description.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+        description.Format = D3D12Config::BackBufferFormat;
         device->CreateRenderTargetView(
             backBuffers_[frameIndex].Get(),
-            &rtvDescription,
-            rtvHandles_[frameIndex]);
-        rtvHandle.ptr += rtvDescriptorSize_;
+            &description,
+            GetRTV(frameIndex));
     }
 
     return true;

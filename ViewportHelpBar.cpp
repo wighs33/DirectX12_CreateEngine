@@ -2,6 +2,7 @@
 
 #include "EditorLayout.h"
 #include "EngineGuideWindow.h"
+#include "GuideHelpButton.h"
 
 #include "imgui.h"
 
@@ -30,6 +31,6 @@ void ViewportHelpBar::DrawItem(
     EngineGuideWindow& guideWindow)
 {
     ImGui::TextUnformatted(label);
-    guideWindow.DrawHelpButton(guideId);
+    GuideHelpButton::Draw(guideWindow, guideId);
     ImGui::SameLine();
 }

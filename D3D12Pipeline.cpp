@@ -3,6 +3,7 @@
 #include "D3D12Config.h"
 #include "D3D12RootSignature.h"
 #include "ShaderCompiler.h"
+#include "VertexLayout.h"
 
 #include <climits>
 #include <cstdio>
@@ -59,58 +60,6 @@ bool D3D12Pipeline::CreatePipelineState(
     ID3DBlob* vertexShader,
     ID3DBlob* pixelShader)
 {
-    // [12단계] HLSL VertexInput의 POSITION, COLOR, TEXCOORD, NORMAL에 대응하는 Input Layout을 정의합니다.
-    // Input Layout : Vertex Buffer의 바이트 데이터를 Vertex Shader 입력으로 해석하는 규칙
-    const D3D12_INPUT_ELEMENT_DESC inputElements[] =
-    {
-        {
-            "POSITION",
-            0,
-            DXGI_FORMAT_R32G32B32_FLOAT,
-            0,
-            0,
-            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            0
-        },
-        {
-            "COLOR",
-            0,
-            DXGI_FORMAT_R32G32B32A32_FLOAT,
-            0,
-            D3D12_APPEND_ALIGNED_ELEMENT,
-            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            0
-        },
-        {
-            "TEXCOORD",
-            0,
-            DXGI_FORMAT_R32G32_FLOAT,
-            0,
-            D3D12_APPEND_ALIGNED_ELEMENT,
-            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            0
-        },
-        {
-            "NORMAL",
-            0,
-            DXGI_FORMAT_R32G32B32_FLOAT,
-            0,
-            D3D12_APPEND_ALIGNED_ELEMENT,
-            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            0
-        },
-        {
-            // 외곽선을 밀어낼 방향입니다.
-            "NORMAL",
-            1,
-            DXGI_FORMAT_R32G32B32_FLOAT,
-            0,
-            D3D12_APPEND_ALIGNED_ELEMENT,
-            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            0
-        }
-    };
-
     // Rasterizer는 채워진 Triangle을 그리고 패스가 정한 면을 제거합니다.
     // Rasterizer : Vertex Shader가 출력한 Primitive를 Pixel 후보로 변환
     D3D12_RASTERIZER_DESC rasterizerDescription{};
@@ -182,8 +131,7 @@ bool D3D12Pipeline::CreatePipelineState(
     description.SampleMask = UINT_MAX;
     description.RasterizerState = rasterizerDescription;
     description.DepthStencilState = depthStencilDescription;
-    description.InputLayout.pInputElementDescs = inputElements;
-    description.InputLayout.NumElements = _countof(inputElements);
+    description.InputLayout = VertexLayout::Get();
     description.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
     // PSO가 Triangle 계열 Primitive를 처리
     description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;

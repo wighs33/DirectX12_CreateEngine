@@ -2,8 +2,8 @@
 
 #include "Camera.h"
 #include "EditorLayout.h"
-#include "EngineGuideWindow.h"
 #include "GameObject.h"
+#include "GuideHelpButton.h"
 #include "Input.h"
 
 #include "imgui.h"
@@ -52,7 +52,7 @@ void TransformGizmo::DrawToolbar(EngineGuideWindow& guideWindow)
     {
         operation_ = Operation::Scale;
     }
-    guideWindow.DrawHelpButton("feature-gizmo");
+    GuideHelpButton::Draw(guideWindow, "feature-gizmo");
     ImGui::End();
 }
 

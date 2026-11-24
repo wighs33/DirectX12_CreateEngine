@@ -32,32 +32,9 @@ bool ImGuiLayer::Initialize(
     D3D12CommandContext& commandContext,
     HWND window)
 {
-    D3D12_DESCRIPTOR_HEAP_DESC heapDescription{};
-    heapDescription.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    heapDescription.NumDescriptors = DescriptorCount;
-    heapDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    heapDescription.NodeMask = 0;
-
-    const HRESULT heapResult = device->CreateDescriptorHeap(
-        &heapDescription,
-        IID_PPV_ARGS(&descriptorHeap_));
-    if (FAILED(heapResult))
+    if (!descriptorAllocator_.Initialize(device))
     {
-        std::fprintf(
-            stderr,
-            "ImGui SRV Descriptor Heap 생성에 실패했습니다. HRESULT: 0x%08X\n",
-            static_cast<unsigned int>(heapResult));
         return false;
-    }
-
-    descriptorSize_ = device->GetDescriptorHandleIncrementSize(
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    freeDescriptorIndices_.reserve(DescriptorCount);
-    for (UINT descriptorIndex = DescriptorCount;
-         descriptorIndex > 0;
-         --descriptorIndex)
-    {
-        freeDescriptorIndices_.push_back(descriptorIndex - 1);
     }
 
     IMGUI_CHECKVERSION();
@@ -73,8 +50,7 @@ bool ImGuiLayer::Initialize(
     {
         std::fprintf(stderr, "ImGui Win32 Backend 초기화에 실패했습니다.\n");
         ImGui::DestroyContext();
-        freeDescriptorIndices_.clear();
-        descriptorHeap_.Reset();
+        descriptorAllocator_.Reset();
         return false;
     }
 
@@ -86,8 +62,8 @@ bool ImGuiLayer::Initialize(
     initializationInformation.RTVFormat = D3D12Config::BackBufferFormat;
     // UI는 깊이를 비교하지 않으므로 DSV 없이 그립니다.
     initializationInformation.DSVFormat = DXGI_FORMAT_UNKNOWN;
-    initializationInformation.UserData = this;
-    initializationInformation.SrvDescriptorHeap = descriptorHeap_.Get();
+    initializationInformation.UserData = &descriptorAllocator_;
+    initializationInformation.SrvDescriptorHeap = descriptorAllocator_.GetHeap();
     initializationInformation.SrvDescriptorAllocFn = AllocateDescriptor;
     initializationInformation.SrvDescriptorFreeFn = FreeDescriptor;
 
@@ -96,8 +72,7 @@ bool ImGuiLayer::Initialize(
         std::fprintf(stderr, "ImGui DirectX 12 Backend 초기화에 실패했습니다.\n");
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
-        freeDescriptorIndices_.clear();
-        descriptorHeap_.Reset();
+        descriptorAllocator_.Reset();
         return false;
     }
 
@@ -119,8 +94,7 @@ void ImGuiLayer::Shutdown(D3D12CommandContext& commandContext)
     ImGui::DestroyContext();
 
     isInitialized_ = false;
-    freeDescriptorIndices_.clear();
-    descriptorHeap_.Reset();
+    descriptorAllocator_.Reset();
 }
 
 void ImGuiLayer::BeginFrame()
@@ -136,7 +110,7 @@ void ImGuiLayer::Render(ID3D12GraphicsCommandList* commandList)
     ImGui::Render();
     ID3D12DescriptorHeap* const descriptorHeaps[] =
     {
-        descriptorHeap_.Get()
+        descriptorAllocator_.GetHeap()
     };
     commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -147,31 +121,11 @@ void ImGuiLayer::AllocateDescriptor(
     D3D12_CPU_DESCRIPTOR_HANDLE* cpuHandle,
     D3D12_GPU_DESCRIPTOR_HANDLE* gpuHandle)
 {
-    ImGuiLayer* const context = information != nullptr
-        ? static_cast<ImGuiLayer*>(information->UserData)
-        : nullptr;
-    IM_ASSERT(context != nullptr);
-    IM_ASSERT(cpuHandle != nullptr && gpuHandle != nullptr);
-    IM_ASSERT(
-        context != nullptr &&
-        !context->freeDescriptorIndices_.empty());
-    if (context == nullptr || cpuHandle == nullptr || gpuHandle == nullptr ||
-        context->freeDescriptorIndices_.empty())
-    {
-        return;
-    }
-
-    const UINT descriptorIndex = context->freeDescriptorIndices_.back();
-    context->freeDescriptorIndices_.pop_back();
-
-    const D3D12_CPU_DESCRIPTOR_HANDLE cpuStart =
-        context->descriptorHeap_->GetCPUDescriptorHandleForHeapStart();
-    const D3D12_GPU_DESCRIPTOR_HANDLE gpuStart =
-        context->descriptorHeap_->GetGPUDescriptorHandleForHeapStart();
-    cpuHandle->ptr = cpuStart.ptr +
-        static_cast<SIZE_T>(descriptorIndex) * context->descriptorSize_;
-    gpuHandle->ptr = gpuStart.ptr +
-        static_cast<UINT64>(descriptorIndex) * context->descriptorSize_;
+    auto* const allocator =
+        static_cast<ImGuiDescriptorAllocator*>(information->UserData);
+    const bool isAllocated = allocator->Allocate(*cpuHandle, *gpuHandle);
+    IM_ASSERT(isAllocated);
+    (void)isAllocated;
 }
 
 void ImGuiLayer::FreeDescriptor(
@@ -179,28 +133,9 @@ void ImGuiLayer::FreeDescriptor(
     D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
     D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle)
 {
-    ImGuiLayer* const context = information != nullptr
-        ? static_cast<ImGuiLayer*>(information->UserData)
-        : nullptr;
-    IM_ASSERT(context != nullptr);
-    if (context == nullptr || context->descriptorSize_ == 0)
-    {
-        return;
-    }
-
-    const D3D12_CPU_DESCRIPTOR_HANDLE cpuStart =
-        context->descriptorHeap_->GetCPUDescriptorHandleForHeapStart();
-    const D3D12_GPU_DESCRIPTOR_HANDLE gpuStart =
-        context->descriptorHeap_->GetGPUDescriptorHandleForHeapStart();
-    const UINT cpuIndex = static_cast<UINT>(
-        (cpuHandle.ptr - cpuStart.ptr) / context->descriptorSize_);
-    const UINT gpuIndex = static_cast<UINT>(
-        (gpuHandle.ptr - gpuStart.ptr) / context->descriptorSize_);
-
-    IM_ASSERT(cpuIndex == gpuIndex);
-    IM_ASSERT(cpuIndex < DescriptorCount);
-    if (cpuIndex == gpuIndex && cpuIndex < DescriptorCount)
-    {
-        context->freeDescriptorIndices_.push_back(cpuIndex);
-    }
+    auto* const allocator =
+        static_cast<ImGuiDescriptorAllocator*>(information->UserData);
+    const bool isFreed = allocator->Free(cpuHandle, gpuHandle);
+    IM_ASSERT(isFreed);
+    (void)isFreed;
 }

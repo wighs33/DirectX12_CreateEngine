@@ -1,6 +1,8 @@
 #pragma once
 
 #include "DepthBuffer.h"
+#include "RenderArea.h"
+#include "ShadowSettings.h"
 
 #include <d3d12.h>
 
@@ -10,9 +12,6 @@ class TextureHeap;
 class ShadowMap final
 {
 public:
-    // 한 변의 칸 수입니다.
-    static constexpr UINT Resolution = 2048;
-
     ShadowMap() = default;
     ~ShadowMap() = default;
 
@@ -32,6 +31,7 @@ public:
     UINT GetDescriptorSlot() const;
 
 private:
+    RenderArea renderArea_{ ShadowSettings::Resolution, ShadowSettings::Resolution };
     DepthBuffer depthBuffer_;
     UINT descriptorSlot_ = 0;
 };
