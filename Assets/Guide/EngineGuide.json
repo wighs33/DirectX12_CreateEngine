@@ -13,12 +13,13 @@
         { "name": "모델 파일 읽기", "color": "flame", "cards": ["model-loader","gltf-model-reader","gltf-primitive-reader","gltf-file","image-loader"] },
         { "name": "모델", "color": "teal", "cards": ["resource-manager","model","primitive-geometry"] },
         { "name": "카툰 재질과 빛", "color": "rose", "cards": ["material","material-style","scene-lighting"] },
+        { "name": "그림체 파일", "color": "flame", "cards": ["style-file-reader","style-file-writer","style-importer"] },
         { "name": "장면", "color": "slate", "cards": ["scene","game-object","transform"] },
         { "name": "장면 파일", "color": "flame", "cards": ["scene-serializer","scene-file-reader","scene-file-writer"] },
         { "name": "보는 눈과 판정", "color": "teal", "cards": ["camera","frustum","ray","aabb"] },
         { "name": "편집기 뼈대", "color": "flame", "cards": ["scene-editor","editor-selection","editor-layout","imgui-layer"] },
         { "name": "편집기 조작", "color": "violet", "cards": ["editor-camera","transform-gizmo","viewport-picker"] },
-        { "name": "편집기 패널", "color": "teal", "cards": ["create-panel","hierarchy-panel","inspector-panel","viewport-help-bar"] },
+        { "name": "편집기 패널", "color": "teal", "cards": ["create-panel","hierarchy-panel","inspector-panel","style-panel","viewport-help-bar"] },
         { "name": "엔진 도감", "color": "rose", "cards": ["engine-guide-window","engine-guide","engine-guide-reader","guide-navigation","guide-theme","guide-picture"] },
         { "name": "도감 화면", "color": "violet", "cards": ["guide-help-button","guide-navigation-bar","guide-home-page","guide-card-page","guide-feature-page","guide-card-grid","guide-feature-buttons"] },
         { "name": "값만 담는 파일", "color": "slate", "cards": ["d3d12-config","render-pass-context","model-data","material-style-values","scene-data","guide-data"] }
@@ -1534,8 +1535,9 @@
                 { "name": "LoadTexture", "description": "경로로 찾아보고, 없을 때만 새로 읽습니다." },
                 { "name": "LoadModel", "description": "glTF 파일을 한 번만 읽어 모델로 만듭니다." },
                 { "name": "AddModel", "description": "외곽선 방향과 재질을 붙이고 모델을 이름으로 등록합니다." },
-                { "name": "CreatePrimitiveModels", "description": "큐브와 구를 시작할 때 등록합니다." },
-                { "name": "FindModel", "description": "이름이나 경로로 이미 있는 모델을 찾습니다." }
+                { "name": "CreatePrimitiveModels", "description": "큐브와 구, 바닥을 시작할 때 등록합니다." },
+                { "name": "FindModel", "description": "이름이나 경로로 이미 있는 모델을 찾습니다." },
+                { "name": "GetStyles", "description": "재질이 함께 쓰는 그림체 값을 줍니다." }
             ],
             "links": ["texture", "texture-heap", "model", "model-loader", "primitive-geometry", "outline-normal-baker", "material", "material-style"],
             "picture": [
@@ -1650,7 +1652,7 @@
             "unreal": "머티리얼 인스턴스인 UMaterialInstance입니다.",
             "functions": [
                 { "name": "GetTexture", "description": "조각에 입힐 텍스처를 줍니다." },
-                { "name": "CreateConstants", "description": "화면의 색을 빛 계산에 쓰는 선형 색으로 바꿉니다." },
+                { "name": "CreateConstants", "description": "지금 그림체 값을 빛 계산에 쓰는 선형 색으로 바꿉니다." },
                 { "name": "GetConstantSlot", "description": "재질 상수 버퍼에서 쓸 칸 번호를 줍니다." },
                 { "name": "HasOutline", "description": "두께가 0이면 외곽선을 건너뛰게 합니다." }
             ],
@@ -1676,15 +1678,18 @@
             "id": "material-style",
             "name": "MaterialStyleLibrary",
             "file": "MaterialStyleLibrary.cpp",
-            "role": "재질 이름으로 카툰 그림체 값을 찾아 줍니다.",
+            "role": "재질 이름마다 정한 그림체 값을 보관하고 파일과 맞춥니다.",
             "without": "피부와 옷과 머리카락의 그늘이 모두 같은 색으로 어두워집니다.",
-            "limit": "값을 파일에서만 바꿀 수 있습니다. 화면에서 조절하는 패널은 아직 없습니다.",
+            "limit": "되돌리기가 없습니다. Reload로 마지막에 저장한 값까지만 돌아갑니다.",
             "unreal": "머티리얼 인스턴스의 파라미터를 모아 둔 데이터 에셋과 비슷합니다.",
             "functions": [
-                { "name": "Load", "description": "PandoraStyle.json을 읽습니다." },
-                { "name": "Find", "description": "재질 이름으로 값을 찾고 없으면 기본값을 줍니다." }
+                { "name": "Load", "description": "PandoraStyle.json의 값을 읽어 둡니다." },
+                { "name": "FindOrAdd", "description": "재질의 값을 찾고 없으면 기본값으로 새로 만듭니다." },
+                { "name": "Save · CanSave", "description": "지금 값을 파일에 적습니다. 읽지 못한 파일은 덮어쓰지 않습니다." },
+                { "name": "Reload", "description": "파일을 다시 읽어 저장하지 않은 값을 버립니다." },
+                { "name": "IsModified", "description": "파일과 다른 값이 있는지 봅니다." }
             ],
-            "links": ["material-style-values", "material", "resource-manager", "shader"],
+            "links": ["material-style-values", "style-file-reader", "style-file-writer", "style-panel", "material", "resource-manager"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 20, "w": 100, "h": 140, "fill": "box" },
                 { "shape": "text", "x": 60, "y": 81.5, "size": 14, "text": "이름으로" },
@@ -1734,6 +1739,96 @@
                 { "shape": "line", "points": [[330,98],[244,98]], "dashed": true, "arrow": "end" },
                 { "shape": "text", "x": 290, "y": 78, "size": 13, "text": "주변광" },
                 { "shape": "text", "x": 190, "y": 164, "size": 13, "text": "그늘에도 조금 더함" }
+            ]
+        },
+        {
+            "id": "style-file-reader",
+            "name": "MaterialStyleFileReader",
+            "file": "MaterialStyleFileReader.cpp",
+            "role": "그림체 파일을 읽고 틀린 값이 없는지 검사합니다.",
+            "without": "잘못 고친 파일 하나 때문에 재질이 이상한 색으로 바뀝니다.",
+            "limit": "버전 2만 읽습니다. 범위를 벗어난 값은 막지 않습니다.",
+            "unreal": "데이터 테이블을 읽는 JSON 임포터입니다.",
+            "functions": [
+                { "name": "Read", "description": "재질 이름으로 찾을 수 있게 돌려줍니다." },
+                { "name": "ReadStyle", "description": "적지 않은 값은 기본값을 씁니다." },
+                { "name": "ReadColor", "description": "색이 숫자 세 개인지 봅니다." }
+            ],
+            "links": ["material-style", "material-style-values", "style-file-writer"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 50, "w": 104, "h": 80, "fill": "box" },
+                { "shape": "text", "x": 62, "y": 81.5, "size": 14, "text": "PandoraStyle" },
+                { "shape": "text", "x": 62, "y": 98.5, "size": 14, "text": ".json" },
+                { "shape": "line", "points": [[114,90],[136,90]], "arrow": "end" },
+                { "shape": "rect", "x": 138, "y": 60, "w": 66, "h": 60, "fill": "highlight" },
+                { "shape": "text", "x": 171, "y": 90, "size": 14, "text": "검사" },
+                { "shape": "line", "points": [[204,74],[228,46]], "arrow": "end" },
+                { "shape": "line", "points": [[204,90],[228,90]], "arrow": "end" },
+                { "shape": "line", "points": [[204,106],[228,134]], "arrow": "end" },
+                { "shape": "rect", "x": 230, "y": 26, "w": 100, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 280, "y": 46, "size": 14, "text": "Luna_Body" },
+                { "shape": "rect", "x": 230, "y": 72, "w": 100, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 280, "y": 92, "size": 14, "text": "Luna_Hair" },
+                { "shape": "rect", "x": 230, "y": 118, "w": 100, "h": 40, "fill": "box" },
+                { "shape": "text", "x": 280, "y": 138, "size": 14, "text": "Plane" }
+            ]
+        },
+        {
+            "id": "style-file-writer",
+            "name": "MaterialStyleFileWriter",
+            "file": "MaterialStyleFileWriter.cpp",
+            "role": "그림체를 다른 엔진도 읽을 수 있는 JSON으로 적습니다.",
+            "without": "패널에서 고른 값이 엔진을 끄면 사라집니다.",
+            "limit": "소수점 아래 네 자리까지만 적습니다.",
+            "unreal": "에셋을 저장하는 부분입니다.",
+            "functions": [
+                { "name": "Write", "description": "다른 이름으로 다 적은 뒤 파일을 바꿉니다." },
+                { "name": "WriteStyle", "description": "재질 하나의 값을 적습니다." },
+                { "name": "FormatFloat", "description": "0.36이 0.36000001로 적히지 않게 합니다." }
+            ],
+            "links": ["material-style", "style-file-reader", "style-importer"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 62, "w": 84, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 52, "y": 90, "size": 14, "text": "지금 값" },
+                { "shape": "line", "points": [[94,90],[120,90]], "arrow": "end" },
+                { "shape": "rect", "x": 122, "y": 62, "w": 92, "h": 56, "fill": "highlight" },
+                { "shape": "text", "x": 168, "y": 81.5, "size": 14, "text": ".tmp에" },
+                { "shape": "text", "x": 168, "y": 98.5, "size": 14, "text": "다 적기" },
+                { "shape": "line", "points": [[214,90],[240,90]], "arrow": "end" },
+                { "shape": "rect", "x": 242, "y": 62, "w": 88, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 286, "y": 90, "size": 14, "text": "이름 바꾸기" },
+                { "shape": "text", "x": 170, "y": 146, "size": 13, "text": "중간에 실패하면 이전 파일이 남음" }
+            ]
+        },
+        {
+            "id": "style-importer",
+            "name": "PandoraStyleImporter",
+            "file": "Tools/Unity/PandoraStyleImporter.cs",
+            "role": "Unity의 같은 이름 재질에 그림체 값을 넣습니다.",
+            "without": "엔진에서 고른 값을 Unity 재질마다 손으로 다시 적어야 합니다.",
+            "limit": "Unity에 없는 재질은 건너뜁니다. 값은 엔진에서 Unity로만 갑니다.",
+            "unreal": "머티리얼 인스턴스를 고치는 에디터 유틸리티와 비슷합니다.",
+            "functions": [
+                { "name": "Import", "description": "JSON을 읽고 바뀐 재질의 수를 알려 줍니다." },
+                { "name": "Apply", "description": "값 여덟 가지를 툰 셰이더의 자리에 넣습니다." },
+                { "name": "SetColor · SetValue", "description": "같은 값이면 건너뛰고, 바꾸면 무엇이 바뀌었는지 적습니다." }
+            ],
+            "links": ["style-file-writer", "material-style-values"],
+            "picture": [
+                { "shape": "rect", "x": 8, "y": 24, "w": 96, "h": 48, "fill": "box" },
+                { "shape": "text", "x": 56, "y": 39.5, "size": 14, "text": "Pandora" },
+                { "shape": "text", "x": 56, "y": 56.5, "size": 14, "text": "Engine" },
+                { "shape": "line", "points": [[56,72],[56,104]], "arrow": "end" },
+                { "shape": "rect", "x": 8, "y": 106, "w": 96, "h": 48, "fill": "highlight" },
+                { "shape": "text", "x": 56, "y": 130, "size": 14, "text": ".json" },
+                { "shape": "line", "points": [[104,130],[134,130]], "arrow": "end" },
+                { "shape": "rect", "x": 136, "y": 106, "w": 80, "h": 48, "fill": "box" },
+                { "shape": "text", "x": 176, "y": 130, "size": 14, "text": "Import" },
+                { "shape": "line", "points": [[216,130],[244,130]], "arrow": "end" },
+                { "shape": "rect", "x": 246, "y": 106, "w": 86, "h": 48, "fill": "box" },
+                { "shape": "text", "x": 289, "y": 121.5, "size": 14, "text": "Unity" },
+                { "shape": "text", "x": 289, "y": 138.5, "size": 14, "text": "재질" },
+                { "shape": "text", "x": 216, "y": 60, "size": 14, "text": "같은 이름, 같은 값" }
             ]
         },
         {
@@ -2029,7 +2124,7 @@
                 { "name": "ProcessDeleteHotkey", "description": "Delete 키를 새로 눌렀을 때만 삭제를 요청합니다." },
                 { "name": "ProcessPicking", "description": "클릭해도 되는 때인지 보고 고른 물체를 바꿉니다." }
             ],
-            "links": ["editor-selection", "editor-camera", "transform-gizmo", "viewport-picker", "create-panel", "hierarchy-panel", "inspector-panel", "engine-guide-window"],
+            "links": ["editor-selection", "editor-camera", "transform-gizmo", "viewport-picker", "create-panel", "hierarchy-panel", "inspector-panel", "engine-guide-window", "style-panel"],
             "picture": [
                 { "shape": "rect", "x": 14, "y": 30, "w": 84, "h": 40, "fill": "box" },
                 { "shape": "text", "x": 56, "y": 50, "size": 14, "text": "입력" },
@@ -2093,19 +2188,21 @@
             "unreal": "에디터 탭을 배치하는 FTabManager::FLayout입니다.",
             "functions": [
                 { "name": "GetCreatePanel · GetHierarchyPanel", "description": "왼쪽 패널의 자리를 줍니다." },
-                { "name": "GetInspectorPanel", "description": "오른쪽 패널의 자리를 줍니다." },
+                { "name": "GetInspectorPanel · GetStylePanel", "description": "오른쪽 패널의 자리를 줍니다." },
                 { "name": "GetGizmoToolbar · GetViewportHelpBar", "description": "위와 아래 막대의 자리를 줍니다." },
                 { "name": "BeginPanel", "description": "정해진 자리에 패널을 시작합니다." }
             ],
-            "links": ["create-panel", "hierarchy-panel", "inspector-panel", "viewport-help-bar", "transform-gizmo"],
+            "links": ["create-panel", "hierarchy-panel", "inspector-panel", "viewport-help-bar", "transform-gizmo", "style-panel"],
             "picture": [
                 { "shape": "rect", "x": 10, "y": 10, "w": 320, "h": 160, "fill": "none" },
                 { "shape": "rect", "x": 18, "y": 18, "w": 76, "h": 52, "fill": "box" },
                 { "shape": "text", "x": 56, "y": 44, "size": 14, "text": "Create" },
                 { "shape": "rect", "x": 18, "y": 78, "w": 76, "h": 84, "fill": "box" },
                 { "shape": "text", "x": 56, "y": 120, "size": 14, "text": "Hierarchy" },
-                { "shape": "rect", "x": 252, "y": 18, "w": 70, "h": 144, "fill": "box" },
-                { "shape": "text", "x": 287, "y": 90, "size": 14, "text": "Inspector" },
+                { "shape": "rect", "x": 252, "y": 18, "w": 70, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 287, "y": 46, "size": 14, "text": "Inspector" },
+                { "shape": "rect", "x": 252, "y": 82, "w": 70, "h": 80, "fill": "box" },
+                { "shape": "text", "x": 287, "y": 122, "size": 14, "text": "Style" },
                 { "shape": "rect", "x": 112, "y": 18, "w": 122, "h": 28, "fill": "box" },
                 { "shape": "text", "x": 173, "y": 32, "size": 14, "text": "기즈모" },
                 { "shape": "rect", "x": 106, "y": 134, "w": 134, "h": 28, "fill": "highlight" },
@@ -2308,13 +2405,13 @@
             "file": "InspectorPanel.cpp",
             "role": "고른 물체의 위치, 회전, 크기를 숫자로 고칩니다.",
             "without": "정확한 값을 넣을 수 없습니다.",
-            "limit": "모델과 재질은 여기서 바꿀 수 없습니다.",
+            "limit": "모델은 여기서 바꿀 수 없습니다. 재질의 그림체는 Style 패널에서 고칩니다.",
             "unreal": "디테일 패널입니다.",
             "functions": [
                 { "name": "Draw", "description": "고른 물체의 이름과 삭제 버튼을 그립니다." },
                 { "name": "DrawTransform", "description": "회전을 도 단위로 바꿔 보여 주고 고친 값을 넣습니다." }
             ],
-            "links": ["editor-selection", "game-object", "transform", "editor-layout"],
+            "links": ["editor-selection", "game-object", "transform", "editor-layout", "style-panel"],
             "picture": [
                 { "shape": "rect", "x": 14, "y": 14, "w": 150, "h": 152, "fill": "box" },
                 { "shape": "text", "x": 89, "y": 32, "size": 14, "text": "Luna" },
@@ -2333,6 +2430,43 @@
                 { "shape": "rect", "x": 282, "y": 76, "w": 48, "h": 52, "fill": "highlight" },
                 { "shape": "text", "x": 306, "y": 102, "size": 14, "text": "1.57" },
                 { "shape": "text", "x": 306, "y": 148, "size": 13, "text": "라디안" }
+            ]
+        },
+        {
+            "id": "style-panel",
+            "name": "StylePanel",
+            "file": "StylePanel.cpp",
+            "role": "고른 물체의 재질마다 그림체 값을 고치고 저장합니다.",
+            "without": "색 하나를 바꿀 때마다 JSON을 고치고 엔진을 다시 켜야 합니다.",
+            "limit": "한 번에 재질 하나만 고칩니다. 되돌리기는 없습니다.",
+            "unreal": "머티리얼 인스턴스 에디터입니다.",
+            "functions": [
+                { "name": "Draw", "description": "고른 물체의 재질을 보여 주고 값을 고칩니다." },
+                { "name": "DrawMaterialPicker", "description": "모델이 쓰는 재질 이름을 고르게 합니다." },
+                { "name": "DrawShade · DrawRim · DrawOutline", "description": "그늘, 가장자리 빛, 외곽선 값을 그립니다." },
+                { "name": "DrawFileButtons", "description": "저장과 다시 읽기 버튼을 그립니다." }
+            ],
+            "links": ["material-style", "material-style-values", "editor-selection", "inspector-panel", "editor-layout"],
+            "picture": [
+                { "shape": "rect", "x": 10, "y": 14, "w": 132, "h": 152, "fill": "box" },
+                { "shape": "text", "x": 76, "y": 32, "size": 14, "text": "Luna_Hair" },
+                { "shape": "rect", "x": 22, "y": 46, "w": 108, "h": 24, "fill": "highlight" },
+                { "shape": "text", "x": 76, "y": 58, "size": 14, "text": "그늘색" },
+                { "shape": "rect", "x": 22, "y": 76, "w": 108, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 76, "y": 88, "size": 14, "text": "경계" },
+                { "shape": "rect", "x": 22, "y": 106, "w": 108, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 76, "y": 118, "size": 14, "text": "외곽선" },
+                { "shape": "rect", "x": 22, "y": 136, "w": 108, "h": 24, "fill": "box" },
+                { "shape": "text", "x": 76, "y": 148, "size": 14, "text": "Save Style" },
+                { "shape": "line", "points": [[142,58],[196,58]], "arrow": "end" },
+                { "shape": "text", "x": 168, "y": 44, "size": 13, "text": "바로" },
+                { "shape": "rect", "x": 198, "y": 30, "w": 130, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 263, "y": 49.5, "size": 14, "text": "다음 프레임의" },
+                { "shape": "text", "x": 263, "y": 66.5, "size": 14, "text": "화면" },
+                { "shape": "line", "points": [[142,148],[196,132]], "arrow": "end" },
+                { "shape": "rect", "x": 198, "y": 104, "w": 130, "h": 56, "fill": "box" },
+                { "shape": "text", "x": 263, "y": 123.5, "size": 14, "text": "PandoraStyle" },
+                { "shape": "text", "x": 263, "y": 140.5, "size": 14, "text": ".json" }
             ]
         },
         {
@@ -2865,7 +2999,7 @@
                 { "name": "rimColor · rimStrength · rimWidth", "description": "가장자리 빛의 색, 세기, 폭입니다." },
                 { "name": "outlineColor · outlineWidth", "description": "외곽선의 색과 두께입니다." }
             ],
-            "links": ["material-style", "material", "shader"],
+            "links": ["material-style", "material", "shader", "style-panel"],
             "picture": [
                 { "shape": "circle", "x": 96, "y": 88, "r": 60, "fill": "box" },
                 { "shape": "line", "points": [[96,28],[78,58],[72,88],[78,118],[96,148]] },
@@ -3083,11 +3217,26 @@
             ]
         },
         {
+            "id": "feature-style",
+            "name": "그림체 고치고 저장하기",
+            "howTo": "물체를 고르고 Style 패널에서 값을 끌거나 색을 고른 뒤 Save Style을 누릅니다.",
+            "steps": [
+                { "card": "editor-selection", "function": "GetSelected", "description": "고른 물체를 찾습니다." },
+                { "card": "style-panel", "function": "DrawMaterialPicker", "description": "그 모델이 쓰는 재질을 고르게 합니다." },
+                { "card": "material-style", "function": "FindOrAdd", "description": "재질의 값을 찾아 패널이 바로 고치게 합니다." },
+                { "card": "material", "function": "CreateConstants", "description": "다음 프레임에 고친 값을 셰이더의 모양으로 바꿉니다." },
+                { "card": "scene-constants", "function": "WriteMaterial", "description": "바뀐 값을 재질의 칸에 씁니다." },
+                { "card": "material-style", "function": "Save", "description": "Save Style을 누르면 파일과 다른 값을 적게 합니다." },
+                { "card": "style-file-writer", "function": "Write", "description": "PandoraStyle.json을 새로 적습니다." },
+                { "card": "style-importer", "function": "Import", "description": "Unity에서 그 파일을 골라 같은 이름의 재질에 넣습니다." }
+            ]
+        },
+        {
             "id": "feature-toon",
             "name": "카툰 명암",
-            "howTo": "Assets/Styles/PandoraStyle.json에서 재질마다 그늘색과 경계를 정합니다.",
+            "howTo": "Style 패널에서 재질마다 그늘색과 경계를 정합니다.",
             "steps": [
-                { "card": "material-style", "function": "Find", "description": "재질 이름으로 그림체 값을 찾습니다." },
+                { "card": "material-style", "function": "FindOrAdd", "description": "재질 이름으로 그림체 값을 찾습니다." },
                 { "card": "material", "function": "CreateConstants", "description": "화면의 색을 빛 계산에 쓰는 값으로 바꿉니다." },
                 { "card": "scene-constants", "function": "WriteMaterial", "description": "바꾼 값을 재질의 칸에 씁니다." },
                 { "card": "toon-pass", "function": "Draw", "description": "조각을 그리기 전에 그 칸을 b2에 연결합니다." },
@@ -3113,10 +3262,10 @@
         {
             "id": "feature-outline",
             "name": "외곽선",
-            "howTo": "Assets/Styles/PandoraStyle.json에서 재질마다 외곽선의 색과 두께를 정합니다.",
+            "howTo": "Style 패널에서 재질마다 외곽선의 색과 두께를 정합니다.",
             "steps": [
                 { "card": "outline-normal-baker", "function": "Bake", "description": "모델을 등록할 때 같은 자리의 법선을 평균해 둡니다." },
-                { "card": "material-style", "function": "Find", "description": "재질의 외곽선 색과 두께를 찾습니다." },
+                { "card": "material-style", "function": "FindOrAdd", "description": "재질의 외곽선 색과 두께를 찾습니다." },
                 { "card": "toon-pass", "function": "Draw", "description": "물체를 먼저 그려 깊이를 남깁니다." },
                 { "card": "outline-pass", "function": "Draw", "description": "앞면을 지우는 PSO로 바꿔 한 번 더 그립니다." },
                 { "card": "shader", "function": "VSOutline", "description": "정점을 화면에서 정해진 픽셀만큼 밀어냅니다." },
