@@ -26,6 +26,9 @@ public:
     // 마지막에 Load한 파일에 지금 값을 적습니다.
     bool Save();
 
+    // 파일이 있는데 읽지 못했으면 false입니다. 덮어써서 파일의 값을 잃지 않게 합니다.
+    bool CanSave() const;
+
     // 정해 둔 값이 없는 재질은 기본 그림체로 새로 만듭니다.
     // 돌려준 값의 자리는 이 객체가 살아 있는 동안 바뀌지 않습니다.
     MaterialStyle& FindOrAdd(const std::string& materialName);
@@ -38,6 +41,7 @@ private:
     const MaterialStyle& FindSaved(const std::string& materialName) const;
 
     std::filesystem::path filePath_;
+    bool canSave_ = false;
     std::map<std::string, MaterialStyle> styles_;
     std::map<std::string, MaterialStyle> savedStyles_;
 };

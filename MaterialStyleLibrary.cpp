@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <exception>
+#include <system_error>
 #include <utility>
 
 namespace
@@ -33,6 +34,7 @@ bool MaterialStyleLibrary::Reload()
         {
             styles_.emplace(name, style);
         }
+        canSave_ = true;
         return true;
     }
     catch (const std::exception& exception)
@@ -42,12 +44,24 @@ bool MaterialStyleLibrary::Reload()
             "그림체 파일을 읽지 못했습니다: %s (%s)\n",
             filePath_.u8string().c_str(),
             exception.what());
+
+        std::error_code existenceError;
+        canSave_ = !std::filesystem::exists(filePath_, existenceError);
         return false;
     }
 }
 
 bool MaterialStyleLibrary::Save()
 {
+    if (!CanSave())
+    {
+        std::fprintf(
+            stderr,
+            "읽지 못한 그림체 파일은 덮어쓰지 않습니다. 파일을 고친 뒤 Reload하세요: %s\n",
+            filePath_.u8string().c_str());
+        return false;
+    }
+
     try
     {
         // 고치지 않아 기본 그림체 그대로인 재질은 적지 않습니다.
@@ -74,6 +88,11 @@ bool MaterialStyleLibrary::Save()
             exception.what());
         return false;
     }
+}
+
+bool MaterialStyleLibrary::CanSave() const
+{
+    return canSave_;
 }
 
 MaterialStyle& MaterialStyleLibrary::FindOrAdd(const std::string& materialName)

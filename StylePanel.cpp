@@ -154,7 +154,7 @@ void StylePanel::DrawFileButtons(MaterialStyleLibrary& styles)
 {
     const bool isModified = styles.IsModified();
 
-    ImGui::BeginDisabled(!isModified);
+    ImGui::BeginDisabled(!isModified || !styles.CanSave());
     if (ImGui::Button("Save Style"))
     {
         styles.Save();
@@ -167,7 +167,11 @@ void StylePanel::DrawFileButtons(MaterialStyleLibrary& styles)
     {
         styles.Reload();
     }
-    if (isModified)
+    if (!styles.CanSave())
+    {
+        ImGui::TextDisabled("Fix the file, then Reload");
+    }
+    else if (isModified)
     {
         ImGui::SameLine();
         ImGui::TextDisabled("Not saved");
