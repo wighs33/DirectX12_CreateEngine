@@ -18,6 +18,7 @@ public:
     static Rect GetCreatePanel();
     static Rect GetHierarchyPanel();
     static Rect GetInspectorPanel();
+    static Rect GetStylePanel();
     static Rect GetViewportHelpBar();
 
     // 정해진 자리에 움직이지 않는 패널을 시작합니다. 끝날 때 ImGui::End를 부릅니다.

@@ -9,11 +9,21 @@ namespace
     constexpr float LeftPanelWidth = 220.0f;
     constexpr float RightPanelWidth = 280.0f;
     constexpr float CreatePanelHeight = 162.0f;
+    constexpr float InspectorPanelHeight = 205.0f;
     constexpr float GizmoToolbarWidth = 320.0f;
     constexpr float GizmoToolbarHeight = 46.0f;
     constexpr float ViewportHelpWidth = 608.0f;
     constexpr float ViewportHelpHeight = 36.0f;
     constexpr float MinimumPanelHeight = 100.0f;
+
+    float GetRightPanelX()
+    {
+        const ImGuiViewport* const viewport = ImGui::GetMainViewport();
+        return (std::max)(
+            viewport->WorkPos.x + PanelMargin,
+            viewport->WorkPos.x + viewport->WorkSize.x -
+                RightPanelWidth - PanelMargin);
+    }
 
     void BeginFixedPanel(
         const char* title,
@@ -80,16 +90,26 @@ EditorLayout::Rect EditorLayout::GetInspectorPanel()
     return
     {
         ImVec2(
-            (std::max)(
-                viewport->WorkPos.x + PanelMargin,
-                viewport->WorkPos.x + viewport->WorkSize.x -
-                    RightPanelWidth - PanelMargin),
+            GetRightPanelX(),
             viewport->WorkPos.y + PanelMargin),
+        ImVec2(RightPanelWidth, InspectorPanelHeight)
+    };
+}
+
+EditorLayout::Rect EditorLayout::GetStylePanel()
+{
+    const ImGuiViewport* const viewport = ImGui::GetMainViewport();
+    return
+    {
+        ImVec2(
+            GetRightPanelX(),
+            viewport->WorkPos.y + PanelMargin + InspectorPanelHeight + PanelGap),
         ImVec2(
             RightPanelWidth,
             (std::max)(
                 MinimumPanelHeight,
-                viewport->WorkSize.y - PanelMargin * 2.0f))
+                viewport->WorkSize.y - InspectorPanelHeight -
+                    PanelMargin * 2.0f - PanelGap))
     };
 }
 

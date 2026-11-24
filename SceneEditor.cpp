@@ -81,6 +81,11 @@ void SceneEditor::DrawPanels()
     createPanel_.Draw(*scene_, *resourceManager_, selection_, guideWindow_);
     HierarchyPanel::Draw(*scene_, selection_, guideWindow_);
     InspectorPanel::Draw(*scene_, selection_, guideWindow_);
+    stylePanel_.Draw(
+        *scene_,
+        selection_,
+        resourceManager_->GetStyles(),
+        guideWindow_);
     ViewportHelpBar::Draw(guideWindow_);
     guideWindow_.Draw();
 }

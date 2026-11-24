@@ -90,6 +90,9 @@
     <ClCompile Include="SceneSerializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StylePanel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="MaterialStyleFileWriter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -372,6 +375,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SceneSerializer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StylePanel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MaterialStyleFileWriter.h">

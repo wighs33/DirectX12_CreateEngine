@@ -4,6 +4,7 @@
 #include "EditorCameraController.h"
 #include "EditorSelection.h"
 #include "EngineGuideWindow.h"
+#include "StylePanel.h"
 #include "TransformGizmo.h"
 
 #include <d3d12.h>
@@ -48,6 +49,7 @@ private:
     EditorCameraController cameraController_;
     TransformGizmo gizmo_;
     CreatePanel createPanel_;
+    StylePanel stylePanel_;
     EngineGuideWindow guideWindow_;
     bool deleteKeyWasDown_ = false;
 };

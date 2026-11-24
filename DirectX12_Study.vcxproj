@@ -172,6 +172,7 @@
     <ClCompile Include="EngineGuideWindow.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="StylePanel.cpp" />
     <ClCompile Include="MaterialStyleFileWriter.cpp" />
     <ClCompile Include="MaterialStyleFileReader.cpp" />
     <ClCompile Include="MaterialStyle.cpp" />
@@ -266,6 +267,7 @@
     <ClInclude Include="EngineGuideWindow.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="StylePanel.h" />
     <ClInclude Include="MaterialStyleFileWriter.h" />
     <ClInclude Include="MaterialStyleFileReader.h" />
     <ClInclude Include="GuideCardGrid.h" />
