@@ -121,7 +121,7 @@ bool D3D12Pipeline::CreatePipelineState(
     rasterizerDescription.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
     rasterizerDescription.SlopeScaledDepthBias = settings.slopeScaledDepthBias;
     rasterizerDescription.DepthClipEnable = TRUE;
-    rasterizerDescription.MultisampleEnable = FALSE;
+    rasterizerDescription.MultisampleEnable = settings.sampleCount > 1;
     rasterizerDescription.AntialiasedLineEnable = FALSE;
     rasterizerDescription.ForcedSampleCount = 0;
     rasterizerDescription.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
@@ -188,7 +188,7 @@ bool D3D12Pipeline::CreatePipelineState(
     // PSO가 Triangle 계열 Primitive를 처리
     description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     description.DSVFormat = D3D12Config::DepthFormat;
-    description.SampleDesc.Count = 1;
+    description.SampleDesc.Count = settings.sampleCount;
     description.SampleDesc.Quality = 0;
     description.NodeMask = 0;
     description.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;

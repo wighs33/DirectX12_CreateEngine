@@ -97,7 +97,7 @@ void SceneConstants::BindObject(
     UINT frameIndex,
     std::size_t objectIndex) const
 {
-    // [14단계] 같은 b0 Root CBV에 현재 Object 전용 Constant Buffer 주소를 연결합니다.
+    // [13단계] 같은 b0 Root CBV에 현재 Object 전용 Constant Buffer 주소를 연결합니다.
     commandList->SetGraphicsRootConstantBufferView(
         static_cast<UINT>(RootParameter::Object),
         objectConstants_.GetGpuAddress(frameIndex, objectIndex));

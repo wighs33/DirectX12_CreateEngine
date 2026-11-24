@@ -1,5 +1,6 @@
 #include "ToonPass.h"
 
+#include "D3D12Config.h"
 #include "D3D12RootSignature.h"
 #include "GameObject.h"
 #include "Model.h"
@@ -20,6 +21,7 @@ bool ToonPass::Initialize(
     settings.vertexShader = "VSMain";
     settings.pixelShader = "PSMain";
     settings.cullMode = D3D12_CULL_MODE_BACK;
+    settings.sampleCount = D3D12Config::SceneSampleCount;
     return pipeline_.Initialize(device, rootSignature, settings);
 }
 
@@ -27,7 +29,7 @@ void ToonPass::Draw(const RenderPassContext& context) const
 {
     ID3D12GraphicsCommandList* const commandList = context.commandList;
 
-    // [13단계] 두 단 명암을 그리는 Graphics Pipeline State를 연결합니다.
+    // [12단계] 두 단 명암을 그리는 Graphics Pipeline State를 연결합니다.
     commandList->SetPipelineState(pipeline_.Get());
 
     // t1 Table이 조금 전에 그린 그림자 맵을 가리키게 합니다.

@@ -13,11 +13,12 @@ public:
     DepthBuffer(const DepthBuffer&) = delete;
     DepthBuffer& operator=(const DepthBuffer&) = delete;
 
-    // initialState는 처음 쓰일 때의 상태입니다.
+    // sampleCount는 한 픽셀에 담을 깊이의 수이고 initialState는 처음 쓰일 때의 상태입니다.
     bool Initialize(
         ID3D12Device* device,
         UINT width,
         UINT height,
+        UINT sampleCount,
         D3D12_RESOURCE_STATES initialState);
 
     // 이전 Frame의 깊이가 남지 않도록 전체를 가장 먼 값으로 지웁니다.

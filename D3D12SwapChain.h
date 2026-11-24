@@ -30,10 +30,8 @@ public:
 
     UINT GetCurrentFrameIndex();
     ID3D12Resource* GetBackBuffer(UINT frameIndex) const;
-    // Scene용 sRGB RTV입니다.
+    // 색을 변환하지 않고 쓰는 ImGui용 RTV입니다.
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTV(UINT frameIndex) const;
-    // 같은 BackBuffer를 색 변환 없이 쓰는 ImGui용 RTV입니다.
-    D3D12_CPU_DESCRIPTOR_HANDLE GetEditorRTV(UINT frameIndex) const;
     const D3D12_VIEWPORT& GetViewport() const;
     const D3D12_RECT& GetScissorRect() const;
     bool Present();
@@ -54,7 +52,6 @@ private:
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;
     UINT rtvDescriptorSize_ = 0;
     std::array<D3D12_CPU_DESCRIPTOR_HANDLE, FrameCount> rtvHandles_{};
-    std::array<D3D12_CPU_DESCRIPTOR_HANDLE, FrameCount> editorRtvHandles_{};
 
     D3D12_VIEWPORT viewport_{};
     D3D12_RECT scissorRect_{};

@@ -29,14 +29,8 @@ bool D3D12Context::Initialize(HWND window, UINT width, UINT height)
     {
         return false;
     }
-    if (!depthBuffer_.Initialize(
-        device,
-        width,
-        height,
-        D3D12_RESOURCE_STATE_DEPTH_WRITE))
-    {
+    if (!sceneTarget_.Initialize(device, width, height))
         return false;
-    }
     if (!resourceManager_.Initialize(device, commandContext_))
         return false;
     if (!sceneRenderer_.Initialize(device, resourceManager_.GetTextureHeap()))
@@ -86,14 +80,7 @@ bool D3D12Context::RenderFrame()
     ID3D12GraphicsCommandList* const commandList = commandContext_.GetCommandList();
     ID3D12Resource* const backBuffer = swapChain_.GetBackBuffer(frameIndex);
 
-    // [5단계] 화면 표시 상태의 BackBuffer를 렌더링 가능한 상태로 전환합니다.
-    GpuBarrier::Transition(
-        commandList,
-        backBuffer,
-        D3D12_RESOURCE_STATE_PRESENT,
-        D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-    // [6~7단계] 그릴 물체를 고르고 모든 패스가 함께 쓰는 것을 연결합니다.
+    // [5~6단계] 그릴 물체를 고르고 모든 패스가 함께 쓰는 것을 연결합니다.
     sceneRenderer_.BeginFrame(
         commandList,
         frameIndex,
@@ -102,24 +89,27 @@ bool D3D12Context::RenderFrame()
         resourceManager_,
         statistics_);
 
-    // 화면을 그리기 전에 8~17단계를 그림자 맵에 먼저 한 번 실행합니다.
+    // 화면을 그리기 전에 7~16단계를 그림자 맵에 먼저 한 번 실행합니다.
     sceneRenderer_.RenderShadow(
         commandList,
         frameIndex,
         resourceManager_,
         statistics_);
 
-    // [8~12단계] 그릴 영역과 대상을 정하고 이전 Frame의 색과 깊이를 지웁니다.
-    BindAndClearRenderTarget(commandList, frameIndex);
+    // [7~11단계] 그릴 영역과 대상을 정하고 이전 Frame의 색과 깊이를 지웁니다.
+    BeginScene(commandList);
 
-    // [13~17단계] 장면의 물체와 외곽선을 그립니다.
+    // [12~16단계] 장면의 물체와 외곽선을 그립니다.
     sceneRenderer_.RenderScene(
         commandList,
         frameIndex,
         resourceManager_,
         statistics_);
 
-    // Scene 렌더링이 끝난 뒤 같은 BackBuffer 위에 Editor를 덧그립니다.
+    // [17단계] 표본의 평균을 내어 BackBuffer로 옮깁니다.
+    ResolveScene(commandList, backBuffer);
+
+    // 장면이 담긴 BackBuffer 위에 Editor를 덧그립니다.
     RenderEditor(commandList, frameIndex);
 
     // [18단계] Scene과 Editor 렌더링을 마친 BackBuffer를 다시 화면 표시 가능한 상태로 전환합니다.
@@ -141,47 +131,44 @@ bool D3D12Context::RenderFrame()
     return commandContext_.SignalFrame(frameIndex);
 }
 
-void D3D12Context::BindAndClearRenderTarget(
-    ID3D12GraphicsCommandList* commandList,
-    UINT frameIndex)
+void D3D12Context::BeginScene(ID3D12GraphicsCommandList* commandList)
 {
-    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapChain_.GetRTV(frameIndex);
-    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = depthBuffer_.GetDSV();
-
-    // [8단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
+    // [7단계] Rasterizer가 Clip Space 결과를 변환할 화면 영역을 설정합니다.
     const D3D12_VIEWPORT& viewport = swapChain_.GetViewport();
     commandList->RSSetViewports(1, &viewport);
 
-    // [9단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
+    // [8단계] Rasterizer가 실제 Pixel을 통과시킬 사각 영역을 설정합니다.
     const D3D12_RECT& scissorRect = swapChain_.GetScissorRect();
     commandList->RSSetScissorRects(1, &scissorRect);
 
-    // [10단계] Color 출력용 RTV와 깊이 비교/기록용 DSV를 Output Merger에 함께 연결합니다.
-    commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+    sceneTarget_.Begin(commandList);
+}
 
-    // sRGB RTV에 저장되면 화면에서 (0.1, 0.2, 0.4)로 보이는 선형 색입니다.
-    constexpr float clearColor[] =
-    {
-        0.0100f,
-        0.0331f,
-        0.1329f,
-        1.0f
-    };
+void D3D12Context::ResolveScene(
+    ID3D12GraphicsCommandList* commandList,
+    ID3D12Resource* backBuffer)
+{
+    GpuBarrier::Transition(
+        commandList,
+        backBuffer,
+        D3D12_RESOURCE_STATE_PRESENT,
+        D3D12_RESOURCE_STATE_RESOLVE_DEST);
 
-    // [11단계] 물체를 그리기 전에 BackBuffer 전체를 지정한 색으로 지웁니다.
-    commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    sceneTarget_.ResolveTo(commandList, backBuffer);
 
-    depthBuffer_.Clear(commandList);
+    GpuBarrier::Transition(
+        commandList,
+        backBuffer,
+        D3D12_RESOURCE_STATE_RESOLVE_DEST,
+        D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
 void D3D12Context::RenderEditor(
     ID3D12GraphicsCommandList* commandList,
     UINT frameIndex)
 {
-    // ImGui의 색은 이미 sRGB 값이므로 변환하지 않는 RTV로 바꿔 그립니다.
-    const D3D12_CPU_DESCRIPTOR_HANDLE editorRtvHandle =
-        swapChain_.GetEditorRTV(frameIndex);
-    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = depthBuffer_.GetDSV();
-    commandList->OMSetRenderTargets(1, &editorRtvHandle, FALSE, &dsvHandle);
+    // ImGui의 색은 이미 sRGB 값이므로 변환하지 않는 RTV에 그립니다.
+    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapChain_.GetRTV(frameIndex);
+    commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
     imguiLayer_.Render(commandList);
 }

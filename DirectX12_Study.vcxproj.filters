@@ -90,6 +90,9 @@
     <ClCompile Include="SceneSerializer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SceneTarget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="GpuBarrier.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -303,6 +306,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SceneSerializer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneTarget.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GpuBarrier.h">

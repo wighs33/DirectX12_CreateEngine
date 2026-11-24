@@ -32,10 +32,10 @@ void ShadowPass::Draw(const RenderPassContext& context) const
 {
     ID3D12GraphicsCommandList* const commandList = context.commandList;
 
-    // [8~12단계] 화면 대신 그림자 맵을 그릴 대상으로 연결하고 지웁니다.
+    // [7~11단계] 화면 대신 그림자 맵을 그릴 대상으로 연결하고 지웁니다.
     context.shadowMap.BeginWrite(commandList);
 
-    // [13~17단계] 깊이만 쓰는 PSO로 빛에 보이는 조각을 모두 그립니다. 재질과 Texture는 필요 없습니다.
+    // [12~16단계] 깊이만 쓰는 PSO로 빛에 보이는 조각을 모두 그립니다. 재질과 Texture는 필요 없습니다.
     commandList->SetPipelineState(pipeline_.Get());
 
     for (const VisibleObject& object : context.visibleObjects)

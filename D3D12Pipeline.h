@@ -15,6 +15,8 @@ struct PipelineSettings
     const char* pixelShader = nullptr;
     // 그리지 않고 지울 면입니다.
     D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK;
+    // 그릴 대상의 한 픽셀에 있는 표본의 수입니다.
+    UINT sampleCount = 1;
     // 기울어진 면일수록 깊이를 더 뒤로 미는 배수입니다.
     float slopeScaledDepthBias = 0.0f;
 };

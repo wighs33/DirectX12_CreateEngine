@@ -56,13 +56,13 @@ bool Mesh::Initialize(
 
 void Mesh::Draw(ID3D12GraphicsCommandList* commandList) const
 {
-    // [15단계] 현재 조각의 Vertex Buffer View를 Input Slot 0에 연결합니다.
+    // [14단계] 현재 조각의 Vertex Buffer View를 Input Slot 0에 연결합니다.
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
 
-    // [16단계] 같은 조각의 Index Buffer View를 연결합니다.
+    // [15단계] 같은 조각의 Index Buffer View를 연결합니다.
     commandList->IASetIndexBuffer(&indexBufferView_);
 
-    // [17단계] 모델의 조각 하나당 한 번씩 Indexed Draw 명령을 기록합니다.
+    // [16단계] 모델의 조각 하나당 한 번씩 Indexed Draw 명령을 기록합니다.
     commandList->DrawIndexedInstanced(indexCount_, 1, 0, 0, 0);
 }
 

@@ -84,7 +84,8 @@ bool ImGuiLayer::Initialize(
     initializationInformation.CommandQueue = commandContext.GetCommandQueue();
     initializationInformation.NumFramesInFlight = D3D12Config::FrameCount;
     initializationInformation.RTVFormat = D3D12Config::BackBufferFormat;
-    initializationInformation.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    // UI는 깊이를 비교하지 않으므로 DSV 없이 그립니다.
+    initializationInformation.DSVFormat = DXGI_FORMAT_UNKNOWN;
     initializationInformation.UserData = this;
     initializationInformation.SrvDescriptorHeap = descriptorHeap_.Get();
     initializationInformation.SrvDescriptorAllocFn = AllocateDescriptor;

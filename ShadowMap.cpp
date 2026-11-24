@@ -9,6 +9,7 @@ bool ShadowMap::Initialize(ID3D12Device* device, TextureHeap& textureHeap)
             device,
             Resolution,
             Resolution,
+            1,
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE))
     {
         return false;

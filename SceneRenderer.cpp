@@ -159,7 +159,7 @@ void SceneRenderer::BindCommonState(
     UINT frameIndex,
     const ResourceManager& resourceManager) const
 {
-    // [6단계] b0~b2 Constant Buffer와 t0~t1 Texture를 사용할 Root Signature를 연결합니다.
+    // [5단계] b0~b2 Constant Buffer와 t0~t1 Texture를 사용할 Root Signature를 연결합니다.
     commandList->SetGraphicsRootSignature(rootSignature_.Get());
 
     // 모든 Texture의 SRV가 들어 있는 Heap을 연결하고 어느 칸을 쓸지는 조각마다 정합니다.
@@ -170,6 +170,6 @@ void SceneRenderer::BindCommonState(
     commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
     constants_.BindFrame(commandList, frameIndex);
 
-    // [7단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
+    // [6단계] Input Assembler가 Vertex를 세 개씩 묶는 Triangle List를 사용하도록 설정합니다.
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }

@@ -56,11 +56,6 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3D12SwapChain::GetRTV(UINT frameIndex) const
     return rtvHandles_[frameIndex];
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3D12SwapChain::GetEditorRTV(UINT frameIndex) const
-{
-    return editorRtvHandles_[frameIndex];
-}
-
 const D3D12_VIEWPORT& D3D12SwapChain::GetViewport() const
 {
     return viewport_;
@@ -98,7 +93,7 @@ bool D3D12SwapChain::CreateSwapChain(
     DXGI_SWAP_CHAIN_DESC1 description{};
     description.Width = width;
     description.Height = height;
-    // Flip Model SwapChain은 sRGB 형식으로 만들 수 없으므로 RTV에서만 sRGB로 해석합니다.
+    // Flip Model SwapChain은 sRGB 형식이나 여러 표본으로 만들 수 없어 장면은 SceneTarget에 따로 그립니다.
     description.Format = D3D12Config::BackBufferFormat;
     description.Stereo = FALSE;
     description.SampleDesc.Count = 1;
@@ -163,10 +158,10 @@ bool D3D12SwapChain::CreateRenderTargets(ID3D12Device* device)
         }
     }
 
-    // 두 BackBuffer마다 Scene용과 ImGui용 RTV Descriptor를 보관할 Heap을 생성합니다.
+    // 두 BackBuffer의 RTV Descriptor를 보관할 Heap을 생성합니다.
     D3D12_DESCRIPTOR_HEAP_DESC heapDescription{};
     heapDescription.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    heapDescription.NumDescriptors = FrameCount * 2;
+    heapDescription.NumDescriptors = FrameCount;
     heapDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     heapDescription.NodeMask = 0;
 
@@ -194,21 +189,12 @@ bool D3D12SwapChain::CreateRenderTargets(ID3D12Device* device)
     {
         D3D12_RENDER_TARGET_VIEW_DESC rtvDescription{};
         rtvDescription.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-
-        rtvDescription.Format = D3D12Config::SceneTargetFormat;
+        rtvDescription.Format = D3D12Config::BackBufferFormat;
         rtvHandles_[frameIndex] = rtvHandle;
         device->CreateRenderTargetView(
             backBuffers_[frameIndex].Get(),
             &rtvDescription,
             rtvHandles_[frameIndex]);
-        rtvHandle.ptr += rtvDescriptorSize_;
-
-        rtvDescription.Format = D3D12Config::BackBufferFormat;
-        editorRtvHandles_[frameIndex] = rtvHandle;
-        device->CreateRenderTargetView(
-            backBuffers_[frameIndex].Get(),
-            &rtvDescription,
-            editorRtvHandles_[frameIndex]);
         rtvHandle.ptr += rtvDescriptorSize_;
     }
 

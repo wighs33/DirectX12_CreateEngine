@@ -1,5 +1,6 @@
 #include "OutlinePass.h"
 
+#include "D3D12Config.h"
 #include "GameObject.h"
 #include "Model.h"
 #include "RenderPassContext.h"
@@ -17,6 +18,7 @@ bool OutlinePass::Initialize(
     settings.vertexShader = "VSOutline";
     settings.pixelShader = "PSOutline";
     settings.cullMode = D3D12_CULL_MODE_FRONT;
+    settings.sampleCount = D3D12Config::SceneSampleCount;
     return pipeline_.Initialize(device, rootSignature, settings);
 }
 
@@ -24,7 +26,7 @@ void OutlinePass::Draw(const RenderPassContext& context) const
 {
     ID3D12GraphicsCommandList* const commandList = context.commandList;
 
-    // [13~17단계] 외곽선 PSO로 바꿔 같은 조각을 한 번 더 그립니다.
+    // [12~16단계] 외곽선 PSO로 바꿔 같은 조각을 한 번 더 그립니다.
     commandList->SetPipelineState(pipeline_.Get());
 
     for (const VisibleObject& object : context.visibleObjects)

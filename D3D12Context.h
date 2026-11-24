@@ -4,13 +4,13 @@
 #include "D3D12CommandContext.h"
 #include "D3D12DeviceResources.h"
 #include "D3D12SwapChain.h"
-#include "DepthBuffer.h"
 #include "ImGuiLayer.h"
 #include "RenderStatistics.h"
 #include "ResourceManager.h"
 #include "Scene.h"
 #include "SceneEditor.h"
 #include "SceneRenderer.h"
+#include "SceneTarget.h"
 
 #include <d3d12.h>
 
@@ -30,13 +30,16 @@ public:
     // Editor Frame을 시작하고 입력과 편집 UI를 처리합니다.
     void Update(float deltaTime);
 
-    // 현재 BackBuffer를 지정한 색으로 지우고 화면에 표시하는 한 프레임을 실행합니다.
+    // 장면과 편집 화면을 그리고 화면에 표시하는 한 프레임을 실행합니다.
     bool RenderFrame();
 
 private:
-    void BindAndClearRenderTarget(
+    // 그릴 영역과 대상을 정하고 이전 Frame의 색과 깊이를 지웁니다.
+    void BeginScene(ID3D12GraphicsCommandList* commandList);
+    // 장면을 BackBuffer로 옮기고 그 위에 편집 화면을 그릴 수 있게 합니다.
+    void ResolveScene(
         ID3D12GraphicsCommandList* commandList,
-        UINT frameIndex);
+        ID3D12Resource* backBuffer);
     void RenderEditor(
         ID3D12GraphicsCommandList* commandList,
         UINT frameIndex);
@@ -46,7 +49,7 @@ private:
 
     D3D12DeviceResources deviceResources_;
     D3D12SwapChain swapChain_;
-    DepthBuffer depthBuffer_;
+    SceneTarget sceneTarget_;
 
     // ResourceManager는 공유 Texture와 Model의 수명, 그리고 Texture를 연결할 SRV Heap을 소유합니다.
     // Scene보다 먼저 생성하고 나중에 파괴하여 GameObject의 비소유 Model 포인터를 안전하게 유지합니다.
