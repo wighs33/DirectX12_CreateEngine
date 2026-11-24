@@ -3469,7 +3469,8 @@
                 { "hash": "999e444", "title": "그림체 파일을 Unity 재질에 넣는 스크립트 추가", "cards": ["style-importer"] },
                 { "hash": "be5a289", "title": "읽지 못한 그림체 파일을 덮어쓰지 않게 하기", "cards": [] },
                 { "hash": "f99a14d", "title": "창 끝에 걸친 카드 그림이 빈 Scissor Rect를 보내지 않게 하기", "cards": [] },
-                { "hash": "05bf4fd", "title": "도감에 그림체 카드 4장과 물음표 추가", "cards": [] }
+                { "hash": "05bf4fd", "title": "도감에 그림체 카드 4장과 물음표 추가", "cards": [] },
+                { "hash": "4f2b5d3", "title": "도감에 단계마다 커밋과 클래스를 보여 주는 화면 추가", "cards": ["guide-stage-page","guide-link-buttons"] }
             ]
         }
     ]
