@@ -1,9 +1,9 @@
 """
-사용자가 만든 아바타 Luna를 T자세의 움직이지 않는 모델로 내보낸다(뼈 애니메이션은 나중 단계에서 다룬다).
+사용자가 만든 아바타 Luna를 T 포즈의 움직이지 않는 모델로 내보낸다(뼈 애니메이션은 나중 단계에서 다룬다).
 
     blender --background "<문서 폴더>/Untitled_refined.blend" --python Tools/Blender/export_luna.py
 
-블렌드 파일은 읽기만 한다(저장하지 않는다). 이름을 바꾸거나 자세를 굳히는 것은 이 실행 안에서만 일어난다.
+블렌드 파일은 읽기만 한다(저장하지 않는다). 이름을 바꾸거나 포즈를 굳히는 것은 이 실행 안에서만 일어난다.
 결과는 Assets/Models/Luna의 Luna.gltf, Luna.bin과 그림이다. Luna의 그림과 모양은 저장소에 올리지 않는다(.gitignore).
 """
 
@@ -28,7 +28,7 @@ MATERIAL_NAMES = {
     "MAT_Ornament_GoldAntique": "Luna_OrnamentAntique",
     "MAT_Ornament_Pearl": "Luna_OrnamentPearl",
 }
-# 파일의 기본 자세는 팔을 내린 A자세라서 이 액션의 자세로 굳힌다.
+# 파일의 기본 포즈는 팔을 내린 A 포즈라서 이 액션의 포즈로 굳힌다.
 T_POSE_ACTION = "0_T-Pose.001"
 
 
@@ -42,8 +42,8 @@ def pose_as_t(rig):
     bpy.context.view_layer.update()
     arm = rig.pose.bones["CC_Base_L_Upperarm"]
     direction = (rig.matrix_world @ arm.tail) - (rig.matrix_world @ arm.head)
-    # 위팔이 거의 수평이어야 T자세다.
-    assert abs(direction.normalized().z) < 0.2, "T자세가 아니다: %s" % direction
+    # 위팔이 거의 수평이어야 T 포즈다.
+    assert abs(direction.normalized().z) < 0.2, "T 포즈가 아니다: %s" % direction
 
 
 def check_images(meshes):
@@ -57,7 +57,7 @@ def check_images(meshes):
 
 
 def freeze(meshes):
-    """지금 자세의 모양을 뼈 없는 메시로 굳힌다. 좌표는 월드 기준이라 크기와 자리가 그대로 남는다."""
+    """지금 포즈의 모양을 뼈 없는 메시로 굳힌다. 좌표는 월드 기준이라 크기와 자리가 그대로 남는다."""
     depsgraph = bpy.context.evaluated_depsgraph_get()
     frozen = []
     for obj in meshes:

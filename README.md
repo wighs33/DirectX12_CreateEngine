@@ -1,14 +1,14 @@
 # Pandora Engine
 
-**카툰만 그리는, 스스로 설명하는 DirectX 12 엔진**
+**DirectX 12 툰 렌더링 엔진 · 씬 에디터 · 카드 도감**
 
 ![Pandora Engine 에디터 · 2단 명암과 외곽선, 그림자로 그린 Luna](Docs/Readme/hero.webp)
 
-C++와 DirectX 12로 만든 카툰 전용 엔진입니다. 판도라 IP 게임(Pandora Arena, Pandora Battle)의 캐릭터를 게임과 같은 그림체로 그리는 것이 목표입니다. 그래서 사실적인 조명 대신 2단 명암, 외곽선, 그림자처럼 카툰에 필요한 것만 담습니다.
+C++와 DirectX 12로 만든 툰 렌더링 엔진입니다. 판도라 IP 게임(Pandora Arena, Pandora Battle)의 캐릭터를 게임과 같은 그림체로 그리는 것이 목표입니다. 그래서 사실적인 조명 대신 2단 명암, 외곽선, 그림자처럼 툰 렌더링에 필요한 것만 담습니다.
 
-에디터의 물음표(`?`)를 누르면 그 기능이 어떤 클래스를 거쳐 움직이는지 엔진 안의 카드 도감으로 보여 줍니다. 도감과 카툰 렌더링 코드는 Claude Code와 함께 작성하고 있습니다.
+에디터의 물음표(`?`)를 누르면 그 기능이 어떤 클래스를 거쳐 움직이는지 엔진 안의 카드 도감으로 보여 줍니다. 도감과 툰 렌더링 코드는 Claude Code와 함께 작성하고 있습니다.
 
-[단계별로 만든 것](#단계별로-만든-것) · [카툰 화면](#카툰-화면을-그리는-방법) · [도감](#물음표에서-클래스-카드까지) · [코드 구조](#코드-구조) · [빌드와 실행](#빌드와-실행) · [포트폴리오 페이지](https://hyeonsik-game-portfolio.vercel.app/projects/directx12-engine/)
+[단계별로 만든 것](#단계별로-만든-것) · [툰 렌더링](#툰-렌더링-구현) · [도감](#물음표에서-클래스-카드까지) · [코드 구조](#코드-구조) · [빌드와 실행](#빌드와-실행) · [포트폴리오 페이지](https://hyeonsik-game-portfolio.vercel.app/projects/directx12-engine/)
 
 ## 한눈에 보기
 
@@ -28,7 +28,7 @@ C++와 DirectX 12로 만든 카툰 전용 엔진입니다. 판도라 IP 게임(P
 <table>
 <tr>
 <td width="33%" valign="top"><img src="Docs/Readme/stage-0.webp" alt="0단계 화면 · 기본 조명으로 그린 큐브와 구"><br><b>0단계 · 엔진의 뼈대</b><br><sub>2026.08 – 11.23 · 커밋 25개</sub><br>삼각형 하나에서 시작해 물체를 놓고 고르고 옮기고 저장하는 편집기와 엔진 안 도감</td>
-<td width="33%" valign="top"><img src="Docs/Readme/stage-1.webp" alt="1단계 화면 · 기본 조명으로 그린 T자세 Luna"><br><b>1단계 · Luna 띄우기</b><br><sub>2026.11.23 · 커밋 10개</sub><br>glTF 모델을 읽어 재질마다 자기 텍스처를 입히고 Luna를 T자세로 띄움</td>
+<td width="33%" valign="top"><img src="Docs/Readme/stage-1.webp" alt="1단계 화면 · 기본 조명으로 그린 T 포즈 Luna"><br><b>1단계 · Luna 띄우기</b><br><sub>2026.11.23 · 커밋 10개</sub><br>glTF 모델을 읽어 재질마다 자기 텍스처를 입히고 Luna를 T 포즈로 띄움</td>
 <td width="33%" valign="top"><img src="Docs/Readme/stage-2.webp" alt="2단계 화면 · 밝은 면과 그늘 두 단으로 그린 Luna"><br><b>2단계 · 2단 명암</b><br><sub>2026.11.23 · 커밋 8개</sub><br>밝은 면과 그늘을 두 단으로 끊고, 재질마다 다른 그늘색과 림라이트</td>
 </tr>
 <tr>
@@ -38,7 +38,7 @@ C++와 DirectX 12로 만든 카툰 전용 엔진입니다. 판도라 IP 게임(P
 </tr>
 </table>
 
-## 카툰 화면을 그리는 방법
+## 툰 렌더링 구현
 
 ### 한 프레임의 순서
 
@@ -56,7 +56,7 @@ flowchart LR
 
 ### 2단 명암과 림라이트
 
-![선을 밀어 1단계의 기본 조명과 지금의 카툰 화면을 비교하는 움직이는 그림](Docs/Readme/look-wipe.webp)
+![선을 밀어 1단계의 기본 조명과 지금의 툰 셰이딩을 비교하는 움직이는 그림](Docs/Readme/look-wipe.webp)
 
 <sub>같은 카메라와 같은 자리에서 찍은 1단계와 지금 화면입니다.</sub>
 
@@ -76,11 +76,11 @@ float3 color = baseColor.rgb * lerp(shadeColor, 1.0f, lit) * lightColor.rgb * li
 
 ### 외곽선
 
-![각진 큐브의 외곽선. 왼쪽 두 개는 원래 법선으로 밀어 모서리가 갈라지고, 오른쪽 두 개는 구운 법선으로 밀어 이어집니다.](Docs/Readme/outline-corner.webp)
+![각진 큐브의 외곽선. 왼쪽 두 개는 원래 법선으로 밀어 모서리가 갈라지고, 오른쪽 두 개는 베이크한 법선으로 밀어 이어집니다.](Docs/Readme/outline-corner.webp)
 
-<sub>왼쪽: 원래 법선으로 밀면 모서리에서 선이 갈라집니다. 오른쪽: 구운 법선으로 밀면 이어집니다.</sub>
+<sub>왼쪽: 원래 법선으로 밀면 모서리에서 선이 갈라집니다. 오른쪽: 베이크한 법선으로 밀면 이어집니다.</sub>
 
-물체를 그린 뒤 앞면을 버리고 뒷면을 화면에서 정해진 픽셀만큼 바깥으로 밀어 한 번 더 그립니다(`OutlinePass`). 그래서 거리와 해상도가 달라도 선의 굵기가 같습니다. 각진 모서리에서는 정점마다 법선이 달라 선이 갈라지므로, 모델을 GPU에 올리기 전에 같은 자리 정점의 법선을 평균해 구워 둡니다(`OutlineNormalBaker`).
+물체를 그린 뒤 앞면을 버리고 뒷면을 화면에서 정해진 픽셀만큼 바깥으로 밀어 한 번 더 그립니다(`OutlinePass`). 그래서 거리와 해상도가 달라도 선의 굵기가 같습니다. 각진 모서리에서는 정점마다 법선이 달라 선이 갈라지므로, 모델을 GPU에 올리기 전에 같은 자리 정점의 법선을 평균해 베이크해 둡니다(`OutlineNormalBaker`).
 
 ### 그림자
 
@@ -169,7 +169,7 @@ flowchart LR
 | GPU에 올리는 재료 | `Mesh` · `GpuBuffer` · `FrameConstantBuffer` · `Texture` · `GpuTexture` · `TextureUploader` |
 | 모델 파일 읽기 | `ModelLoader` · `GltfModelReader` · `GltfPrimitiveReader` · `GltfFile` · `ImageLoader` |
 | 모델 | `ResourceManager` · `Model` · `PrimitiveGeometry` |
-| 카툰 재질과 빛 | `Material` · `MaterialStyleLibrary` · `SceneLighting` |
+| 툰 재질과 빛 | `Material` · `MaterialStyleLibrary` · `SceneLighting` |
 | 그림체 파일 | `MaterialStyleFileReader` · `MaterialStyleFileWriter` · `PandoraStyleImporter` |
 | 장면 | `Scene` · `GameObject` · `Transform` |
 | 장면 파일 | `SceneSerializer` · `SceneFileReader` · `SceneFileWriter` |
@@ -192,7 +192,7 @@ flowchart LR
 3. 엔진은 `Shader.hlsl`과 `Assets/`를 현재 폴더에서 읽습니다. Visual Studio에서 실행하면 프로젝트 폴더가 현재 폴더가 됩니다. exe를 직접 실행할 때는 저장소 맨 위 폴더에서 실행합니다.
 4. 처음에는 빈 장면입니다. 왼쪽 Create 패널에서 Cube, Sphere, Plane을 만들거나, `Assets/Models` 아래의 glTF(예: TestCube)를 골라 Add로 놓습니다. Save Scene과 Load Scene은 `Scenes/Scene.json`을 씁니다.
 
-Luna 모델은 저장소에 넣지 않았습니다(`.gitignore`). 원본 블렌드 파일이 있을 때 [`Tools/Blender/export_luna.py`](Tools/Blender/export_luna.py)로 `Assets/Models/Luna`에 T자세 glTF를 내보냅니다.
+Luna 모델은 저장소에 넣지 않았습니다(`.gitignore`). 원본 블렌드 파일이 있을 때 [`Tools/Blender/export_luna.py`](Tools/Blender/export_luna.py)로 `Assets/Models/Luna`에 T 포즈 glTF를 내보냅니다.
 
 ## 조작
 

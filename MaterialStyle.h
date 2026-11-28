@@ -5,7 +5,7 @@
 // 그림체 파일의 version입니다. 읽는 쪽과 쓰는 쪽이 같은 값을 씁니다.
 constexpr int MaterialStyleFormatVersion = 2;
 
-// 재질 하나의 카툰 그림체 값입니다. 색은 화면에서 고르는 값과 같은 sRGB이고 Unity 재질의 값과 뜻이 같습니다.
+// 재질 하나의 그림체 값입니다. 색은 화면에서 고르는 값과 같은 sRGB이고 Unity 재질의 값과 뜻이 같습니다.
 struct MaterialStyle
 {
     // 그늘에서 바탕색에 곱하는 색입니다. 검게 누르지 않고 재질마다 다른 색을 냅니다.

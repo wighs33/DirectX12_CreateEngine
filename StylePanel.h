@@ -10,7 +10,7 @@ class Model;
 class Scene;
 struct MaterialStyle;
 
-// 고른 물체의 재질마다 카툰 그림체 값을 고치고 파일에 저장하는 패널입니다.
+// 고른 물체의 재질마다 그림체 값을 고치고 파일에 저장하는 패널입니다.
 class StylePanel final
 {
 public:

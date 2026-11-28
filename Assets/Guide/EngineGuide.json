@@ -12,7 +12,7 @@
         { "name": "GPU에 올리는 재료", "color": "slate", "cards": ["mesh","gpu-buffer","frame-constant-buffer","texture","gpu-texture","texture-uploader"] },
         { "name": "모델 파일 읽기", "color": "flame", "cards": ["model-loader","gltf-model-reader","gltf-primitive-reader","gltf-file","image-loader"] },
         { "name": "모델", "color": "teal", "cards": ["resource-manager","model","primitive-geometry"] },
-        { "name": "카툰 재질과 빛", "color": "rose", "cards": ["material","material-style","scene-lighting"] },
+        { "name": "툰 재질과 빛", "color": "rose", "cards": ["material","material-style","scene-lighting"] },
         { "name": "그림체 파일", "color": "flame", "cards": ["style-file-reader","style-file-writer","style-importer"] },
         { "name": "장면", "color": "slate", "cards": ["scene","game-object","transform"] },
         { "name": "장면 파일", "color": "flame", "cards": ["scene-serializer","scene-file-reader","scene-file-writer"] },
@@ -889,7 +889,7 @@
             "name": "OutlinePass",
             "file": "OutlinePass.cpp",
             "role": "보이는 물체의 뒷면을 부풀려 테두리를 그립니다.",
-            "without": "물체와 배경의 경계가 흐려져 카툰처럼 보이지 않습니다.",
+            "without": "물체와 배경의 경계가 흐려져 툰 렌더링 느낌이 약해집니다.",
             "limit": "한쪽 면만 있는 얇은 모양은 뒤에서 보면 외곽선 색으로 칠해집니다.",
             "unreal": "뒤집힌 메시를 오버레이 머티리얼로 그리는 방법과 같습니다.",
             "functions": [
@@ -919,7 +919,7 @@
             "role": "외곽선을 밀어낼 부드러운 방향을 미리 만들어 둡니다.",
             "without": "각진 모서리에서 면마다 다른 쪽으로 밀려 외곽선이 갈라집니다.",
             "limit": "같은 자리의 법선을 그냥 평균합니다. 면의 넓이나 각도를 따져 섞지는 않습니다.",
-            "unreal": "아웃라인 셰이더용으로 부드러운 법선을 정점 색이나 UV에 구워 두는 방법과 같습니다.",
+            "unreal": "아웃라인 셰이더용으로 부드러운 법선을 정점 색이나 UV에 베이크해 두는 방법과 같습니다.",
             "functions": [
                 { "name": "Bake", "description": "같은 자리의 법선을 더해 길이를 1로 맞추고 정점에 적습니다." }
             ],
@@ -945,7 +945,7 @@
             "id": "shader",
             "name": "Shader.hlsl",
             "file": "Shader.hlsl",
-            "role": "GPU에서 꼭짓점 위치와 카툰 색, 그림자, 외곽선을 계산합니다.",
+            "role": "GPU에서 꼭짓점 위치와 툰 셰이딩, 그림자, 외곽선을 계산합니다.",
             "without": "삼각형이 화면 어디에 놓이고 무슨 색인지 정할 수 없습니다.",
             "limit": "빛은 방향이 하나인 빛만 다루고, 그림자도 그 빛 하나에만 집니다.",
             "unreal": "머티리얼 그래프가 만들어 내는 셰이더와 .usf 파일입니다.",
@@ -3046,7 +3046,7 @@
             "id": "material-style-values",
             "name": "MaterialStyle",
             "file": "MaterialStyle.h",
-            "role": "재질 하나의 카툰 그림체 값입니다.",
+            "role": "재질 하나의 그림체 값입니다.",
             "without": "그늘색과 외곽선 두께를 재질마다 다르게 줄 수 없습니다.",
             "limit": "그늘이 두 단뿐입니다. 세 단으로 나누는 값은 없습니다.",
             "unreal": "머티리얼 인스턴스의 파라미터 값들입니다.",
@@ -3293,7 +3293,7 @@
         },
         {
             "id": "feature-toon",
-            "name": "카툰 명암",
+            "name": "툰 셰이딩",
             "howTo": "Style 패널에서 재질마다 그늘색과 경계를 정합니다.",
             "steps": [
                 { "card": "material-style", "function": "FindOrAdd", "description": "재질 이름으로 그림체 값을 찾습니다." },
@@ -3386,7 +3386,7 @@
             "id": "stage-1",
             "name": "1단계 Luna 띄우기",
             "date": "2026.11.23",
-            "made": "glTF 모델을 읽어 재질마다 자기 텍스처를 입히고, Luna를 T자세로 화면에 띄웠습니다.",
+            "made": "glTF 모델을 읽어 재질마다 자기 텍스처를 입히고, Luna를 T 포즈로 화면에 띄웠습니다.",
             "learned": "Default 힙으로 옮기기, 디스크립터 힙의 여러 칸, 디스크립터 테이블, sRGB와 선형 색",
             "checked": "같은 카메라와 빛으로 그린 Blender 그림과 색 차이의 중앙값이 1, 평균이 7.3입니다(0~255). 조각 9개, 삼각형 45,649개인 Luna를 144fps(주사율 상한)로 그립니다.",
             "commits": [
@@ -3425,8 +3425,8 @@
             "name": "3단계 외곽선",
             "date": "2026.11.23 – 11.24",
             "made": "뒷면을 부풀려 거리와 해상도가 달라도 같은 굵기로 보이는 외곽선을 넣었습니다. 그리기 패스와 파일 읽기 코드를 클래스 13개로 나눴습니다.",
-            "learned": "PSO 여러 개, 앞면을 지우는 컬링, 화면 공간 두께, 부드러운 법선 굽기",
-            "checked": "각진 큐브를 원래 법선으로 밀면 모서리의 선이 갈라지고, 구운 법선으로 밀면 이어집니다. Luna의 그리기 명령이 9번에서 18번으로 늘고 144fps(주사율 상한)를 유지합니다. 클래스를 나눈 뒤 화면 30장이 나누기 전과 픽셀까지 같습니다.",
+            "learned": "PSO 여러 개, 앞면을 지우는 컬링, 화면 공간 두께, 부드러운 법선 베이크",
+            "checked": "각진 큐브를 원래 법선으로 밀면 모서리의 선이 갈라지고, 베이크한 법선으로 밀면 이어집니다. Luna의 그리기 명령이 9번에서 18번으로 늘고 144fps(주사율 상한)를 유지합니다. 클래스를 나눈 뒤 화면 30장이 나누기 전과 픽셀까지 같습니다.",
             "commits": [
                 { "hash": "e681d7e", "title": "외곽선을 밀어낼 부드러운 법선 굽기", "cards": ["outline-normal-baker"] },
                 { "hash": "0ef2eb7", "title": "재질에 외곽선 색과 두께 추가", "cards": [] },
@@ -3440,7 +3440,7 @@
             "id": "stage-4",
             "name": "4단계 그림자",
             "date": "2026.11.24 – 11.25",
-            "made": "빛에서 본 깊이를 그림자 맵에 그리고, 카툰 명암이 그것을 읽어 같은 두 단으로 끊게 했습니다. MSAA 4배로 윤곽의 계단을 없애고, 겹치던 코드와 긴 클래스를 클래스 20개로 나눴습니다.",
+            "made": "빛에서 본 깊이를 그림자 맵에 그리고, 툰 셰이딩이 그것을 읽어 같은 두 단으로 끊게 했습니다. MSAA 4배로 윤곽의 계단을 없애고, 겹치던 코드와 긴 클래스를 클래스 20개로 나눴습니다.",
             "learned": "깊이만 그리는 패스, 배리어, 깊이 텍스처 읽기, 여러 표본으로 그려 합치기",
             "checked": "같은 Luna를 Pandora Arena의 셰이더와 URP 설정으로 그린 그림과 비교해, 세 장면에서 색 차이의 중앙값이 1~4, 평균이 4.2~5.6입니다(0~255, MSAA 4배). 클래스를 나눈 뒤 화면 36장과 망가진 파일 22가지를 읽은 결과가 나누기 전과 같습니다.",
             "commits": [
